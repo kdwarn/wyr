@@ -1,0 +1,21 @@
+
+{% extends 'header.html' %}
+{% block content %}
+<div id="main">
+    <div class="block-center">
+    <h2>Delete Account</h2>
+    <p class="small left">Are you sure you want to delete your account?
+    Please enter your password and click "Yes" if so. All your information at
+    What You've Read will be deleted (though not the original information at
+    any services you authorized).</p>
+    <form method="POST" action="{{ url_for('delete_account') }}">
+    <label class="sr-only" for="wry_current_password">Current Password</label>
+    <input class="login_form" type="password" size="20" id="wyr_current_password" name="wyr_current_password" placeholder="Password"/><br/>
+    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+    <input type="submit" name="delete_account" value="Yes">&nbsp;<input type="submit" name="delete_account" value="No"><br><br>
+    </form>
+    </div>
+    <p></p>
+
+</div>
+{% endblock %}

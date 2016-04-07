@@ -1,0 +1,42 @@
+
+{% extends 'header.html' %}
+{% block content %}
+<div id="main">
+    <div class="block-center">
+    <h2>Add Something</h2>
+    <form method="POST" name='add' action="/add">
+    <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+    <label class="sr-only" for="title">Title (Required)</label>
+    <input class="login_form" type="text" size="40" id="title" name="title" placeholder="Title (REQUIRED)"/><br/>
+
+    <label class="sr-only" for="link">Link</label>
+    <input class="login_form" type="text" size="40" id="link" name="link" placeholder="Link (URL)"/><br/>
+
+    <label class="sr-only" for="year">Year</label>
+    <input class="login_form" type="text" size="40" id="year" name="year" placeholder="Year"/><br/>
+
+    <label class="sr-only" for="tags">Tags*</label>
+    <input class="login_form" type="text" size="40" id="tags" name="tags" placeholder="Tags*"/><br/>
+
+    <label class="sr-only" for="authors">Authors**</label>
+    <input class="login_form" type="text" size="40" id="authors" name="authors" placeholder="Author(s)**"/><br/>
+
+    <label class="sr-only" for="editors">Editors**</label>
+    <input class="login_form" type="text" size="40" id="editors" name="editors" placeholder="Editor(s)**"/><br/>
+
+    <label class="sr-only" for="notes">Notes</label>
+    <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes"></textarea><br><br>
+    <input type="submit" name="submit" value="Submit and Return Home">&nbsp;
+    <input type="submit" name="submit" value="Submit and Add Another"><br><br>
+    <span class="small">*tags should be separated by commas<br>
+    **authors/editors should be in the format: "Austin, Jane; Douglass, Frederick"</span><br>
+    </form>
+    </div>
+    <p></p>
+
+    <script type="text/javascript" language="JavaScript">
+    document.forms['add'].elements['title'].focus();
+    </script>
+
+</div>
+{% endblock %}

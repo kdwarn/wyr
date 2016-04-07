@@ -1,0 +1,22 @@
+
+{% extends 'header.html' %}
+{% block content %}
+<div id="main" style="line-height:1.5em">
+    <div class="center">
+    <span class="small center">
+    (<a href="{{url_for('index')}}">all</a>)
+    (<a href="{{url_for('tags')}}">tags</a>)
+    authors
+    </span>
+    <br><br>
+    </div>
+    {% if current_user.is_authenticated %}
+        {% for author in authors %}
+            <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
+            {{ author.last_name }}, {{author.first_name}}</a><br>
+        {% endfor %}
+
+    {% endif %}
+<br>
+
+{% endblock %}

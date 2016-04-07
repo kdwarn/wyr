@@ -1,0 +1,143 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0px;
+    font-family: Helvetica;
+    background: white;
+    color: #070719;
+}
+
+h1 {text-align:center;
+    margin-bottom:0;
+}
+
+h2 {text-align:center;
+    font-size:medium;
+}
+
+a:link, a:visited {
+    color:blue;
+    text-decoration: none;}
+
+a:hover {
+    color:blue;
+    text-decoration:underline;}
+
+a:active {
+    color:blue;
+    text-decoration:bold;}
+
+a.header:link, a.header:visited {
+    color:white;
+    text-decoration: none;
+    padding: 5px 5px;
+    text-align: center;
+    display: inline-block;
+}
+
+a.header:hover {
+    color:#070719;
+    background:white;}
+
+a.header:active {
+    color:white;
+    text-decoration:bold;}
+
+
+#header {
+    width:100%;
+    background: #0A0A2A;
+    height: 2em;
+    color: white;
+    position: fixed;
+    top:0px;
+    z-index: 100; /* does't seem to do anything */
+}
+
+#header-content {
+    font-size: small;
+    margin: 0 auto;
+    padding: .25em;
+    text-align: right;
+}
+
+#messages {
+    margin: auto;
+    margin-top:2.5em;
+    margin-bottom: 15px;
+    width: 550px;
+}
+
+#main {
+    margin: auto;
+    width: 550px;
+    padding: 10px;
+}
+
+/*
+.float_left {
+    float: left;
+    width: 47%;
+}
+
+.float_right {
+    margin-left: 53%;
+}
+*/
+
+.center {text-align:center;}
+
+.right {text-align:right;}
+
+.left {text-align:left;}
+
+.struck { text-decoration: line-through}
+
+.title { font-size:large}
+
+.info {font-size:x-small }
+
+.notes {font-size:small}
+
+.small {font-size:small}
+
+.heading {
+    color:blue;
+    font-size:xx-large;}
+
+.subheading {
+    color:blue;
+    font-size: medium}
+
+.block-center {
+    text-align:center;
+    margin: auto;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.login_form {
+    margin-bottom:8px;
+    padding:2px;
+}
+
+.box {
+    border: 1px solid #CECEF6;
+    padding: 5px;
+}
+
+.logo {
+    float:left;
+    margin: 1 0 0 -25;
+}

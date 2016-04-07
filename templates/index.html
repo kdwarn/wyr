@@ -1,0 +1,73 @@
+
+{% extends 'header.html' %}
+{% block content %}
+<div id="main">
+    <div>
+        Welcome!<br><br>I built What You've Read to help <span class="struck">me</span>
+        you keep track of the books, articles, blog posts, and other things <span
+        class="struck">I</span>you've read and saved in various programs and
+        places across the internet, such as:
+        <uL>
+            <li>Mendeley</li>
+            <li>Goodreads</li>
+            <li>Social bookmarking sites</li>
+            <li>Browser bookmarks</li>
+        </uL>
+        What You've Read will connect to the places you authorize, get the things
+        it finds there, and combine them into one simplified collection, providing
+        a scrolling list of all the things you've read - a reading journal.
+        Browse it all, search, or sort by tags and authors.
+        Revisit the item by clicking on a link or opening at the service
+        you originally saved it in. You can also add things to What You've Read natively,
+        by submitting a short form (bookmarklet coming soon), to catch those
+        blog posts or podcasts you aren't currently saving elsewhere.
+        <br><br>
+        Sign up and try it out. It's very much in beta, and thus far only supports
+        Mendeley, Goodreads, and the native adding, but I'm working to expand it. You
+        can contact me <a href="{{ url_for('contact') }}">here</a>.
+    </div>
+    <br>
+    <div class="block-center box">
+        <h2>Login</h2>
+        <form name="login" action="/login" method="post">
+        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+        <label class="sr-only" for="wyr_username">Username</label>
+        <input class="login_form" type="text" size="15" id="wyr_username" name="wyr_username" placeholder="Username"/><br>
+        <label class="sr-only" for="wyr_password">Password</label>
+        <input class="login_form" type="password" size="15" id="wyr_password" name="wyr_password" placeholder="Password"/><br>
+        <input class="login_form" type="checkbox" name="remember" id="remember" value="1">
+        <label class="login_form small" for="remember">Stay logged in</label><br>
+
+        {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+        {% endif %}
+        <button type="submit">Login</button><br>
+        <p class="small"><a href="{{ url_for('forgot_password')}}">Forget your password?</a></p>
+        </form>
+    </div>
+    </br>
+    <div class="block-center box">
+        <h2>Sign Up</h2>
+        <p class="center small">Username must be unique and your password must be at least 5 characters long. An email
+        will be sent to you to verify your address.</p>
+        <form name="sign_up" action="/sign_up" method="post">
+        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+        <label class="sr-only" for="wyr_username">Username</label>
+        <input class="login_form" type="text" id="wyr_username" size="15" name="wyr_username" placeholder="Username"/><br>
+        <label class="sr-only" for="email">Email</label>
+        <input class="login_form" type="text" size="15" id="email" name="email" placeholder="Email"/><br>
+        <label class="sr-only" for="wyr_password">Password</label>
+        <input class="login_form" type="password" id="wyr_password" size="15" name="wyr_password" placeholder="Password"/><br>
+        <label class="sr-only" for="wyr_confirm">Confirm Password</label>
+        <input class="login_form" type="password" id="wyr_confirm" size="15" name="wyr_confirm" placeholder="Confirm password"/><br>
+        <button type="submit">Sign Up</button>
+        </form>
+    </div>
+    <p></p>
+
+    <script type="text/javascript" language="JavaScript">
+    document.forms['login'].elements['wyr_username'].focus();
+    </script>
+
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'header.html' %}
+{% block content %}
+<div id="main" class="block-center">
+    <div class="box block-center">
+    <h2>Account Settings for {{ current_user.username }}</h2>
+        <p class="small"><a href="{{ url_for('change_password') }}">Change Password</a></p>
+        <p class="small"><a href="{{ url_for('change_email', step=1) }}">Change email</a></p>
+        <p class="small"><a href="{{ url_for('delete_account') }}">Delete Account</a></p>
+    </div>
+    <br/>
+    <div class="box block-center">
+    <h2>Services</h2>
+        <div class="small">
+        <p class="left">Note: When you first authorize a service, it may take
+        a little while if you have a lot of items at that service. (For instance, it takes
+        about 2 minutes to collect about 500 documents from Mendeley). However, after this
+        - when viewing what you've read - load time is fairly quick.
+        </p>
+        <p class="left">Also note: What You've Read will only check for updates you make
+        every three hours. So if you loaded the site, made a change on one of these services,
+        and then immediately re-load to see the change, it won't be there for three hours.
+        This is because it takes a lot of time to check for changes. A force-refresh is
+        in the works.</p>
+        <p>Mendeley |
+            {% if current_user.mendeley == 1 %}
+                Authorized &#10003; &nbsp; <a href="{{ url_for('deauthorize', name='Mendeley') }}">Deauthorize</a>
+            {% else %}
+                <a href="{{ url_for('mendeley_login') }}">Authorize</a>
+            {% endif %}
+        </p>
+        <p>Goodreads |
+            {% if current_user.goodreads == 1 %}
+                Authorized &#10003; &nbsp; <a href="{{ url_for('deauthorize', name='Goodreads') }}">Deauthorize</a>
+            {% else %}
+                <a href="{{ url_for('goodreads_login') }}">Authorize</a>
+            {% endif %}
+        </p>
+        <p>Others coming soon!</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

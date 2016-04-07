@@ -1,0 +1,39 @@
+<html>
+    <head>
+        <title>What You've Read: A Connected Reading Journal</title>
+        <link rel="stylesheet" href="/static/style.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="keywords" content="reading journal, track what you read, what you've read, remember what you've read">
+    </head>
+    <body>
+        <div class="container">
+        <header>
+            <div id="header">
+                <div id="header-content">
+                {% if current_user.is_authenticated %}
+                    <a class="header" href="/">Home</a>
+                    <a class="header" href="/add">Add</a>
+                    {# <a class="header" href="/to-read">To-Read</a> #}
+                    <a class="header" href="/settings">Settings</a>
+                    <a class="header" href="/contact">Contact</a>
+                    <a class="header" href="/logout">Logout</a>
+                {% endif %}
+                </div>
+            </div>
+        </header>
+            <div id="messages" class="center">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                    <div role="alert">{{ message }}</div>
+                    {% endfor %}
+                {% else %}
+                    <div>&nbsp;</div> {# just to keep spacing the same #}
+                {% endif %}
+            {% endwith %}
+            </div>
+        <h1>What You've Read</h1>
+        {% block content %}{% endblock %}
+        </div>
+    </body>
+</html>
