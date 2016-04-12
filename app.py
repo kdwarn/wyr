@@ -854,7 +854,7 @@ def add():
         tags = request.form['tags']
         authors = request.form['authors']
         editors = request.form['editors']
-        notes = request.form['notes']
+        notes = request.form['notes'].replace('\n', '<br>')
         submit = request.form['submit']
 
         #validation
@@ -979,7 +979,7 @@ def edit():
         tags = request.form['tags']
         authors = request.form['authors']
         editors = request.form['editors']
-        notes = request.form['notes']
+        notes = request.form['notes'].replace('\n', '<br>')
         submit = request.form['submit']
 
         if submit == "Cancel":
