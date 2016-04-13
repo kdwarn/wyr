@@ -842,11 +842,15 @@ def update_mendeley():
 ## WYR NATIVE   ################################################################
 #service_id = 3
 
+
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
     if request.method == 'GET':
-        return render_template('add.html')
+        #if this is from bookmarklet, pass along variables
+        title = request.args.get('title')
+        link = request.args.get('link')
+        return render_template('add.html', title=title, link=link)
     elif request.method == 'POST':
         title = request.form['title']
         link = request.form['link']
@@ -919,7 +923,6 @@ def add():
             return redirect(url_for('index'))
         if submit == "Submit and Add Another":
             return redirect(url_for('add'))
-
     else:
         return redirect(url_for('index'))
 

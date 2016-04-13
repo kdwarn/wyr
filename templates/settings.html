@@ -7,7 +7,19 @@
         <p class="small"><a href="{{ url_for('change_email', step=1) }}">Change email</a></p>
         <p class="small"><a href="{{ url_for('delete_account') }}">Delete Account</a></p>
     </div>
-    <br/>
+    <br>
+    <div class="box block-center">
+    <h2>Bookmarklet</h2>
+        <div class="small">
+        <p class="left">If you want to be able to quickly add things (individually) to
+        What You've Read, drag this link (<a href="javascript:(function(){window.open('http://www.whatyouveread.com/add?link='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)); })();">wyr</a>)
+        to your bookmarks bar and click it anytime you are on a page you want to
+        save. It will open the form (with title and URL pre-populated) to add
+        a new item. Then, just fill in any additional information (like author, year, and tags)
+        and submit it.</p>
+        </div>
+    </div>
+    <br>
     <div class="box block-center">
     <h2>Services</h2>
         <div class="small">
