@@ -923,6 +923,9 @@ def add():
             return redirect(url_for('index'))
         if submit == "Submit and Add Another":
             return redirect(url_for('add'))
+        #if submitted from bookmarklet, just send to confirmation page, don't reload site (to mark it quicker)
+        if submit == "Submit":
+            return render_template('add.html', bookmarklet=1)
     else:
         return redirect(url_for('index'))
 

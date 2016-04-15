@@ -3,48 +3,58 @@
 {% block content %}
 <div id="main">
     <div class="block-center">
-    <h2>Add Something</h2>
-    <form method="POST" name='add' action="/add">
-    <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
-
-    <label class="sr-only" for="title">Title (Required)</label>
-    {% if title: %}
-        <input class="login_form" type="text" size="40" id="title" name="title"
-            value="{{title}}" placeholder="Title (REQUIRED)"/><br/>
+    {% if bookmarklet %}
+        <button type="button" onclick="window.open('', '_self', ''); window.close();">Close</button>
     {% else %}
-        <input class="login_form" type="text" size="40" id="title" name="title" placeholder="Title (REQUIRED)"/><br/>
-    {% endif %}
 
-    <label class="sr-only" for="link">Link</label>
-    {% if link %}
-        <input class="login_form" type="text" size="40" id="link" name="link"
-        value="{{link}}" placeholder="Link (URL)"/><br/>
-    {% else %}
-        <input class="login_form" type="text" size="40" id="link" name="link" placeholder="Link (URL)"/><br/>
-    {% endif %}
+        <h2>Add Something</h2>
+        <form method="POST" name='add' action="/add">
+        <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
 
-    <label class="sr-only" for="year">Year</label>
-    <input class="login_form" type="text" size="40" id="year" name="year" placeholder="Year"/><br/>
+        <label class="sr-only" for="title">Title (Required)</label>
+        {% if title %}
+            <input class="login_form" type="text" size="40" id="title" name="title"
+                value="{{title}}" placeholder="Title (REQUIRED)"/><br/>
+        {% else %}
+            <input class="login_form" type="text" size="40" id="title" name="title" placeholder="Title (REQUIRED)"/><br/>
+        {% endif %}
 
-    <label class="sr-only" for="tags">Tags*</label>
-    <input class="login_form" type="text" size="40" id="tags" name="tags" placeholder="Tags*"/><br/>
+        <label class="sr-only" for="link">Link</label>
+        {% if link %}
+            <input class="login_form" type="text" size="40" id="link" name="link"
+            value="{{link}}" placeholder="Link (URL)"/><br/>
+        {% else %}
+            <input class="login_form" type="text" size="40" id="link" name="link" placeholder="Link (URL)"/><br/>
+        {% endif %}
 
-    <label class="sr-only" for="authors">Authors**</label>
-    <input class="login_form" type="text" size="40" id="authors" name="authors" placeholder="Author(s)**"/><br/>
+        <label class="sr-only" for="year">Year</label>
+        <input class="login_form" type="text" size="40" id="year" name="year" placeholder="Year"/><br/>
 
-    <label class="sr-only" for="editors">Editors**</label>
-    <input class="login_form" type="text" size="40" id="editors" name="editors" placeholder="Editor(s)**"/><br/>
+        <label class="sr-only" for="tags">Tags*</label>
+        <input class="login_form" type="text" size="40" id="tags" name="tags" placeholder="Tags*"/><br/>
 
-    <label class="sr-only" for="notes">Notes</label>
-    <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes"></textarea><br><br>
-    <input type="submit" name="submit" value="Submit and Return Home">&nbsp;
-    <input type="submit" name="submit" value="Submit and Add Another"><br><br>
+        <label class="sr-only" for="authors">Authors**</label>
+        <input class="login_form" type="text" size="40" id="authors" name="authors" placeholder="Author(s)**"/><br/>
+
+        <label class="sr-only" for="editors">Editors**</label>
+        <input class="login_form" type="text" size="40" id="editors" name="editors" placeholder="Editor(s)**"/><br/>
+
+        <label class="sr-only" for="notes">Notes</label>
+        <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes"></textarea><br><br>
+        {% if title or link %}
+            <input type="submit" name="submit" value="Submit">&nbsp;
+        {% else %}
+            <input type="submit" name="submit" value="Submit and Return Home">&nbsp;
+            <input type="submit" name="submit" value="Submit and Add Another">
+        {% endif %}
+    <br><br>
     <span class="small">*tags should be separated by commas<br>
     **authors/editors should be in the format: "Austin, Jane; Douglass, Frederick"</span><br>
     </form>
     <p class="small">If you haven't done so already, you can drag this link (<a href="javascript:(function(){window.open('http://www.whatyouveread.com/add?link='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)); })();">wyr</a>)
     to your bookmarks bar to easily add items from your browser. See <a href="{{url_for('settings')}}">settings</a> for more information.</p>
-    </div>
+        </div>
+    {% endif %}
     <p></p>
 
     <script type="text/javascript" language="JavaScript">
