@@ -892,8 +892,9 @@ def add():
         if tags:
             tags = tags.split(',')
             for tag in tags:
-                new_tag = Tags(current_user.id, new_doc.id, tag.strip())
-                db.session.add(new_tag)
+                if tag != ' ': #if user or autcomplately puts a space and comma at end, don't add empty tag
+                    new_tag = Tags(current_user.id, new_doc.id, tag.strip())
+                    db.session.add(new_tag)
 
         if authors:
             #get rid of a trailing ; so it doesn't make extra split with empty value in list
@@ -980,7 +981,13 @@ def edit():
                 else:
                     new_editors += editor.last_name + ', ' + editor.first_name
 
-            return render_template('edit.html', doc=doc, tags=new_tags, authors=new_authors, editors=new_editors)
+            #also pass along all tags for autocomplete
+            all_tags = list()
+            tags = list(db.session.query(Tags.name).filter_by(user_id=current_user.id).order_by(Tags.name).distinct().all())
+            for tag in tags:
+                all_tags.append(tag.name)
+
+            return render_template('edit.html', doc=doc, tags=new_tags, all_tags=all_tags, authors=new_authors, editors=new_editors)
         else:
             return redirect(url_for('index'))
 
@@ -1028,8 +1035,9 @@ def edit():
         if tags:
             tags = tags.split(',')
             for tag in tags:
-                update_tags = Tags(current_user.id, update_doc.id, tag.strip())
-                db.session.add(update_tags)
+                if tag != ' ': #if user or autcomplately puts a space and comma at end, don't add empty tag
+                    update_tags = Tags(current_user.id, update_doc.id, tag.strip())
+                    db.session.add(update_tags)
 
         if authors:
             #get rid of a trailing ; so it doesn't make extra split with empty value in list
