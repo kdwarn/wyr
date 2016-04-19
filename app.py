@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, session, redirect, url_for, \
-    abort, flash
+    abort, flash, jsonify
 from flask.ext.login import LoginManager, login_user, logout_user, \
     login_required, current_user
 from flask.ext.sqlalchemy import SQLAlchemy
@@ -16,8 +16,6 @@ from random import random
 from math import ceil
 
 #from testing import test_doc, test_tag, test_author
-
-#test branching
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -852,7 +850,14 @@ def add():
         #if this is from bookmarklet, pass along variables
         title = request.args.get('title')
         link = request.args.get('link')
-        return render_template('add.html', title=title, link=link)
+
+        #also pass along tags for autocomplete
+        new_tags = list()
+        tags = list(db.session.query(Tags.name).filter_by(user_id=current_user.id).order_by(Tags.name).distinct().all())
+        for tag in tags:
+            new_tags.append(tag.name)
+
+        return render_template('add.html', title=title, link=link, tags=new_tags)
     elif request.method == 'POST':
         title = request.form['title']
         link = request.form['link']
