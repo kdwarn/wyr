@@ -1,0 +1,22 @@
+
+{% extends 'header.html' %}
+{% block content %}
+
+<div id="main">
+    <div class="block-center">
+    <h2>Import Bookmarks</h2>
+    <form method="POST" name='import' action="/import" enctype="multipart/form-data">
+    <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+    <input type="file" name="bookmarks"><br><br>
+    <input type="submit" name="submit" value="Upload">
+    <br><br>
+    </div>
+
+    <p></p>
+
+    <script type="text/javascript" language="JavaScript">
+    document.forms['add'].elements['bookmarks'].focus();
+    </script>
+
+</div>
+{% endblock %}

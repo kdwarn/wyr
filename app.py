@@ -1251,3 +1251,20 @@ def update_goodreads():
     store_goodreads()
 
     return
+
+################################################################################
+################################################################################
+## IMPORT BOOKMARKS FROM HTML FILE #############################################
+
+
+from html.parser import HTMLParser
+
+@app.route('/import', methods=['GET', 'POST'])
+def import_bookmarks():
+    if request.method == 'GET':
+        return render_template('import.html')
+    elif request.method == 'POST':
+        file = request.files['bookmarks']
+        return file.read()
+    else:
+        abort(405)
