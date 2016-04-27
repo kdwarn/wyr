@@ -1265,6 +1265,12 @@ def import_bookmarks():
         return render_template('import.html')
     elif request.method == 'POST':
         file = request.files['bookmarks']
-        return file.read()
+        file_extension = file.filename.rsplit('.', 1)[1]
+        if file_extension != 'html':
+            flash("Sorry, that doesn't look like a .html file.")
+            return render_template('import.html')
+        else:
+            # this is where parsing will go
+            return file.read()
     else:
         abort(405)
