@@ -1257,7 +1257,7 @@ def update_goodreads():
 ## IMPORT BOOKMARKS FROM HTML FILE #############################################
 
 
-from html.parser import HTMLParser
+from bs4 import BeautifulSoup
 
 @app.route('/import', methods=['GET', 'POST'])
 def import_bookmarks():
@@ -1270,7 +1270,21 @@ def import_bookmarks():
             flash("Sorry, that doesn't look like a .html file.")
             return render_template('import.html')
         else:
-            # this is where parsing will go
-            return file.read()
+            # parse bookmarks into title/urls/date by folder
+            soup = BeautifulSoup(file, 'html.parser')
+
+            #this code is good, but only a start: it gets all links (name, url, and date added) but not their folders
+            #I think I can go to ways: first get folders, then do this
+            #OR I THINK/HOPE AN EASIER/BETTER WAY:
+            #get all these and figure out their folder (accessing parent dt?)
+            bookmarks = []
+            for each in soup.find_all('a'):
+                if each.string == None:
+                    pass
+                else:
+                    bookmarks.append({'title':each.string, 'link':each['href'], 'add_date':each['add_date']})
+                    #I may be able to simple this by simply appending a? see: https://www.crummy.com/software/BeautifulSoup/bs4/doc/#parents
+
+            return render_template('import.html', var=bookmarks)
     else:
         abort(405)

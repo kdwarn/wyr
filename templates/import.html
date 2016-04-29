@@ -14,6 +14,13 @@
 
     <p></p>
 
+    {% if var %}
+        {% for each in var %}
+            <a href="{{each['link']}}">{{ each['title'] }}</a>
+            ({{each['add_date']}})<br>
+        {% endfor %}
+    {% endif %}
+
     <script type="text/javascript" language="JavaScript">
     document.forms['add'].elements['bookmarks'].focus();
     </script>
