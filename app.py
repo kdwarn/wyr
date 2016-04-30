@@ -876,7 +876,7 @@ def add():
         #insert
         new_doc = Documents(current_user.id, 3, title)
 
-        #add http:// if not there or else will be relative link within site
+        #add "http://" if not there or else will be relative link within site
         if link:
             if 'http://' not in link and 'https://' not in link:
                 link = 'http://' + link
@@ -1255,7 +1255,7 @@ def update_goodreads():
 ################################################################################
 ################################################################################
 ## IMPORT BOOKMARKS FROM HTML FILE #############################################
-
+# service_id = 4 (this will allow me to delete all imported bookmarks if something goes wrong
 
 from bs4 import BeautifulSoup
 
@@ -1273,18 +1273,28 @@ def import_bookmarks():
             # parse bookmarks into title/urls/date by folder
             soup = BeautifulSoup(file, 'html.parser')
 
-            #this code is good, but only a start: it gets all links (name, url, and date added) but not their folders
-            #I think I can go to ways: first get folders, then do this
-            #OR I THINK/HOPE AN EASIER/BETTER WAY:
-            #get all these and figure out their folder (accessing parent dt?)
-            bookmarks = []
             for each in soup.find_all('a'):
                 if each.string == None:
                     pass
                 else:
-                    bookmarks.append({'title':each.string, 'link':each['href'], 'add_date':each['add_date']})
-                    #I may be able to simple this by simply appending a? see: https://www.crummy.com/software/BeautifulSoup/bs4/doc/#parents
+                    new_doc = Documents(current_user.id, 4, each.string) #will this (4 instead of 3) interfer with anything else?
+                    new_doc.link = each['href']
+                    new_doc.read = 1
+                    #convert add_date (seconds from epoch format) to datetime
+                    new_doc.created = datetime.fromtimestamp(int(each['add_date']))
+                    db.session.add(new_doc)
+                    db.session.commit()
 
-            return render_template('import.html', var=bookmarks)
+                    if each.find_previous('h3'):
+                        new_tag = Tags(current_user.id, new_doc.id, each.find_previous('h3').string)
+                        db.session.add(new_tag)
+                        db.session.commit()
+            flash('Bookmarks successfully imported.')
+            return redirect(url_for('index'))
+
     else:
         abort(405)
+
+
+
+

@@ -17,7 +17,7 @@
     {% if var %}
         {% for each in var %}
             <a href="{{each['link']}}">{{ each['title'] }}</a>
-            ({{each['add_date']}})<br>
+            ({{each['add_date']}}) folder:{{each['folder']}}<br>
         {% endfor %}
     {% endif %}
 
