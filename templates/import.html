@@ -17,7 +17,7 @@
     {# code for displaying folders #}
     {% if var %}
         {% for each in var %}
-            {{each}} hi<br>
+            <a href="{{each.link}}">{{each.title}}</a> ({{each.folder}})<br>
         {% endfor %}
     {% endif %}
 

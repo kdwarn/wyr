@@ -1270,31 +1270,25 @@ def import_bookmarks():
             flash("Sorry, that doesn't look like a .html file.")
             return render_template('import.html')
         else:
-            #first, get folders (tags) and let user choose which ones to import
-
-            # parse bookmarks into title/urls/date by folder
-            folders = []
-            bookmarks = []
+            #better than first attempt (below), but only grabs most immediate folder (I think the way I want it)
+            #but first need to display all folders to user, and let them choose which ones to import
             soup = BeautifulSoup(file, 'html.parser')
-            for each in soup.find_all('dl'):
-                child_dt = each.find_next('dt')
-                child_h3 = child_dt.find_next('h3')
-                if child_h3 == None:
-                    pass
-                else:
-                    #folders.append(child_h3.string)
-                    for each in child_h3:
-                        for child_a in each.find_all('a'):
-                            bookmarks.append(child_a.string)
-                        #bookmarks.append({'folder': child_h3.string, 'title': child_a.string, 'link':child_a['href']})
-
+            bookmarks = []
+            for each in soup.find_all('a'):
+                if each.string != None:
+                    parent_dt = each.find_parent('dl')
+                    grandparent_dt = parent_dt.find_parent('dt')
+                    if grandparent_dt != None:
+                        previous_h3 = grandparent_dt.find_next('h3')
+                    if previous_h3 != None:
+                        #need to strip commas from any folders first
+                        bookmarks.append({'folder':previous_h3.string, 'title':each.string, 'link':each.href})
             return render_template('import.html', var=bookmarks)
 
-            """ this is the old code that imported all links
+
+            """ this is the old code that imported all links (though erred on occassion when there was a nested folder above a link)
             for each in soup.find_all('a'):
-                if each.string == None:
-                    pass
-                else:
+                if each.string != None:
                     new_doc = Documents(current_user.id, 4, each.string) #will this (4 instead of 3) interfer with anything else?
                     new_doc.link = each['href']
                     new_doc.read = 1
