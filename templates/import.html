@@ -14,12 +14,22 @@
 
     <p></p>
 
+    {# code for displaying folders #}
+    {% if var %}
+        {% for each in var %}
+            {{each}} hi<br>
+        {% endfor %}
+    {% endif %}
+
+
+    {# this was code for displaying all links
     {% if var %}
         {% for each in var %}
             <a href="{{each['link']}}">{{ each['title'] }}</a>
             ({{each['add_date']}}) folder:{{each['folder']}}<br>
         {% endfor %}
     {% endif %}
+    #}
 
     <script type="text/javascript" language="JavaScript">
     document.forms['add'].elements['bookmarks'].focus();

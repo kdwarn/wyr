@@ -1270,9 +1270,27 @@ def import_bookmarks():
             flash("Sorry, that doesn't look like a .html file.")
             return render_template('import.html')
         else:
-            # parse bookmarks into title/urls/date by folder
-            soup = BeautifulSoup(file, 'html.parser')
+            #first, get folders (tags) and let user choose which ones to import
 
+            # parse bookmarks into title/urls/date by folder
+            folders = []
+            bookmarks = []
+            soup = BeautifulSoup(file, 'html.parser')
+            for each in soup.find_all('dl'):
+                child_dt = each.find_next('dt')
+                child_h3 = child_dt.find_next('h3')
+                if child_h3 == None:
+                    pass
+                else:
+                    #folders.append(child_h3.string)
+                    for each in child_h3:
+                        for child_a in each.find_all('a'):
+                            bookmarks.append(child_a.string)
+                        #bookmarks.append({'folder': child_h3.string, 'title': child_a.string, 'link':child_a['href']})
+
+            return render_template('import.html', var=bookmarks)
+
+            """ this is the old code that imported all links
             for each in soup.find_all('a'):
                 if each.string == None:
                     pass
@@ -1291,6 +1309,7 @@ def import_bookmarks():
                         db.session.commit()
             flash('Bookmarks successfully imported.')
             return redirect(url_for('index'))
+            """
 
     else:
         abort(405)
