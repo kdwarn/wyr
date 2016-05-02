@@ -1291,24 +1291,32 @@ def import_bookmarks():
 
             #put checked folders into list
             folders = request.form.getlist('folder')
+            file = request.form['file'] #I don't think this is working
 
-            #ok, need to check against reviewed folders and then insert into database.
-            """
-            soup = BeautifulSoup(file, 'html.parser')
             bookmarks = []
+
+            soup = BeautifulSoup(file, 'html.parser')
+
             for each in soup.find_all('a'):
                 if each.string != None:
-                    parent_dt = each.find_parent('dl')
-                    grandparent_dt = parent_dt.find_parent('dt')
-                    if grandparent_dt != None:
-                        h3 = grandparent_dt.find_next('h3') #Chrome using h3 for the folder. Others?
+                    # get the dl above the link
+                    parent_dl = each.find_parent('dl')
+                    # get the dt above that
+                    grandparent_dt = parent_dl.find_parent('dt')
+                    #get the h3 below the grandparent dt
+                    h3 = grandparent_dt.find_next('h3')
+                    #check that there is a folder and that it's in user-reviewed list
+                    #if h3 != None and h3.string in folders:
                     if h3 != None:
+                        if h3.string in folders:
+                            return "yes"
                         #will need to strip commas from any folders before inserting into db
-                        bookmarks.append({'folder':h3.string, 'title':each.string, 'link':each.href})
-            """
-            return render_template('import.html', step2='yes', folders=folders)
-
-
+                        #bookmarks.append({'folder':h3.string, 'title':each.string, 'link':each.href})
+                        else:
+                            return h3.string
+            return "?"
+            #this is just for testing
+            #return render_template('import.html', step2='yes', folders=bookmarks)
 
             """ this is the old code that imported all links (though erred on occassion when there was a nested folder above a link)
             for each in soup.find_all('a'):
