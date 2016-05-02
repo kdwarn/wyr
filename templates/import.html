@@ -5,35 +5,39 @@
 <div id="main">
     <div class="block-center">
     <h2>Import Bookmarks</h2>
-    <form method="POST" name='import' action="/import" enctype="multipart/form-data">
-    <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
-    <input type="file" name="bookmarks"><br><br>
-    <input type="submit" name="submit" value="Upload">
-    <br><br>
-    </div>
 
-    <p></p>
-
-    {# code for displaying folders #}
-    {% if var %}
-        {% for each in var %}
-            <a href="{{each.link}}">{{each.title}}</a> ({{each.folder}})<br>
+    {% if step2 %}
+        <div class="left">
+        <p>Your bookmarks file contained the folders below. If you do not want
+        to import the bookmarks from
+        one or more of these folders, uncheck the box next to them. If you have bookmarks
+        in nested folders, only the most immediate folder that the bookmark is in
+        will be used as a tag.</p>
+        <form method="POST" name="import" action="/import">
+        <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+        {% for each in folders %}
+            <input type="checkbox" name="folder" value="{{each}}" checked>{{each}}<br>
         {% endfor %}
+        <input type="hidden" name="file" value="{{file}}">
+        <br>
+        <div class="center"><input type="submit" name="step2" value="Import"></div>
+        </form>
+        </div>
+
+    {% else %}
+        <div>
+        <p>Export your bookmarks from your browser and then use the button below
+        to select the file you exported. After you submit, you will be able to choose
+        which folders you want to upload bookmarks from.</p>
+        <form method="POST" name='import' action="/import" enctype="multipart/form-data">
+        <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+        <input type="file" name="bookmarks"><br><br>
+        <input type="submit" name="step1" value="Submit">
+        </form>
+        <br><br>
+        </div>
+        <p></p>
     {% endif %}
-
-
-    {# this was code for displaying all links
-    {% if var %}
-        {% for each in var %}
-            <a href="{{each['link']}}">{{ each['title'] }}</a>
-            ({{each['add_date']}}) folder:{{each['folder']}}<br>
-        {% endfor %}
-    {% endif %}
-    #}
-
-    <script type="text/javascript" language="JavaScript">
-    document.forms['add'].elements['bookmarks'].focus();
-    </script>
 
 </div>
 {% endblock %}

@@ -1264,14 +1264,36 @@ def import_bookmarks():
     if request.method == 'GET':
         return render_template('import.html')
     elif request.method == 'POST':
-        file = request.files['bookmarks']
-        file_extension = file.filename.rsplit('.', 1)[1]
-        if file_extension != 'html':
-            flash("Sorry, that doesn't look like a .html file.")
-            return render_template('import.html')
-        else:
-            #better than first attempt (below), but only grabs most immediate folder (I think the way I want it)
-            #but first need to display all folders to user, and let them choose which ones to import
+        #get folders so user can select which ones to import
+        if 'step1' in request.form:
+
+            #get file and return user to form if none selected
+            file = request.files['bookmarks']
+            if not file:
+                flash('No file was selected. Please choose a file.')
+                return render_template('import.html')
+
+            #get file extension and return user to form if not .html
+            file_extension = file.filename.rsplit('.', 1)[1]
+            if file_extension != 'html':
+                flash("Sorry, that doesn't look like a .html file.")
+                return render_template('import.html')
+
+            #parse file for folders, return user to form to review
+            soup = BeautifulSoup(file, 'html.parser')
+            folders = []
+            for each in soup.find_all('h3'):
+                folders.append(each.string)
+            return render_template('import.html', step2='yes', folders=folders, file=file)
+
+        #import bookmarks and their most immediate folder into db
+        if 'step2' in request.form:
+
+            #put checked folders into list
+            folders = request.form.getlist('folder')
+
+            #ok, need to check against reviewed folders and then insert into database.
+            """
             soup = BeautifulSoup(file, 'html.parser')
             bookmarks = []
             for each in soup.find_all('a'):
@@ -1279,11 +1301,13 @@ def import_bookmarks():
                     parent_dt = each.find_parent('dl')
                     grandparent_dt = parent_dt.find_parent('dt')
                     if grandparent_dt != None:
-                        previous_h3 = grandparent_dt.find_next('h3')
-                    if previous_h3 != None:
-                        #need to strip commas from any folders first
-                        bookmarks.append({'folder':previous_h3.string, 'title':each.string, 'link':each.href})
-            return render_template('import.html', var=bookmarks)
+                        h3 = grandparent_dt.find_next('h3') #Chrome using h3 for the folder. Others?
+                    if h3 != None:
+                        #will need to strip commas from any folders before inserting into db
+                        bookmarks.append({'folder':h3.string, 'title':each.string, 'link':each.href})
+            """
+            return render_template('import.html', step2='yes', folders=folders)
+
 
 
             """ this is the old code that imported all links (though erred on occassion when there was a nested folder above a link)
