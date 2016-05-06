@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, session, redirect, url_for, \
-    abort, flash, jsonify
+    abort, flash, jsonify, send_from_directory
 from flask.ext.login import LoginManager, login_user, logout_user, \
     login_required, current_user
 from flask.ext.sqlalchemy import SQLAlchemy
@@ -14,6 +14,8 @@ from flask.ext.mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 from random import random
 from math import ceil
+from werkzeug import secure_filename
+import os
 
 #from testing import test_doc, test_tag, test_author
 
@@ -1261,14 +1263,13 @@ from bs4 import BeautifulSoup
 
 @app.route('/import', methods=['GET', 'POST'])
 def import_bookmarks():
-    if request.method == 'GET':
-        return render_template('import.html')
-    elif request.method == 'POST':
+    if request.method == 'POST':
         #get folders so user can select which ones to import
         if 'step1' in request.form:
 
             #get file and return user to form if none selected
             file = request.files['bookmarks']
+
             if not file:
                 flash('No file was selected. Please choose a file.')
                 return render_template('import.html')
@@ -1279,19 +1280,33 @@ def import_bookmarks():
                 flash("Sorry, that doesn't look like a .html file.")
                 return render_template('import.html')
 
-            #parse file for folders, return user to form to review
+            #parse file for folders
             soup = BeautifulSoup(file, 'html.parser')
             folders = []
             for each in soup.find_all('h3'):
                 folders.append(each.string)
-            return render_template('import.html', step2='yes', folders=folders, file=file)
+
+            #save file to parse again after user chooses folders to pull inks from
+            #see http://flask.pocoo.org/docs/0.10/patterns/fileuploads/
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOADED_BOOKMARKS_FOLDER'], filename)) ########## for some reason, saving empty file
+
+            #return user to import to choose which folders to pull links from
+            return render_template('import.html', step2='yes', folders=folders, filename=filename)
 
         #import bookmarks and their most immediate folder into db
         if 'step2' in request.form:
 
+            #get the name of file we previously stored and passed to form
+            filename = request.form['filename']
+
+            file = open(os.path.join(app.config['UPLOADED_BOOKMARKS_FOLDER'], filename))
+
+            return file.read()
+
             #put checked folders into list
             folders = request.form.getlist('folder')
-            file = request.form['file'] #I don't think this is working
+            soup = session.get('soup', 'None')
 
             bookmarks = []
 
@@ -1336,9 +1351,7 @@ def import_bookmarks():
             flash('Bookmarks successfully imported.')
             return redirect(url_for('index'))
             """
-
-    else:
-        abort(405)
+    return render_template('import.html')
 
 
 
