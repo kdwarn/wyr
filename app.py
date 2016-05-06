@@ -1288,8 +1288,9 @@ def import_bookmarks():
 
             #save file to parse again after user chooses folders to pull inks from
             #see http://flask.pocoo.org/docs/0.10/patterns/fileuploads/
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOADED_BOOKMARKS_FOLDER'], filename)) ########## for some reason, saving empty file
+            file.save(os.path.join(app.config['UPLOADED_BOOKMARKS_FOLDER'], secure_filename(file.filename)))
+
+            ########## CAN UPLOAD FILES, JUST NOT HTML FILES WHICH IS WHAT I NEED #####################################3
 
             #return user to import to choose which folders to pull links from
             return render_template('import.html', step2='yes', folders=folders, filename=filename)
