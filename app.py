@@ -1280,6 +1280,9 @@ def import_bookmarks():
                 flash("Sorry, that doesn't look like a .html file.")
                 return render_template('import.html')
 
+            #limit size of file
+            # TO DO
+
             #parse file for folders
             soup = BeautifulSoup(file, 'html.parser')
             folders = []
@@ -1288,26 +1291,28 @@ def import_bookmarks():
 
             #save file to parse again after user chooses folders to pull inks from
             #see http://flask.pocoo.org/docs/0.10/patterns/fileuploads/
-            file.save(os.path.join(app.config['UPLOADED_BOOKMARKS_FOLDER'], secure_filename(file.filename)))
-
-            ########## CAN UPLOAD FILES, JUST NOT HTML FILES WHICH IS WHAT I NEED #####################################3
+            #file.save(os.path.join(app.config['UPLOADED_BOOKMARKS_FOLDER'], secure_filename(file.filename)))
+            ########## CAN UPLOAD FILES, JUST NOT HTML FILES WHICH IS WHAT I NEED #####################################
 
             #return user to import to choose which folders to pull links from
-            return render_template('import.html', step2='yes', folders=folders, filename=filename)
+            return render_template('import.html', step2='yes', folders=folders, file=soup)
 
         #import bookmarks and their most immediate folder into db
         if 'step2' in request.form:
 
             #get the name of file we previously stored and passed to form
-            filename = request.form['filename']
-
-            file = open(os.path.join(app.config['UPLOADED_BOOKMARKS_FOLDER'], filename))
-
-            return file.read()
+            #filename = request.form['filename']
+            #file = open(os.path.join(app.config['UPLOADED_BOOKMARKS_FOLDER'], filename))
+            #return file.read()
 
             #put checked folders into list
             folders = request.form.getlist('folder')
-            soup = session.get('soup', 'None')
+
+            #get soup object passed to form
+            soup = request.form['soup']
+            return soup.prettify()
+
+            #soup = session.get('soup', 'None')
 
             bookmarks = []
 
