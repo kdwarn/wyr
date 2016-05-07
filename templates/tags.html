@@ -4,9 +4,9 @@
 <div id="main" style="line-height:1.5em">
     <div class="block-center">
     <span class="small center">
-    (<a href="{{url_for('index')}}">all</a>)
-    tags
-    (<a href="{{url_for('authors')}}">authors</a>)
+    <a href="{{url_for('index')}}">all</a>
+    | tags
+    | <a href="{{url_for('authors')}}">authors</a>
     <br><br>
     </div>
     {% if current_user.is_authenticated %}

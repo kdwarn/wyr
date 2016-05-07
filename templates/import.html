@@ -4,10 +4,10 @@
 
 <div id="main">
     <div class="block-center">
-    <h2>Import Bookmarks</h2>
+        <h2>Import Bookmarks</h2>
 
     {% if step2 %}
-        <div class="left small">
+        <div class="small left">
         <p>Your bookmarks file contained the folders below. If you do not want
         to import the bookmarks from
         one or more of these folders, uncheck the box next to them. If you have bookmarks
@@ -19,23 +19,24 @@
             <input type="checkbox" name="folder" value="{{each}}" checked>{{each}}<br>
         {% endfor %}
         <br>
-        <input type="hidden" name="filename" value="{{filename}}">
-        <div class="center"><input type="submit" name="step2" value="Import"></div>
-        </form>
+        <input type="submit" name="step2" value="Import">
         </div>
+        </form>
 
     {% else %}
         <div class="small">
-        <p>Export your bookmarks from your browser and then use the button below
+        <p class="left">Export your bookmarks from your browser and then use the button below
         to select the file you exported. After you submit, you will be able to choose
-        which folders you want to upload bookmarks from.</p>
+        which folders you want to upload bookmarks from. Any commas in folder names
+        will be removed before being stored as tags, so please rename folders
+        if this will be an issue for you.</p>
         <form method="POST" name='import' action="/import" enctype="multipart/form-data">
         <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
         <input type="file" name="bookmarks"><br><br>
         <input type="submit" name="step1" value="Submit">
         </form>
-        <br><br>
         </div>
+        <br><br>
         <p></p>
     {% endif %}
 

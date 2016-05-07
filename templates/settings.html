@@ -9,18 +9,6 @@
     </div>
     <br>
     <div class="box block-center">
-    <h2>Bookmarklet</h2>
-        <div class="small">
-        <p class="left">If you want to be able to quickly add things to
-        What You've Read, drag this link (<a href="javascript:(function(){window.open('http://www.whatyouveread.com/add?link='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)); })();">wyr</a>)
-        to your bookmarks bar and click it anytime you are on a page you want to
-        save. It will open the form (with title and URL pre-populated) to add
-        a new item. Then, just fill in any additional information (like author, year, and tags)
-        and submit it.</p>
-        </div>
-    </div>
-    <br>
-    <div class="box block-center">
     <h2>Services</h2>
         <div class="small">
         <p class="left">Note: When you first authorize a service, it may take
@@ -47,8 +35,27 @@
                 <a href="{{ url_for('goodreads_login') }}">Authorize</a>
             {% endif %}
         </p>
-        <p>Others coming soon!</p>
+        <p>Others coming!</p>
         </div>
     </div>
+    <br>
+    <div class="box block-center">
+        <h2>Import Bookmarks</h2>
+        <p class="small left"><a href="{{url_for('import_bookmarks')}}">Bring your bookmarks</a> from your
+        browser or social bookmarking sites to What You've Read. (You will be able to choose which
+        folders will be imported.)</p>
+    </div>
+    <br>
+    <div class="box block-center">
+        <h2>Bookmarklet</h2>
+        <p class="small left">If you want to be able to quickly add things to
+        What You've Read, drag this link (<a href="javascript:(function(){window.open('http://www.whatyouveread.com/add?link='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)); })();">wyr</a>)
+        to your bookmarks bar and click it anytime you are on a page you want to
+        save. It will open a form (with title and URL pre-populated) to add
+        a new item. Fill in any additional information (like author, year, and tags)
+        and submit it.</p>
+    </div>
+    <br>
+    <br>
 </div>
 {% endblock %}

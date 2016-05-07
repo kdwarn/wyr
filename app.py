@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, session, redirect, url_for, \
-    abort, flash, jsonify, send_from_directory
+    abort, flash, jsonify
 from flask.ext.login import LoginManager, login_user, logout_user, \
     login_required, current_user
 from flask.ext.sqlalchemy import SQLAlchemy
@@ -13,9 +13,6 @@ from datetime import datetime, timedelta
 from flask.ext.mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 from random import random
-from math import ceil
-from werkzeug import secure_filename
-import os
 
 #from testing import test_doc, test_tag, test_author
 
@@ -76,8 +73,9 @@ def index():
         docs = Documents.query.filter_by(user_id=current_user.id).order_by(desc(Documents.created)).all()
 
         if not docs:
-            flash('You don\'t appear to have any read documents yet. You can add items \
-            individually or authorize services below.')
+            flash("""You don't appear to have any read documents yet. See below
+            to authorize services or import bookmarks. You can also add items
+            individually.""")
             return redirect(url_for('settings'))
 
         return render_template('read.html', docs=docs)
@@ -1283,40 +1281,25 @@ def import_bookmarks():
             #limit size of file
             # TO DO
 
-            #parse file for folders
+            #make object global to get it again, parse file for folders
+            global soup
             soup = BeautifulSoup(file, 'html.parser')
             folders = []
             for each in soup.find_all('h3'):
                 folders.append(each.string)
 
-            #save file to parse again after user chooses folders to pull inks from
-            #see http://flask.pocoo.org/docs/0.10/patterns/fileuploads/
-            #file.save(os.path.join(app.config['UPLOADED_BOOKMARKS_FOLDER'], secure_filename(file.filename)))
-            ########## CAN UPLOAD FILES, JUST NOT HTML FILES WHICH IS WHAT I NEED #####################################
-
             #return user to import to choose which folders to pull links from
-            return render_template('import.html', step2='yes', folders=folders, file=soup)
+            return render_template('import.html', step2='yes', folders=folders)
 
         #import bookmarks and their most immediate folder into db
         if 'step2' in request.form:
 
-            #get the name of file we previously stored and passed to form
-            #filename = request.form['filename']
-            #file = open(os.path.join(app.config['UPLOADED_BOOKMARKS_FOLDER'], filename))
-            #return file.read()
-
             #put checked folders into list
             folders = request.form.getlist('folder')
 
-            #get soup object passed to form
-            soup = request.form['soup']
-            return soup.prettify()
-
-            #soup = session.get('soup', 'None')
-
             bookmarks = []
 
-            soup = BeautifulSoup(file, 'html.parser')
+            global soup
 
             for each in soup.find_all('a'):
                 if each.string != None:
@@ -1324,39 +1307,29 @@ def import_bookmarks():
                     parent_dl = each.find_parent('dl')
                     # get the dt above that
                     grandparent_dt = parent_dl.find_parent('dt')
-                    #get the h3 below the grandparent dt
-                    h3 = grandparent_dt.find_next('h3')
-                    #check that there is a folder and that it's in user-reviewed list
-                    #if h3 != None and h3.string in folders:
-                    if h3 != None:
-                        if h3.string in folders:
-                            return "yes"
-                        #will need to strip commas from any folders before inserting into db
-                        #bookmarks.append({'folder':h3.string, 'title':each.string, 'link':each.href})
-                        else:
-                            return h3.string
-            return "?"
-            #this is just for testing
-            #return render_template('import.html', step2='yes', folders=bookmarks)
+                    if grandparent_dt != None:
+                        #get the h3 below the grandparent dt
+                        h3 = grandparent_dt.find_next('h3')
+                        #check that there is a folder and that it's in user-reviewed list
+                        #if h3 != None and h3.string in folders:
+                        if h3 != None:
+                            if h3.string in folders:
+                                #replace commas with spaces in folders before inserting into db
+                                h3.string = h3.string.replace(',', '')
+                                new_doc = Documents(current_user.id, 4, each.string)
+                                new_doc.link = each['href']
+                                new_doc.read = 1
+                                #convert add_date (seconds from epoch format) to datetime
+                                new_doc.created = datetime.fromtimestamp(int(each['add_date']))
+                                db.session.add(new_doc)
+                                db.session.commit()
+                                new_tag = Tags(current_user.id, new_doc.id, h3.string)
+                                db.session.add(new_tag)
+                                db.session.commit()
 
-            """ this is the old code that imported all links (though erred on occassion when there was a nested folder above a link)
-            for each in soup.find_all('a'):
-                if each.string != None:
-                    new_doc = Documents(current_user.id, 4, each.string) #will this (4 instead of 3) interfer with anything else?
-                    new_doc.link = each['href']
-                    new_doc.read = 1
-                    #convert add_date (seconds from epoch format) to datetime
-                    new_doc.created = datetime.fromtimestamp(int(each['add_date']))
-                    db.session.add(new_doc)
-                    db.session.commit()
-
-                    if each.find_previous('h3'):
-                        new_tag = Tags(current_user.id, new_doc.id, each.find_previous('h3').string)
-                        db.session.add(new_tag)
-                        db.session.commit()
             flash('Bookmarks successfully imported.')
             return redirect(url_for('index'))
-            """
+
     return render_template('import.html')
 
 

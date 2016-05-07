@@ -6,21 +6,21 @@
     {% if subheader %}
         <h2 style="margin-top:0; margin-bottom:0">{{subheader}}</h2>
         <span class="small center">
-        (<a href="{{url_for('index')}}">all</a>)
-        (<a href="{{url_for('tags')}}">tags</a>)
-        (<a href="{{url_for('authors')}}">authors</a>)
+        <a href="{{url_for('index')}}">all</a>
+        | <a href="{{url_for('tags')}}">tags</a>
+        | <a href="{{url_for('authors')}}">authors</a>
     {% else %}
         <span class="small center">
         all
         {% if tags %}
-            tags
+            | tags
         {% else %}
-            (<a href="{{url_for('tags')}}">tags</a>)
+            | <a href="{{url_for('tags')}}">tags</a>
         {% endif %}
         {% if authors %}
-            authors
+            | authors
         {% else %}
-            (<a href="{{url_for('authors')}}">authors</a>)
+            | <a href="{{url_for('authors')}}">authors</a>
         {% endif %}
     {% endif %}
     </span>
@@ -36,7 +36,7 @@
                 <img class="logo" src="/static/mendeley_logo.png">
             {% elif doc.service_id == 2 %}
                 <img class="logo" src="/static/goodreads_logo.png">
-            {% elif doc.service_id == 3 %}
+            {% elif doc.service_id == 3 or doc.service_id == 4 %}
                 <img class="logo" src="/static/wyr_logo.png">
             {% endif %}
 
@@ -100,7 +100,7 @@
                 {% endfor %}
             {% endif %}
 
-            {% if doc.service_id == 3 %}
+            {% if doc.service_id == 3 or doc.service_id == 4 %}
                 <a href="{{ url_for('edit', id=doc.id) }}">Edit</a> | <a href="{{ url_for('delete', id=doc.id) }}">Delete</a><br>
             {% endif %}
             </span>
