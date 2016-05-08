@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from flask.ext.mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 from random import random
+from math import ceil
 
 #from testing import test_doc, test_tag, test_author
 
@@ -1297,8 +1298,6 @@ def import_bookmarks():
             #put checked folders into list
             folders = request.form.getlist('folder')
 
-            bookmarks = []
-
             global soup
 
             for each in soup.find_all('a'):
@@ -1311,7 +1310,6 @@ def import_bookmarks():
                         #get the h3 below the grandparent dt
                         h3 = grandparent_dt.find_next('h3')
                         #check that there is a folder and that it's in user-reviewed list
-                        #if h3 != None and h3.string in folders:
                         if h3 != None:
                             if h3.string in folders:
                                 #replace commas with spaces in folders before inserting into db
@@ -1331,7 +1329,3 @@ def import_bookmarks():
             return redirect(url_for('index'))
 
     return render_template('import.html')
-
-
-
-
