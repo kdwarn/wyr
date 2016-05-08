@@ -36,7 +36,7 @@
                 <img class="logo" src="/static/mendeley_logo.png">
             {% elif doc.service_id == 2 %}
                 <img class="logo" src="/static/goodreads_logo.png">
-            {% elif doc.service_id == 3 or doc.service_id == 4 %}
+            {% elif doc.service_id == 3 %}
                 <img class="logo" src="/static/wyr_logo.png">
             {% endif %}
 
@@ -100,7 +100,7 @@
                 {% endfor %}
             {% endif %}
 
-            {% if doc.service_id == 3 or doc.service_id == 4 %}
+            {% if doc.service_id == 3 %}
                 <a href="{{ url_for('edit', id=doc.id) }}">Edit</a> | <a href="{{ url_for('delete', id=doc.id) }}">Delete</a><br>
             {% endif %}
             </span>

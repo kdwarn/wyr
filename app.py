@@ -83,6 +83,10 @@ def index():
     else:
         return render_template('index.html')
 
+@app.route('/screenshots')
+def screenshots():
+    return render_template('screenshots.html')
+
 @app.route('/contact', methods = ['GET', 'POST'])
 def contact():
     if request.method == 'GET':
@@ -151,8 +155,8 @@ def sign_up():
         email_hash = serializer.dumps([user.id, email, action], salt='email')
         mail = Mail(app)
         msg = Message('Confirm your email address', sender='whatyouveread@gmail.com', recipients=[email])
-        msg.body = 'Welcome to What You\'ve Read. Please confirm your email by clicking on this link: \
-        http://www.whatyouveread.com/confirm/{}'.format(email_hash)
+        msg.body = """Welcome to What You've Read. Please confirm your email by clicking on this link:
+        http://www.whatyouveread.com/confirm/{}""".format(email_hash)
         mail.send(msg)
 
         flash('You\'ve registered the username {}. Please check your email and follow the link provided to confirm your address.'.format(username))
@@ -1256,11 +1260,12 @@ def update_goodreads():
 ################################################################################
 ################################################################################
 ## IMPORT BOOKMARKS FROM HTML FILE #############################################
-# service_id = 4 (this will allow me to delete all imported bookmarks if something goes wrong
+# also service_id 3
 
 from bs4 import BeautifulSoup
 
 @app.route('/import', methods=['GET', 'POST'])
+@login_required
 def import_bookmarks():
     if request.method == 'POST':
         #get folders so user can select which ones to import
@@ -1314,7 +1319,7 @@ def import_bookmarks():
                             if h3.string in folders:
                                 #replace commas with spaces in folders before inserting into db
                                 h3.string = h3.string.replace(',', '')
-                                new_doc = Documents(current_user.id, 4, each.string)
+                                new_doc = Documents(current_user.id, 3, each.string)
                                 new_doc.link = each['href']
                                 new_doc.read = 1
                                 #convert add_date (seconds from epoch format) to datetime

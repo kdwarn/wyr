@@ -59,7 +59,12 @@
     <input class="login_form" type="text" size="40" id="editors" name="editors" value="{{editors}}" placeholder="Editor(s)"/><br/>
 
     <label class="sr-only" for="notes">Notes</label>
-    <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes">{{doc.note.replace('<br>', '\n')}}</textarea><br>
+    {% if doc.note %}
+        <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes">{{ doc.note.replace('<br>', '\n') }}</textarea><br>
+    {% else %}
+        <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes"></textarea><br>
+    {% endif %}
+
 
     <input type="hidden" name="id" value="{{doc.id}}">
     <input type="submit" name="submit" value="Submit">&nbsp;<input type="submit" name="submit" value="Cancel"><br><br>

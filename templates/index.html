@@ -3,29 +3,19 @@
 {% block content %}
 <div id="main">
     <div>
-        Welcome!<br><br>I built What You've Read to help <span class="struck">me</span>
+        <p>Welcome!</p>
+        <p>I built What You've Read to help <span class="struck">me</span>
         you keep track of the books, articles, blog posts, and other things <span
-        class="struck">I</span>you've read and saved in various programs and
-        places across the internet, such as:
-        <uL>
-            <li>Mendeley</li>
-            <li>Goodreads</li>
-            <li>Browser bookmarks</li>
-        </uL>
-        What You've Read will connect to the places you authorize, get the things
-        it finds there, and combine them into one simplified collection, providing
-        a scrolling list of all the things you've read - a reading journal.
-        Browse it all, search, or sort by tags and authors.
-        Revisit the item by clicking on a link or opening at the service
-        you originally saved it in. You can also add things to What You've Read natively,
-        by submitting a short form (accessible via bookmarklet or directly through the site), to catch those
-        blog posts or podcasts you aren't currently saving elsewhere.
-        <br><br>
-        Sign up and try it out. Thus far it supports Mendeley, Goodreads, importing bookmarks,
-        and native adding, with the intention to . You
-        can contact me <a href="{{ url_for('contact') }}">here</a>.
+        class="struck">I</span>you've read and saved in various
+        places across the internet. In addition to gathering scholarly articles
+        from Mendeley and books from Goodreads (and others like these to come),
+        it can also import your browser bookmarks and be used as a reference manager/bookmarking site itself.
+        It will display all of the things you've read from the places you choose
+        in one simplified, chronological collection - a reading journal - which you can search
+        or sort by tags and authors.</p>
+        <p>It's free and there are no ads. See screenshots <a href="{{ url_for('screenshots') }}">here</a>.
+        Contact me <a href="{{ url_for('contact') }}">here</a>.
     </div>
-    <br>
     <div class="block-center box">
         <h2>Login</h2>
         <form name="login" action="/login" method="post">
@@ -63,6 +53,7 @@
         </form>
     </div>
     <p></p>
+
 
     <script type="text/javascript" language="JavaScript">
     document.forms['login'].elements['wyr_username'].focus();
