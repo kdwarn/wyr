@@ -1,0 +1,17 @@
+
+{% extends 'header.html' %}
+{% block content %}
+<div id="main">
+    <div>
+        <p>Main display. For Goodreads, the title will link back
+        to the book's page. For Mendeley, if you have a pdf file attached
+        to the item, you will be able to view it via Mendeley's web viewer. Non-pdfs
+        will be available for download. Titles will link to the url provided
+        for bookmarks and also for items you've added individually (if you gave a link).</p>
+        <a href="/static/main.jpg"><img src="/static/main.jpg"></a>
+        <p>Adding a document:</p>
+        <a href="/static/add.jpg"><img src="/static/add.jpg"></a>
+    </div>
+
+</div>
+{% endblock %}

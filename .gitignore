@@ -2,4 +2,4 @@
 robots.txt
 config.py
 testing.py
-__py_cache__/
+__pycache__/
