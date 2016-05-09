@@ -47,7 +47,11 @@
     <input class="login_form" type="text" size="40" id="link" name="link" value="{{doc.link}}" placeholder="Link (URL)"/><br/>
 
     <label class="sr-only" for="year">Year</label>
-    <input class="login_form" type="text" size="40" id="year" name="year" value="{{doc.year}}" placeholder="Year"/><br/>
+    {% if doc.year %}
+        <input class="login_form" type="text" size="40" id="year" name="year" value="{{doc.year}}" placeholder="Year"/><br/>
+    {% else %}
+        <input class="login_form" type="text" size="40" id="year" name="year" placeholder="Year"/><br/>
+    {% endif %}
 
     <label class="sr-only" for="tags">Tags*</label>
     <input class="login_form" type="text" size="40" id="tags" name="tags" value="{{tags}}" placeholder="Tag(s)"/><br/>

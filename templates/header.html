@@ -6,7 +6,7 @@
         <link rel="stylesheet" href="static/jquery-ui.css">
         <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="keywords" content="reading journal, track what you read, what you've read, remember what you've read">
+        <meta name="keywords" content="reading journal, what you've read, track what you read, remember what you've read, what I've read, remember">
     </head>
     <body>
         <div class="container">
@@ -28,7 +28,7 @@
             {% with messages = get_flashed_messages() %}
                 {% if messages %}
                     {% for message in messages %}
-                    <div role="alert">{{ message }}</div>
+                        <div role="alert">{{ message }}</div>
                     {% endfor %}
                 {% else %}
                     <div>&nbsp;</div> {# just to keep spacing the same #}
