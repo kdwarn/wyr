@@ -22,16 +22,14 @@
         {% else %}
             | <a href="{{url_for('authors')}}">authors</a>
         {% endif %}
+        </span>
     {% endif %}
-    </span>
-    <br>
-
     </div>
+    <br>
     <div>
-
     {% if current_user.is_authenticated %}
         {% for doc in docs %}
-            <p>
+            <div class="doc">
             {% if doc.service_id == 1 %}
                 <img class="logo" src="/static/mendeley_logo.png">
             {% elif doc.service_id == 2 %}
@@ -40,6 +38,7 @@
                 <img class="logo" src="/static/wyr_logo.png">
             {% endif %}
 
+            <span class="title">
             {% if doc.link %}
                 <a href="{{ doc.link }}" target="_blank">{{ doc.title }}</a>
             {% else %}
@@ -69,10 +68,11 @@
                     {% endif %}
                 {% endfor %}
             {% endif %}
-
+            </span>
             <br>
+            <span class="info">
             {% if doc.tags %}
-                <span class="info">Tagged:
+                Tagged:
                 {% for tag in doc.tags %}
                     {% if tag != doc.tags[-1] %}
                         <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>,
@@ -80,11 +80,10 @@
                         <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>
                     {% endif %}
                 {% endfor %}
-                </span>
             <br>
             {% endif %}
 
-            <span class="info">Added/Read: {{ doc.created.strftime("%B %d, %Y") }}<br>
+            Added/Read: {{ doc.created.strftime("%B %d, %Y") }}<br>
 
             {% if doc.last_modified %}
                 Last modified: {{ doc.last_modified.strftime("%B %d, %Y") }}<br>
@@ -106,10 +105,9 @@
             </span>
 
             {% if doc.note %}
-                <span class="notes">{{ doc.note|safe }}</span><br>
+                <span class="notes">{{ doc.note|safe }}</span>
             {% endif %}
-            <br>
-            </p>
+            </div>
         {% endfor %}
 
     {% endif %}
