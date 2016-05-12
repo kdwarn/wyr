@@ -141,7 +141,7 @@ def sign_up():
         if error == 1:
             return redirect(url_for('sign_up'))
 
-        #use passlib to encrypt padd()assword
+        #use passlib to encrypt password
         myctx = CryptContext(schemes=['pbkdf2_sha256'])
         hash = myctx.encrypt(password)
 
@@ -436,9 +436,11 @@ def docs_by_tag(tag):
     docs = Documents.query.join(Tags).filter(Documents.user_id==current_user.id, Tags.name==tag).order_by(desc(Documents.created)).all()
 
     subheader = "tagged " + tag
-
-    return render_template('read.html', docs=docs, subheader=subheader)
-
+    
+    #LOCAL CHANGES
+    #return render_template('read.html', docs=docs, subheader=subheader) #this was what it was
+    return (render_template('read.html', docs=docs, subheader=subheader, tagpage=tag)
+    
 @app.route('/authors/<first_name> <last_name>')
 @login_required
 def docs_by_author(first_name, last_name):
@@ -877,7 +879,14 @@ def add():
         if not title:
             flash('Please enter a title. It is the only required field.')
             return(redirect(url_for('add')))
-
+        
+        #LOCAL CHANGES
+        #check if link already exists
+        if Documents.query.filter_by(link=link, service_id=3).count() == 1:
+            doc = Documents.query.filter_by(link=link, service_id=3)
+            flash("You already have that link saved, with the title '{}'.".format(doc['title']))
+            return(redirect(url_for('index'))
+            
         #insert
         new_doc = Documents(current_user.id, 3, title)
 
@@ -1005,7 +1014,9 @@ def edit():
         authors = request.form['authors']
         editors = request.form['editors']
         notes = request.form['notes'].replace('\n', '<br>')
+        tagpage = request.form['tagpage'] #LOCAL CHANGES
         submit = request.form['submit']
+        
 
         if submit == "Cancel":
             flash("Edit canceled.")
@@ -1072,6 +1083,9 @@ def edit():
 
         db.session.commit()
         flash('Item edited.')
+        #LOCAL CHANGES
+        if tagpage:
+            return(redirect(url_for('docs_by_tag', tag=tagpage)) 
         return redirect(url_for('index'))
     else:
         return redirect(url_for('index'))

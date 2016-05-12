@@ -98,9 +98,10 @@
                     {% endif %}
                 {% endfor %}
             {% endif %}
-
+            
+            {# LOCAL CHANGES: added "tagpage=tagpage" for trying to return using to page they came from#}
             {% if doc.service_id == 3 %}
-                <a href="{{ url_for('edit', id=doc.id) }}">Edit</a> | <a href="{{ url_for('delete', id=doc.id) }}">Delete</a><br>
+                <a href="{{ url_for('edit', id=doc.id, tagpage=tagpage) }}">Edit</a> | <a href="{{ url_for('delete', id=doc.id, tagpage=tagpage) }}">Delete</a><br>
             {% endif %}
             </span>
 

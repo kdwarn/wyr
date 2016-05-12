@@ -71,6 +71,8 @@
 
 
     <input type="hidden" name="id" value="{{doc.id}}">
+    {# LOCAL CHANGES: trying to get user back to page they began edit from #}
+    <input type="hidden" name="tagpage" value="{{tagpage}}">
     <input type="submit" name="submit" value="Submit">&nbsp;<input type="submit" name="submit" value="Cancel"><br><br>
     <span class="small">tags should be separated by commas<br>
     authors/editors should be in the format: "Austin, Jane; Douglass, Frederick"</span><br>
