@@ -881,10 +881,11 @@ def add():
 
         #LOCAL CHANGES
         #check if link already exists
-        if Documents.query.filter_by(link=link, service_id=3).count() == 1:
-            doc = Documents.query.filter_by(link=link, service_id=3)
-            flash("You already have that link saved, with the title '{}'.".format(doc['title']))
-            return redirect(url_for('index'))
+        #Documents.query.filter_by(user_id=current_user.id, service_id=3, id=id).first()
+        if Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).count() == 1:
+            doc = Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).first()
+            flash("You already have that link saved, with the title '{}'.".format(doc.title))
+            return redirect(url_for('add'))
 
         #insert
         new_doc = Documents(current_user.id, 3, title)
