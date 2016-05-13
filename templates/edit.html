@@ -36,49 +36,46 @@
 
 <div id="main">
     <div class="block-center">
-    <h2>Edit</h2>
-    <form method="POST" name="edit" action="/edit">
-    <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+        <h2>Edit</h2>
+        <form method="POST" name="edit" action="/edit">
+            <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+            <label class="sr-only" for="title">Title (Required)</label>
+            <input class="login_form" type="text" size="40" id="title" name="title" value="{{doc.title}}" placeholder="Title (REQUIRED)"/><br/>
+            <label class="sr-only" for="link">Link</label>
+            <input class="login_form" type="text" size="40" id="link" name="link" value="{{doc.link}}" placeholder="Link (URL)"/><br/>
 
-    <label class="sr-only" for="title">Title (Required)</label>
-    <input class="login_form" type="text" size="40" id="title" name="title" value="{{doc.title}}" placeholder="Title (REQUIRED)"/><br/>
+            <label class="sr-only" for="year">Year</label>
+            {% if doc.year %}
+                <input class="login_form" type="text" size="40" id="year" name="year" value="{{doc.year}}" placeholder="Year"/><br/>
+            {% else %}
+                <input class="login_form" type="text" size="40" id="year" name="year" placeholder="Year"/><br/>
+            {% endif %}
 
-    <label class="sr-only" for="link">Link</label>
-    <input class="login_form" type="text" size="40" id="link" name="link" value="{{doc.link}}" placeholder="Link (URL)"/><br/>
+            <label class="sr-only" for="tags">Tags*</label>
+            <input class="login_form" type="text" size="40" id="tags" name="tags" value="{{tags}}" placeholder="Tag(s)"/><br/>
 
-    <label class="sr-only" for="year">Year</label>
-    {% if doc.year %}
-        <input class="login_form" type="text" size="40" id="year" name="year" value="{{doc.year}}" placeholder="Year"/><br/>
-    {% else %}
-        <input class="login_form" type="text" size="40" id="year" name="year" placeholder="Year"/><br/>
-    {% endif %}
+            <label class="sr-only" for="authors">Authors**</label>
+            <input class="login_form" type="text" size="40" id="authors" name="authors" value="{{authors}}" placeholder="Author(s)"/><br/>
 
-    <label class="sr-only" for="tags">Tags*</label>
-    <input class="login_form" type="text" size="40" id="tags" name="tags" value="{{tags}}" placeholder="Tag(s)"/><br/>
+            <label class="sr-only" for="editors">Editors**</label>
+            <input class="login_form" type="text" size="40" id="editors" name="editors" value="{{editors}}" placeholder="Editor(s)"/><br/>
 
-    <label class="sr-only" for="authors">Authors**</label>
-    <input class="login_form" type="text" size="40" id="authors" name="authors" value="{{authors}}" placeholder="Author(s)"/><br/>
+            <label class="sr-only" for="notes">Notes</label>
+            {% if doc.note %}
+                <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes">{{ doc.note.replace('<br>', '\n') }}</textarea><br>
+            {% else %}
+                <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes"></textarea><br>
+            {% endif %}
 
-    <label class="sr-only" for="editors">Editors**</label>
-    <input class="login_form" type="text" size="40" id="editors" name="editors" value="{{editors}}" placeholder="Editor(s)"/><br/>
-
-    <label class="sr-only" for="notes">Notes</label>
-    {% if doc.note %}
-        <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes">{{ doc.note.replace('<br>', '\n') }}</textarea><br>
-    {% else %}
-        <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes"></textarea><br>
-    {% endif %}
-
-
-    <input type="hidden" name="id" value="{{doc.id}}">
-    {# LOCAL CHANGES: trying to get user back to page they began edit from #}
-    <input type="hidden" name="tagpage" value="{{tagpage}}">
-    <input type="submit" name="submit" value="Submit">&nbsp;<input type="submit" name="submit" value="Cancel"><br><br>
-    <span class="small">tags should be separated by commas<br>
-    authors/editors should be in the format: "Austin, Jane; Douglass, Frederick"</span><br>
-    </form>
+            <input type="hidden" name="id" value="{{doc.id}}">
+            {# LOCAL CHANGES: trying to get user back to page they began edit from #}
+            <input type="hidden" name="tagpage" value="{{request.args.get('tagpage')}}">
+            <input type="submit" name="submit" value="Submit">&nbsp;<input type="submit" name="submit" value="Cancel"><br><br>
+            <span class="small">tags should be separated by commas
+            <br>
+            authors/editors should be in the format: "Austin, Jane; Douglass, Frederick"</span><br>
+        </form>
     </div>
-    <p></p>
 
     <script type="text/javascript" language="JavaScript">
     document.forms['edit'].elements['title'].focus();

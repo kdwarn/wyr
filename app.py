@@ -436,11 +436,10 @@ def docs_by_tag(tag):
     docs = Documents.query.join(Tags).filter(Documents.user_id==current_user.id, Tags.name==tag).order_by(desc(Documents.created)).all()
 
     subheader = "tagged " + tag
-    
-    #LOCAL CHANGES
-    #return render_template('read.html', docs=docs, subheader=subheader) #this was what it was
-    return (render_template('read.html', docs=docs, subheader=subheader, tagpage=tag)
-    
+
+    #tagpage is used for returning user to list of docs by tag if user editing or deleting from there
+    return render_template('read.html', docs=docs, subheader=subheader, tagpage=tag)
+
 @app.route('/authors/<first_name> <last_name>')
 @login_required
 def docs_by_author(first_name, last_name):
@@ -878,15 +877,15 @@ def add():
         #validation
         if not title:
             flash('Please enter a title. It is the only required field.')
-            return(redirect(url_for('add')))
-        
+            return redirect(url_for('add'))
+
         #LOCAL CHANGES
         #check if link already exists
         if Documents.query.filter_by(link=link, service_id=3).count() == 1:
             doc = Documents.query.filter_by(link=link, service_id=3)
             flash("You already have that link saved, with the title '{}'.".format(doc['title']))
-            return(redirect(url_for('index'))
-            
+            return redirect(url_for('index'))
+
         #insert
         new_doc = Documents(current_user.id, 3, title)
 
@@ -1015,8 +1014,9 @@ def edit():
         editors = request.form['editors']
         notes = request.form['notes'].replace('\n', '<br>')
         tagpage = request.form['tagpage'] #LOCAL CHANGES
+        authorpage = request.form['authorpage'] #LOCAL CHANGES
         submit = request.form['submit']
-        
+
 
         if submit == "Cancel":
             flash("Edit canceled.")
@@ -1025,7 +1025,7 @@ def edit():
         #validation
         if not title:
             flash('Please enter a title. It is the only required field.')
-            return(redirect(url_for('edit')))
+            return redirect(url_for('edit'))
 
         #update
         update_doc = Documents.query.filter_by(user_id=current_user.id, service_id=3, id=id).first()
@@ -1085,8 +1085,11 @@ def edit():
         flash('Item edited.')
         #LOCAL CHANGES
         if tagpage:
-            return(redirect(url_for('docs_by_tag', tag=tagpage)) 
+            return redirect(url_for('docs_by_tag', tag=tagpage))
+        if authorpage:
+            return redirect(url_for('docs_by_author', first_name=first_name, last_name=last_name))
         return redirect(url_for('index'))
+
     else:
         return redirect(url_for('index'))
 
