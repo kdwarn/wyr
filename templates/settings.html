@@ -1,61 +1,61 @@
 {% extends 'header.html' %}
 {% block content %}
 <div id="main" class="block-center">
-    <div class="box block-center">
-    <h2>Account Settings for {{ current_user.username }}</h2>
-        <p class="small"><a href="{{ url_for('change_password') }}">Change Password</a></p>
-        <p class="small"><a href="{{ url_for('change_email', step=1) }}">Change email</a></p>
-        <p class="small"><a href="{{ url_for('delete_account') }}">Delete Account</a></p>
+    <div class="box">
+        <h2>Account Settings for {{ current_user.username }}</h2>
+        <p><a href="{{ url_for('change_password') }}">Change Password</a></p>
+        <p><a href="{{ url_for('change_email', step=1) }}">Change email</a></p>
+        <p><a href="{{ url_for('delete_account') }}">Delete Account</a></p>
     </div>
     <br>
-    <div class="box block-center">
-    <h2>Services</h2>
-        <div class="small">
-        <p class="left">Note: When you first authorize a service, it may take
+    <div class="box">
+        <h2>Services</h2>
+        <p>Mendeley |
+        {% if current_user.mendeley == 1 %}
+            Authorized &#10003; &nbsp;
+            <a href="{{ url_for('deauthorize', name='Mendeley') }}">Deauthorize</a> |
+            <a href="{{ url_for('refresh', name='Mendeley') }}">Refresh</a>
+        {% else %}
+            <a href="{{ url_for('mendeley_login') }}">Authorize</a>
+        {% endif %}
+        </p>
+        <p>Goodreads |
+        {% if current_user.goodreads == 1 %}
+            Authorized &#10003; &nbsp;
+            <a href="{{ url_for('deauthorize', name='Goodreads') }}">Deauthorize</a> |
+            <a href="{{ url_for('refresh', name='Goodreads') }}">Refresh</a>
+        {% else %}
+            <a href="{{ url_for('goodreads_login') }}">Authorize</a>
+        {% endif %}
+        </p>
+        <p>Others coming!</p>
+        <p class="info left">Note: When you first authorize a service, it may take
         a little while if you have a lot of items at that service. (For instance, it takes
         about 2 minutes to collect about 500 documents from Mendeley). However, after this
         - when viewing what you've read - load time is fairly quick.
         </p>
-        <p class="left">Also note: What You've Read will only check for updates you make
-        every three hours. So if you loaded the site, made a change on one of these services,
-        and then immediately re-load to see the change, it won't be there for three hours.
-        This is because it takes a lot of time to check for changes. A force-refresh is
-        in the works.</p>
-        <p>Mendeley |
-            {% if current_user.mendeley == 1 %}
-                Authorized &#10003; &nbsp; <a href="{{ url_for('deauthorize', name='Mendeley') }}">Deauthorize</a>
-            {% else %}
-                <a href="{{ url_for('mendeley_login') }}">Authorize</a>
-            {% endif %}
-        </p>
-        <p>Goodreads |
-            {% if current_user.goodreads == 1 %}
-                Authorized &#10003; &nbsp; <a href="{{ url_for('deauthorize', name='Goodreads') }}">Deauthorize</a>
-            {% else %}
-                <a href="{{ url_for('goodreads_login') }}">Authorize</a>
-            {% endif %}
-        </p>
-        <p>Others coming!</p>
-        </div>
+        <p class="info left">Also note: What You've Read will only check for changes
+        1 week since the last time it did so. So, if you load the site, make a change on one of these services,
+        and then immediately re-load to see the change, it won't be there unless
+        you manually refresh it, by clicking on the "Refresh" link next to the service.</p>
     </div>
     <br>
-    <div class="box block-center">
+    <div class="box">
         <h2>Import Bookmarks</h2>
-        <p class="small left"><a href="{{url_for('import_bookmarks')}}">Bring your bookmarks</a> from your
+        <p class="left"><a href="{{url_for('import_bookmarks')}}">Bring your bookmarks</a> from your
         browser or social bookmarking sites to What You've Read. (You will be able to choose which
         folders will be imported.)</p>
     </div>
     <br>
-    <div class="box block-center">
+    <div class="box">
         <h2>Bookmarklet</h2>
-        <p class="small left">If you want to be able to quickly add things to
+        <p class="left">If you want to be able to quickly add things to
         What You've Read, drag this link (<a href="javascript:(function(){window.open('http://www.whatyouveread.com/add?link='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)); })();">wyr</a>)
         to your bookmarks bar and click it anytime you are on a page you want to
         save. It will open a form (with title and URL pre-populated) to add
         a new item. Fill in any additional information (like author, year, and tags)
         and submit it.</p>
     </div>
-    <br>
-    <br>
+    <p></p>
 </div>
 {% endblock %}

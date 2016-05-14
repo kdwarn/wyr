@@ -61,13 +61,11 @@ def user_loader(user_id):
 @app.route('/')
 def index():
     if current_user.is_authenticated:
-        #code to fetch and manipulate read items from various services
-        user = User.query.get(current_user.id)
-        #first, update any docs if last update more than 3 hours ago
-        then = datetime.now() - timedelta(hours=3)
-        if user.mendeley == 1 and current_user.mendeley_update < then:
+        #fetch and display read items from various services
+        then = datetime.now() - timedelta(days=7)
+        if current_user.mendeley == 1 and current_user.mendeley_update < then:
             update_mendeley()
-        if user.goodreads == 1 and current_user.goodreads_update < then:
+        if current_user.goodreads == 1 and current_user.goodreads_update < then:
             update_goodreads()
 
         #this is this easy b/c I set up sqlalchemy relationships in models.py
@@ -506,6 +504,21 @@ def deauthorize():
     else:
         return redirect(url_for('index'))
 
+#manually refersh docs from a service
+@app.route('/refresh')
+@login_required
+def refresh():
+    if request.args.get('name') == 'Mendeley':
+        if current_user.mendeley == 1:
+            update_mendeley()
+            flash('Documents from Mendeley have been refreshed.')
+            return render_template('settings.html')
+    if request.args.get('name') == 'Goodreads':
+        if current_user.goodreads == 1:
+            update_goodreads()
+            flash('Books from Goodreads have been refreshed.')
+            return render_template('settings.html')
+
 #delete account
 @app.route('/delete_account', methods=['GET', 'POST'])
 @login_required
@@ -737,9 +750,8 @@ def update_mendeley():
     #get new 0auth object with new token
     mendeley = OAuth2Session(m['client_id'], token=new_token)
 
-    #update since greater of: 1 day ago or last update
-    one_day_ago = datetime.now() - timedelta(hours=24)
-    since = current_user.mendeley_update if current_user.mendeley_update > one_day_ago else one_day_ago
+    #update since 1 day before last update (to be sure to not miss anything due to timezone differences)
+    since = current_user.mendeley_update - timedelta(days=1)
 
     #parameters
     payload = {'limit':'500', 'modified_since':since.isoformat(), 'view':'all'}
