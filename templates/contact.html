@@ -4,19 +4,19 @@
 <div id="main">
     <div class="block-center">
         <h2>Contact</h2>
-        <p class="small">I welcome any comments or questions. Please let me know if you have any problems or
+        <p>I welcome any comments or questions. Please let me know if you have any problems or
         if you have suggestions for improvement!</p>
         <form name="contact" action="{{ url_for('contact') }}" method="post">
-        <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
-        {% if not current_user.is_authenticated %}
-            <label class="sr-only" for="name">Name</label>
-            <input class="login_form" type="text" size="15" id="name" name="name" placeholder="Name"/><br>
-            <label class="sr-only" for="email">Email</label>
-            <input class="login_form" type="text" size="15" id="email" name="email" placeholder="Email"/><br>
-        {% endif %}
-        <label class="sr-only" for="comments">Comments</label>
-        <textarea cols="40" rows="10" id="comments" name="comments" placeholder="Comments"/></textarea><br><br>
-        <button type="submit">Submit</button>
+            <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+            {% if not current_user.is_authenticated %}
+                <label class="sr-only" for="name">Name</label>
+                <input class="login_form" type="text" size="15" id="name" name="name" placeholder="Name"/><br>
+                <label class="sr-only" for="email">Email</label>
+                <input class="login_form" type="text" size="15" id="email" name="email" placeholder="Email"/><br>
+            {% endif %}
+            <label class="sr-only" for="comments">Comments</label>
+            <textarea cols="40" rows="10" id="comments" name="comments" placeholder="Comments"/></textarea><br><br>
+            <button type="submit">Submit</button>
         </form>
     </div>
 </div>

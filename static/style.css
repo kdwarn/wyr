@@ -26,42 +26,30 @@ a:hover {
     color:blue;
     text-decoration:underline;}
 
-a:active {
-    color:blue;
-    text-decoration:bold;}
+nav {
+    position: fixed;
+    top:0px;
+    width:100%;
+    background: #0A0A2A;
+    height: 2rem;
+    color: white;
+    text-align: right;
+    font-size: 1rem;
+    padding: .2rem .5rem;
+    z-index: 100; /* does't seem to do anything */
+}
 
-a.header:link, a.header:visited {
+nav a:link, nav a:visited {
     color:white;
     text-decoration: none;
     padding: 5px 5px;
     text-align: center;
-    display: inline-block;
+    display: inline-block;q
 }
 
-a.header:hover {
+nav a:hover {
     color:#070719;
-    background:white;}
-
-a.header:active {
-    color:white;
-    text-decoration:bold;}
-
-
-#header {
-    width:100%;
-    background: #0A0A2A;
-    height: 2em;
-    color: white;
-    position: fixed;
-    top:0px;
-    z-index: 100; /* does't seem to do anything */
-}
-
-#header-content {
-    font-size: small;
-    margin: 0 auto;
-    padding: .25em;
-    text-align: right;
+    background:white;
 }
 
 #messages {
@@ -74,22 +62,10 @@ a.header:active {
 #main {
     margin: auto;
     width: 550px;
-    padding: 10px;
+    margin-top: 10px;
 }
 
-/*
-.float_left {
-    float: left;
-    width: 47%;
-}
-
-.float_right {
-    margin-left: 53%;
-}
-*/
-
-.doc {margin-bottom: 2rem;
-}
+.doc {margin-bottom: 2rem;}
 
 .center {text-align:center;}
 
@@ -97,25 +73,15 @@ a.header:active {
 
 .left {text-align:left;}
 
-.struck { text-decoration: line-through}
+.struck {text-decoration: line-through}
 
-.title {font-size:1.15rem;
-}
+.title {font-size:1.15rem;}
 
 .info {font-size:0.75rem}
 
-.notes {font-size:1rem;
-}
+.notes {font-size:1rem;}
 
 .small {font-size:0.75rem}
-
-.heading {
-    color:blue;
-    font-size:xx-large;}
-
-.subheading {
-    color:blue;
-    font-size: medium}
 
 .block-center {
     text-align:center;

@@ -1,7 +1,7 @@
 
 {% extends 'header.html' %}
 {% block content %}
-<div id="main" style="line-height:1.5em">
+<div id="main">
     <div class="block-center">
     <span class="small center">
     <a href="{{url_for('index')}}">all</a>
@@ -9,11 +9,13 @@
     | <a href="{{url_for('authors')}}">authors</a>
     <br><br>
     </div>
+    <div  style="line-height:1.5em">
     {% if current_user.is_authenticated %}
         {% for tag in tags %}
             <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>&nbsp;
         {% endfor %}
     {% endif %}
+    </div>
+</div>
 <br>
-
 {% endblock %}

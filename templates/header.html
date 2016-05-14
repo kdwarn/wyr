@@ -9,21 +9,16 @@
         <meta name="keywords" content="reading journal, what you've read, track what you read, remember what you've read, what I've read, remember">
     </head>
     <body>
-        <div class="container">
         <header>
-            <div id="header">
-                <div id="header-content">
-                {% if current_user.is_authenticated %}
-                    <a class="header" href="/">Home</a>
-                    <a class="header" href="/add">Add</a>
-                    {# <a class="header" href="/to-read">To-Read</a> #}
-                    <a class="header" href="/settings">Settings</a>
-                    <a class="header" href="/contact">Contact</a>
-                    <a class="header" href="/logout">Logout</a>
-                {% endif %}
-                </div>
-            </div>
-        </header>
+            <nav>
+            {% if current_user.is_authenticated %}
+                <a href="/">Home</a>
+                <a href="/add">Add</a>
+                <a href="/settings">Settings</a>
+                <a href="/contact">Contact</a>
+                <a href="/logout">Logout</a>
+            {% endif %}
+            </nav>
             <div id="messages" class="center">
             {% with messages = get_flashed_messages() %}
                 {% if messages %}
@@ -35,8 +30,8 @@
                 {% endif %}
             {% endwith %}
             </div>
-        <h1>What You've Read</h1>
+            <h1>What You've Read</h1>
+        </header>
         {% block content %}{% endblock %}
-        </div>
     </body>
 </html>

@@ -2,28 +2,28 @@
 {% block content %}
 <div id="main">
     <div class="block-center">
-    <h2>Change Email</h2>
-    {% if step == "1" %}
-        <p class ="left small">Your email is currently {{current_user.email}}. To ensure the
-        security of your email address, changing it is a a multi-step process. First, click on the
-        submit button below and an email will be sent to you to confirm your current email address. You
-        will then be able to enter a new email address, which you will also receive
-        an email to confirm.</p>
-        <form name="change_email" action="{{ url_for('change_email') }}" method="post">
-        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-        <input type="submit" name="step1" value="Submit">&nbsp;<input type="submit" name="step1" value="Cancel">
-        </form>
-    {% elif step == "2" %}
-        <form name="change_email2" action="{{ url_for('change_email') }}" method="post">
-        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"/>
-        <input name="hash" type="hidden" value="{{ hash }}"/>
-        <label class="sr-only" for="new_email">New Email</label>
-        <input class="login_form" type="text" size="20" id="new_email" name="new_email" placeholder="New email"/><br>
-        <label class="sr-only" for="wyr_current_password">password</label>
-        <input class="login_form" type="password" size="20" id="wyr_current_password" name="wyr_current_password" placeholder="Password"/><br>
-        <input type="submit" name="step2" value="Submit">&nbsp;<input type="submit" name="step2" value="Cancel">
-        </form>
-    {% endif %}
+        <h2>Change Email</h2>
+        {% if step == "1" %}
+            <p class ="left">Your email is currently {{current_user.email}}. To ensure the
+            security of your account, changing your email is a multi-step process. First, click on the
+            submit button below and an email will be sent to you to confirm your current email address. You
+            will then be able to enter a new email address, which you will also receive
+            an email to confirm.</p>
+            <form name="change_email" action="{{ url_for('change_email') }}" method="post">
+                <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+                <input type="submit" name="step1" value="Submit">&nbsp;<input type="submit" name="step1" value="Cancel">
+            </form>
+        {% elif step == "2" %}
+            <form name="change_email2" action="{{ url_for('change_email') }}" method="post">
+                <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"/>
+                <input name="hash" type="hidden" value="{{ hash }}"/>
+                <label class="sr-only" for="new_email">New Email</label>
+                <input class="login_form" type="text" size="20" id="new_email" name="new_email" placeholder="New email"/><br>
+                <label class="sr-only" for="wyr_current_password">password</label>
+                <input class="login_form" type="password" size="20" id="wyr_current_password" name="wyr_current_password" placeholder="Password"/><br>
+                <input type="submit" name="step2" value="Submit">&nbsp;<input type="submit" name="step2" value="Cancel">
+            </form>
+        {% endif %}
     </div>
 
     <script type="text/javascript" language="JavaScript">
