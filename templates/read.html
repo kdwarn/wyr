@@ -3,12 +3,20 @@
 {% block content %}
 <div id="main">
     <div class="center">
-    {% if subheader %}
-        <h2 style="margin-top:0; margin-bottom:0">{{subheader}}</h2>
+    {% if tagpage or authorpage %}
+        <h2 style="margin-top:0; margin-bottom:0">
+        {% if tagpage %}
+            tagged {{tagpage}}
+        {% endif %}
+        {% if authorpage %}
+            by {{first_name}} {{last_name}}
+        {% endif %}
+        </h2>
         <span class="small center">
-        <a href="{{url_for('index')}}">all</a>
-        | <a href="{{url_for('tags')}}">tags</a>
-        | <a href="{{url_for('authors')}}">authors</a>
+            <a href="{{url_for('index')}}">all</a>
+            | <a href="{{url_for('tags')}}">tags</a>
+            | <a href="{{url_for('authors')}}">authors</a>
+        </span>
     {% else %}
         <span class="small center">
         all
@@ -98,10 +106,18 @@
                     {% endif %}
                 {% endfor %}
             {% endif %}
-            
-            {# LOCAL CHANGES: added "tagpage=tagpage" for trying to return using to page they came from#}
+
             {% if doc.service_id == 3 %}
-                <a href="{{ url_for('edit', id=doc.id, tagpage=tagpage) }}">Edit</a> | <a href="{{ url_for('delete', id=doc.id, tagpage=tagpage) }}">Delete</a><br>
+                {% if tagpage %}
+                    <a href="{{ url_for('edit', id=doc.id, tagpage=tagpage) }}">Edit</a> |
+                    <a href="{{ url_for('delete', id=doc.id, tagpage=tagpage) }}">Delete</a>
+                {% elif authorpage %}
+                    <a href="{{ url_for('edit', id=doc.id, authorpage=authorpage, first_name=first_name, last_name=last_name) }}">Edit</a> |
+                    <a href="{{ url_for('delete', id=doc.id, authorpage=authorpage, first_name=first_name, last_name=last_name) }}">Delete</a>
+                {% else %}
+                    <a href="{{ url_for('edit', id=doc.id) }}">Edit</a> | <a href="{{ url_for('delete', id=doc.id) }}">Delete</a>
+                {% endif %}
+                <br>
             {% endif %}
             </span>
 

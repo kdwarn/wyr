@@ -435,10 +435,8 @@ def show_user_profile(username):
 def docs_by_tag(tag):
     docs = Documents.query.join(Tags).filter(Documents.user_id==current_user.id, Tags.name==tag).order_by(desc(Documents.created)).all()
 
-    subheader = "tagged " + tag
-
-    #tagpage is used for returning user to list of docs by tag if user editing or deleting from there
-    return render_template('read.html', docs=docs, subheader=subheader, tagpage=tag)
+    #tagpage is used for both header and to return user to list of docs by tag if user editing or deleting from there
+    return render_template('read.html', docs=docs, tagpage=tag)
 
 @app.route('/authors/<first_name> <last_name>')
 @login_required
@@ -446,9 +444,8 @@ def docs_by_author(first_name, last_name):
     docs = Documents.query.join(Authors).filter(Documents.user_id==current_user.id). \
            filter(Authors.last_name==last_name).filter(Authors.first_name==first_name).order_by(desc(Documents.created)).all()
 
-    subheader = "by " + first_name + " " + last_name
-
-    return render_template('read.html', docs=docs, subheader=subheader)
+    #authorpage, first_name, last_name used for header
+    return render_template('read.html', docs=docs, authorpage=1, first_name=first_name, last_name=last_name)
 
 #page of all tags
 @app.route('/tags')
@@ -879,9 +876,7 @@ def add():
             flash('Please enter a title. It is the only required field.')
             return redirect(url_for('add'))
 
-        #LOCAL CHANGES
         #check if link already exists
-        #Documents.query.filter_by(user_id=current_user.id, service_id=3, id=id).first()
         if Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).count() == 1:
             doc = Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).first()
             flash("You already have that link saved, with the title '{}'.".format(doc.title))
@@ -1014,14 +1009,20 @@ def edit():
         authors = request.form['authors']
         editors = request.form['editors']
         notes = request.form['notes'].replace('\n', '<br>')
-        tagpage = request.form['tagpage'] #LOCAL CHANGES
-        authorpage = request.form['authorpage'] #LOCAL CHANGES
+        tagpage = request.form['tagpage']
+        authorpage = request.form['authorpage']
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
         submit = request.form['submit']
-
 
         if submit == "Cancel":
             flash("Edit canceled.")
-            return redirect(url_for('index'))
+            if tagpage != 'None':
+                return redirect(url_for('docs_by_tag', tag=tagpage))
+            elif authorpage != 'None':
+                return redirect(url_for('docs_by_author', first_name=first_name, last_name=last_name))
+            else:
+                return redirect(url_for('index'))
 
         #validation
         if not title:
@@ -1084,10 +1085,9 @@ def edit():
 
         db.session.commit()
         flash('Item edited.')
-        #LOCAL CHANGES
-        if tagpage:
+        if tagpage != 'None':
             return redirect(url_for('docs_by_tag', tag=tagpage))
-        if authorpage:
+        if authorpage != 'None':
             return redirect(url_for('docs_by_author', first_name=first_name, last_name=last_name))
         return redirect(url_for('index'))
 
