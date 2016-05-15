@@ -3,66 +3,65 @@
 {% block content %}
 <div id="main">
     <div class="block-center">
-    <h2>Confirm Deletion</h2>
-    <form method="POST" action="/delete">
-    <p>
-    {% if doc.link %}
-        <a href="{{ doc.link }}" target="_blank">{{ doc.title }}</a>
-    {% else %}
-        {{ doc.title }}
-    {% endif %}
-
-    {% if doc.year %}
-        ({{ doc.year }})
-    {% endif %}
-
-    {% if doc.authors %}
-        by
-        {% for author in doc.authors %}
-            {% if author != doc.authors[-1] %}
-                <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
-                    {{ author.first_name }} {{ author.last_name }}</a>,
+        <h2>Confirm Deletion</h2>
+        <form method="POST" action="/delete">
+            <p>
+            {% if doc.link %}
+                <a href="{{ doc.link }}" target="_blank">{{ doc.title }}</a>
             {% else %}
-                <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
-                    {{ author.first_name }} {{ author.last_name }}</a>
+                {{ doc.title }}
             {% endif %}
-        {% endfor %}
-    {% endif %}
 
-    </br>
-    {% if doc.tags %}
-        <span class="info">Tagged:
-        {% for tag in doc.tags %}
-            {% if tag != doc.tags[-1] %}
-                <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>,
-            {% else %}
-                <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>
+            {% if doc.year %}
+                ({{ doc.year }})
             {% endif %}
-        {% endfor %}
-        </span>
-    </br>
-    {% endif %}
-    <span class="info">Added: {{ doc.created.strftime("%B %d, %Y") }}
 
-    {% if doc.last_modified %}
-        <br/>Last modified: {{ doc.last_modified.strftime("%B %d, %Y") }}<br/>
-    {% endif %}
+            {% if doc.authors %}
+                by
+                {% for author in doc.authors %}
+                    {% if author != doc.authors[-1] %}
+                        <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
+                            {{ author.first_name }} {{ author.last_name }}</a>,
+                    {% else %}
+                        <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
+                            {{ author.first_name }} {{ author.last_name }}</a>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            </br>
+            {% if doc.tags %}
+                <span class="info">Tagged:
+                {% for tag in doc.tags %}
+                    {% if tag != doc.tags[-1] %}
+                        <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>,
+                    {% else %}
+                        <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>
+                    {% endif %}
+                {% endfor %}
+                </span>
+            </br>
+            {% endif %}
+            <span class="info">Added: {{ doc.created.strftime("%B %d, %Y") }}
 
-    </span><br>
+            {% if doc.last_modified %}
+                <br/>Last modified: {{ doc.last_modified.strftime("%B %d, %Y") }}<br/>
+            {% endif %}
 
-    {% if doc.note %}
-        <span class="notes">{{ doc.note|safe }}</span>
-        </br></br>
-    {% endif %}
+            </span><br>
 
-    </p>
+            {% if doc.note %}
+                <span class="notes">{{ doc.note|safe }}</span>
+                </br></br>
+            {% endif %}
 
-    <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
-    <input type="hidden" name="id" value=" {{doc.id}}">
-    <input type="submit" name="delete" value="Delete">&nbsp;<input type="submit" name="delete" value="Cancel"><br><br>
-    </form>
+            </p>
+
+            <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+            <input type="hidden" name="id" value=" {{doc.id}}">
+            <button type="submit" name="delete" value="Delete">Delete</button>&nbsp;
+            <button type="submit" name="delete" value="Cancel">Cancel</button>
+        </form>
     </div>
     <p></p>
-
 </div>
 {% endblock %}

@@ -2,9 +2,9 @@
 {% extends 'header.html' %}
 {% block content %}
 <div id="main">
-    <div class="block-center">
+    <div class="center">
         <h2>Contact</h2>
-        <p>I welcome any comments or questions. Please let me know if you have any problems or
+        <p class="left">I welcome any comments or questions. Please let me know if you have any problems or
         if you have suggestions for improvement!</p>
         <form name="contact" action="{{ url_for('contact') }}" method="post">
             <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
@@ -16,7 +16,8 @@
             {% endif %}
             <label class="sr-only" for="comments">Comments</label>
             <textarea cols="40" rows="10" id="comments" name="comments" placeholder="Comments"/></textarea><br><br>
-            <button type="submit">Submit</button>
+            <button type="submit" name="submit" value="Submit">Submit</button>&nbsp;
+            <button type="submit" name="submit" value="Cancel">Cancel</button>
         </form>
     </div>
 </div>

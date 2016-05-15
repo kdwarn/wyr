@@ -5,7 +5,7 @@
 <div id="main">
     <div class="block-center">
     {% if bookmarklet %}
-        <button type="button" onclick="window.open('', '_self', ''); window.close();">Close</button>
+        <button type="input" onclick="window.open('', '_self', ''); window.close();">Close</button>
     {% else %}
         {# autocomplete from http://jqueryui.com/autocomplete/#multiple #}
         <script src="http://code.jquery.com/jquery-1.10.2.js"></script>
@@ -75,10 +75,10 @@
             <label class="sr-only" for="notes">Notes</label>
             <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes"></textarea><br><br>
             {% if title or link %}
-                <input type="submit" name="submit" value="Submit">&nbsp;
+                <button type="submit" name="submit" value="Submit">Submit</button>&nbsp;
             {% else %}
-                <input type="submit" name="submit" value="Submit and Return Home">&nbsp;
-                <input type="submit" name="submit" value="Submit and Add Another">
+                <button type="submit" name="submit" value="Submit and Return Home">Submit and Return Home</button>&nbsp;
+                <button type="submit" name="submit" value="Submit and Add Another">Submit and Add Another</button>
             {% endif %}
             <br><br>
             <span class="small">*tags should be separated by commas<br>

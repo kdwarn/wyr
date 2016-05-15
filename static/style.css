@@ -99,17 +99,36 @@ nav a:hover {
   border: 0;
 }
 
+/* this might better be described as just "form" */
 .login_form {
     margin-bottom:8px;
     padding:2px;
 }
 
+
 .box {
     border: 1px solid #CECEF6;
-    padding: 5px;
+    padding: 5px 7px 5px 7px;
 }
 
 .logo {
     float:left;
     margin: 1 0 0 -25;
+}
+
+button[type=submit] {
+    background-color: #0A0A2A;
+    border: 1px solid #CECEF6;
+    color: white;
+    text-decoration: none;
+    text-align: center;
+    font-size: .9rem;
+    padding: 5px 11px 5px 11px;
+    border-radius: 3px;
+}
+
+button[type=submit]:hover {
+    background-color: #CECEF6;
+    border:1px solid #0A0A2A;
+    color: #0A0A2A;
 }

@@ -91,6 +91,7 @@ def contact():
         return render_template('contact.html')
     elif request.method == 'POST':
 
+        #if user is logged in, we already have their info, else have to get it
         if current_user.is_authenticated:
             name = current_user.username
             email = current_user.email
@@ -98,7 +99,16 @@ def contact():
             email = request.form['email']
             name = request.form['name']
 
+        submit = request.form['submit']
         comments = request.form['comments']
+
+        if submit == "Cancel":
+            return redirect(url_for('index'))
+
+        if comments == '':
+            flash("You didn't add any comments.")
+            return render_template('contact.html')
+
         comments = name + ' (' + email + ') said: ' + comments
         mail = Mail(app)
         msg = Message('Comments on WYR from ' + name + ' (' + email + ')', sender='whatyouveread@gmail.com', recipients=['whatyouveread@gmail.com'])
@@ -153,8 +163,7 @@ def sign_up():
         email_hash = serializer.dumps([user.id, email, action], salt='email')
         mail = Mail(app)
         msg = Message('Confirm your email address', sender='whatyouveread@gmail.com', recipients=[email])
-        msg.body = """Welcome to What You've Read. Please confirm your email by clicking on this link:
-        http://www.whatyouveread.com/confirm/{}""".format(email_hash)
+        msg.body = "Welcome to What You've Read. Please confirm your email by clicking on this link: http://www.whatyouveread.com/confirm/{}".format(email_hash)
         mail.send(msg)
 
         flash('You\'ve registered the username {}. Please check your email and follow the link provided to confirm your address.'.format(username))
@@ -219,6 +228,10 @@ def change_password():
         current_password = request.form['wyr_current_password']
         new_password = request.form['wyr_new_password']
         confirm_password = request.form['wyr_confirm_password']
+        submit = request.form['submit']
+
+        if submit == 'Cancel':
+            return redirect(url_for('settings'))
 
         #first verify current password
         myctx = CryptContext(schemes=['pbkdf2_sha256'])
@@ -264,8 +277,7 @@ def forgot_password():
             email_hash = serializer.dumps([email], salt='email')
             mail = Mail(app)
             msg = Message('Reset password', sender='whatyouveread@gmail.com', recipients=[email])
-            msg.body = 'To reset your password, please follow this link: \
-            http://www.whatyouveread.com/reset_password/{}'.format(email_hash)
+            msg.body = 'To reset your password, please follow this link: http://www.whatyouveread.com/reset_password/{}'.format(email_hash)
             mail.send(msg)
             flash('An email has been sent to you. Please follow the link provided to reset your password.')
             return redirect(url_for('index'))
@@ -344,12 +356,11 @@ def change_email():
             email_hash = serializer.dumps([current_user.id, current_user.email, action], salt='email')
             mail = Mail(app)
             msg = Message('Confirm request to change email', sender='whatyouveread@gmail.com', recipients=[current_user.email])
-            msg.body = 'What You\'ve Read has received a request to change your email address. Please follow this link to confirm this \
-            was you: http://www.whatyouveread.com/confirm/{}'.format(email_hash)
+            msg.body = "What You've Read has received a request to change your email address. Please follow this link to confirm this was you: http://www.whatyouveread.com/confirm/{}".format(email_hash)
             mail.send(msg)
 
-            flash('Please check your email and follow the link provided to confirm your current email address. You will then \
-            be able to enter a new email address (which you will also have to verify.)')
+            flash("""Please check your email and follow the link provided to confirm your current email address. You will then
+            be able to enter a new email address (which you will also have to verify.)""")
             return redirect(url_for('settings'))
 
         #get user's new email address, send another confirmation to that one
@@ -393,9 +404,7 @@ def change_email():
             email_hash = serializer.dumps([current_user.id, new_email, action], salt='email')
             mail = Mail(app)
             msg = Message('Confirm new email address', sender='whatyouveread@gmail.com', recipients=[new_email])
-            msg.body = 'You (or someone pretending to be you) has sent a request to associate this email address \
-            with their What You\'ve Read account. Please follow this link to confirm this \
-            was you: http://www.whatyouveread.com/confirm/{}'.format(email_hash)
+            msg.body = 'You (or someone pretending to be you) has sent a request to associate this email address with their What You\'ve Read account. Please follow this link to confirm this was you: http://www.whatyouveread.com/confirm/{}'.format(email_hash)
             mail.send(msg)
 
             flash('Email address change almost complete: Please check your email and follow the link provided to confirm your new email address.')
@@ -1301,6 +1310,10 @@ def import_bookmarks():
         #get folders so user can select which ones to import
         if 'step1' in request.form:
 
+            if request.form['step1'] == "Cancel":
+                flash("Bookmarks import cancelled.")
+                return redirect(url_for('settings'))
+
             #get file and return user to form if none selected
             file = request.files['bookmarks']
 
@@ -1329,6 +1342,10 @@ def import_bookmarks():
 
         #import bookmarks and their most immediate folder into db
         if 'step2' in request.form:
+
+            if request.form['step2'] == 'Cancel':
+                flash("Bookmarks import cancelled.")
+                return redirect(url_for('settings'))
 
             #put checked folders into list
             folders = request.form.getlist('folder')

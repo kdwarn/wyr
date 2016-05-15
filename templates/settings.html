@@ -4,7 +4,7 @@
     <div class="box">
         <h2>Account Settings for {{ current_user.username }}</h2>
         <p><a href="{{ url_for('change_password') }}">Change Password</a></p>
-        <p><a href="{{ url_for('change_email', step=1) }}">Change email</a></p>
+        <p><a href="{{ url_for('change_email', step=1) }}">Change Email</a></p>
         <p><a href="{{ url_for('delete_account') }}">Delete Account</a></p>
     </div>
     <br>
@@ -56,6 +56,6 @@
         a new item. Fill in any additional information (like author, year, and tags)
         and submit it.</p>
     </div>
-    <p></p>
+    <br><br><br>
 </div>
 {% endblock %}

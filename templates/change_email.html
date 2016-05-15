@@ -6,14 +6,16 @@
         {% if step == "1" %}
             <p class ="left">Your email is currently {{current_user.email}}. To ensure the
             security of your account, changing your email is a multi-step process. First, click on the
-            submit button below and an email will be sent to you to confirm your current email address. You
-            will then be able to enter a new email address, which you will also receive
-            an email to confirm.</p>
+            submit button below. You will be emailed a unique link, which will take you to another
+            page to enter your new email address (and confirm you password). After that,
+            a second link will be emailed (to your new email address) to confirm the change.</p>
             <form name="change_email" action="{{ url_for('change_email') }}" method="post">
                 <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-                <input type="submit" name="step1" value="Submit">&nbsp;<input type="submit" name="step1" value="Cancel">
+                <button type="submit" name="step1" value="Submit">Submit</button>&nbsp;<button type="submit" name="step1" value="Cancel">Cancel</button>
             </form>
         {% elif step == "2" %}
+            <p>Please enter a new email address and your password. A message will be sent to your new email address
+            with a link to confirm the change. (And then that's it, I promise!)</p>
             <form name="change_email2" action="{{ url_for('change_email') }}" method="post">
                 <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"/>
                 <input name="hash" type="hidden" value="{{ hash }}"/>
@@ -21,7 +23,7 @@
                 <input class="login_form" type="text" size="20" id="new_email" name="new_email" placeholder="New email"/><br>
                 <label class="sr-only" for="wyr_current_password">password</label>
                 <input class="login_form" type="password" size="20" id="wyr_current_password" name="wyr_current_password" placeholder="Password"/><br>
-                <input type="submit" name="step2" value="Submit">&nbsp;<input type="submit" name="step2" value="Cancel">
+                <button type="submit" name="step2" value="Submit">Submit</button>&nbsp;<button type="submit" name="step2" value="Cancel">Cancel</button>
             </form>
         {% endif %}
     </div>

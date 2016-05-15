@@ -17,7 +17,8 @@
                         <input type="checkbox" name="folder" value="{{each}}" checked>{{each}}<br>
                     {% endfor %}
                     <br>
-                    <input class="center" type="submit" name="step2" value="Import">
+                    <button type="submit" name="step2" value="Import">Import</button>&nbsp;
+                    <button type="submit" name="step2" value="Cancel">Cancel</button>
                 </form>
             </div>
             {% else %}
@@ -30,7 +31,8 @@
                 <form method="POST" name='import' action="/import" enctype="multipart/form-data">
                     <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
                     <input type="file" name="bookmarks"><br><br>
-                    <input type="submit" name="step1" value="Submit">
+                    <button type="submit" name="step1" value="Submit">Submit</button>
+                    <button type="submit" name="step1" value="Cancel">Cancel</button>
                 </form>
             </div>
             {% endif %}
