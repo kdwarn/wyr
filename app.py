@@ -982,15 +982,15 @@ def edit():
             new_authors = ''
             new_editors = ''
 
-            new_editors_list = []
-
             #have to format tags, authors, and editors for form
             if doc.tags:
-                for tag in doc.tags:
-                    if tag != doc.tags[-1]:
-                        new_tags += tag.name + ', '
+                super_new_tag_list=[tag.name for tag in doc.tags] #put names into list to sort
+                super_new_tag_list.sort() #sort
+                for name in super_new_tag_list:
+                    if name != super_new_tag_list[-1]:
+                        new_tags += name + ', '
                     else:
-                        new_tags += tag.name
+                        new_tags += name
 
             if doc.authors: # need to add if/else for no first name?
                 for author in doc.authors:

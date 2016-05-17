@@ -31,7 +31,7 @@
             </br>
             {% if doc.tags %}
                 <span class="info">Tagged:
-                {% for tag in doc.tags %}
+                {% for tag in doc.tags|sort(attribute="name") %}
                     {% if tag != doc.tags[-1] %}
                         <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>,
                     {% else %}

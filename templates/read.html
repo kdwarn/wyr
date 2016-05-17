@@ -81,8 +81,8 @@
             <span class="info">
             {% if doc.tags %}
                 Tagged:
-                {% for tag in doc.tags %}
-                    {% if tag != doc.tags[-1] %}
+                {% for tag in doc.tags|sort(attribute='name') %}
+                    {% if tag != doc.tags|sort(attribute='name')|last %}
                         <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>,
                     {% else %}
                         <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>
