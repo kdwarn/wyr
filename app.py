@@ -29,10 +29,12 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 # use when restructuring database - first drop tables manually through mysql console
+"""
 @app.before_first_request
 def init_request():
     db.create_all()
     db.session.commit()
+"""
 
 #csrf protection from http://flask.pocoo.org/snippets/3/
 #(must use  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"> in template forms
@@ -1140,6 +1142,30 @@ def delete():
     else:
         return redirect(url_for('index'))
 
+@app.route('/tags/edit', methods=['GET', 'POST'])
+@login_required
+def bulk_edit():
+    if request.method == 'GET':
+        #display tags just like in /tags, but only for native docs
+        #tags = db.session.query(Tags.name).filter_by(user_id=current_user.id, service_id="3").order_by(Tags.name).distinct()
+        tags = db.session.query(Tags.name).join(Documents).filter(Documents.user_id==current_user.id, Documents.service_id=="3").\
+        order_by(Tags.name).distinct()
+
+        return render_template('edit_tags.html', tags=tags)
+
+    else:
+        return render_template('contact.html')
+        """
+        if request.form['submit'] == 'Cancel':
+            return redirect(url_for('tags'))
+
+
+        form_variables = request.form
+
+        return render_template('test_bulk_edit.html', variables=form_variables)
+        """
+
+
 ################################################################################
 ################################################################################
 ### Goodreads ##################################################################
@@ -1317,6 +1343,12 @@ def import_bookmarks():
             #get file and return user to form if none selected
             file = request.files['bookmarks']
 
+            #limit size of file
+            #except RequestEntityTooLarge:
+            #    flash('Sorry, that file is a bit too big.')
+            #    return render_template('import.html')
+
+
             if not file:
                 flash('No file was selected. Please choose a file.')
                 return render_template('import.html')
@@ -1328,7 +1360,6 @@ def import_bookmarks():
                 return render_template('import.html')
 
             #limit size of file
-            # TO DO
 
             #make object global to get it again, parse file for folders
             global soup

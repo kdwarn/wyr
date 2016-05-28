@@ -46,10 +46,17 @@ class Documents(db.Model, UserMixin):
     native_doc_id = db.Column(db.String(50)) #need for Mendeley, maybe others
 
     #relationships
+    """ original
     tags = db.relationship('Tags', backref="documents", cascade="all, delete-orphan")
-    #links = db.relationship('Links', backref="documents", cascade="all, delete-orphan")
     authors = db.relationship('Authors', backref="documents", cascade="all, delete-orphan")
     file_links = db.relationship('FileLinks', backref="documents", cascade="all, delete-orphan")
+    """
+
+    #new
+    tags = db.relationship('Tags', lazy="joined", backref="documents", cascade="all, delete-orphan")
+    authors = db.relationship('Authors', lazy="joined", backref="documents", cascade="all, delete-orphan")
+    file_links = db.relationship('FileLinks', lazy="joined", backref="documents", cascade="all, delete-orphan")
+
 
     def __init__(self, user_id, service_id, title):
         self.user_id = user_id
@@ -66,18 +73,6 @@ class Tags(db.Model, UserMixin):
         self.user_id = user_id
         self.document_id = document_id
         self.name = name
-
-"""
-#decided to just allow one link
-class Links(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    document_id = db.Column(db.Integer, db.ForeignKey('documents.id'))
-    name = db.Column(db.String(500))
-
-    def __init__(self, document_id, name):
-        self.document_id = document_id
-        self.name = name
-"""
 
 class Authors(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)

@@ -63,6 +63,7 @@ nav a:hover {
     margin: auto;
     width: 550px;
     margin-top: 10px;
+    margin-bottom:50px;
 }
 
 .doc {margin-bottom: 2rem;}
@@ -74,6 +75,8 @@ nav a:hover {
 .left {text-align:left;}
 
 .struck {text-decoration: line-through}
+
+.bold {font-weight: bold;}
 
 .title {font-size:1.15rem;}
 

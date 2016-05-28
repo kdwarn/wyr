@@ -3,18 +3,19 @@
 {% block content %}
 <div id="main">
     <div class="block-center">
-    <span class="small center">
-    <a href="{{url_for('index')}}">all</a>
-    | tags
-    | <a href="{{url_for('authors')}}">authors</a>
-    <br><br>
+        <span class="small center">
+            <a href="{{url_for('index')}}">all</a>
+            | tags
+            | <a href="{{url_for('authors')}}">authors</a>
+            <br><br>
+            <a href="{{ url_for('bulk_edit') }}">bulk edit</a>
+        </span>
     </div>
-    <div  style="line-height:1.5em">
-    {% if current_user.is_authenticated %}
-        {% for tag in tags %}
-            <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>&nbsp;
-        {% endfor %}
-    {% endif %}
+    <br>
+    <div style="line-height:1.5em">
+    {% for tag in tags %}
+        <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>&nbsp;
+    {% endfor %}
     </div>
 </div>
 <br>
