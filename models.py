@@ -46,13 +46,6 @@ class Documents(db.Model, UserMixin):
     native_doc_id = db.Column(db.String(50)) #need for Mendeley, maybe others
 
     #relationships
-    """ original
-    tags = db.relationship('Tags', backref="documents", cascade="all, delete-orphan")
-    authors = db.relationship('Authors', backref="documents", cascade="all, delete-orphan")
-    file_links = db.relationship('FileLinks', backref="documents", cascade="all, delete-orphan")
-    """
-
-    #new
     tags = db.relationship('Tags', lazy="joined", backref="documents", cascade="all, delete-orphan")
     authors = db.relationship('Authors', lazy="joined", backref="documents", cascade="all, delete-orphan")
     file_links = db.relationship('FileLinks', lazy="joined", backref="documents", cascade="all, delete-orphan")
