@@ -49,7 +49,8 @@
     <br>
     <div class="box">
         <h2>Bookmarklet</h2>
-        <p class="left">If you want to be able to quickly add things to
+        <p class="left">If you want to be able to quickly
+        <a href="{{url_for('add')}}">add</a> things to
         What You've Read, drag this link (<a href="javascript:(function(){window.open('http://www.whatyouveread.com/add?link='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)); })();">wyr</a>)
         to your bookmarks bar and click it anytime you are on a page you want to
         save. It will open a form (with title and URL pre-populated) to add

@@ -873,6 +873,7 @@ def update_mendeley():
 @login_required
 def add():
     if request.method == 'GET':
+
         #if this is from bookmarklet, pass along variables
         title = request.args.get('title')
         link = request.args.get('link')
@@ -883,7 +884,14 @@ def add():
         for tag in tags:
             new_tags.append(tag.name)
 
+        #check if link already exists, redirect user to edit if so
+        if Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).count() == 1:
+            doc = Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).first()
+            flash("You've already saved that link; you may edit it below.")
+            return redirect(url_for('edit', id=doc.id))
+
         return render_template('add.html', title=title, link=link, tags=new_tags)
+
     elif request.method == 'POST':
         title = request.form['title']
         link = request.form['link']
@@ -899,11 +907,11 @@ def add():
             flash('Please enter a title. It is the only required field.')
             return redirect(url_for('add'))
 
-        #check if link already exists
+        #check if link already exists, redirect user to edit if so
         if Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).count() == 1:
             doc = Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).first()
-            flash("You already have that link saved, with the title '{}'.".format(doc.title))
-            return redirect(url_for('add'))
+            flash("You've already saved that link; you may edit it below.")
+            return redirect(url_for('edit', id=doc.id))
 
         #insert
         new_doc = Documents(current_user.id, 3, title)
