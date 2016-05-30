@@ -5,6 +5,7 @@ from flask.ext.login import LoginManager, login_user, logout_user, \
 from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import desc
 from requests_oauthlib import OAuth2Session, OAuth1Session
+from oauthlib.oauth2 import InvalidGrantError
 from xml.etree import ElementTree
 from time import time
 from config import m, g
@@ -27,14 +28,6 @@ from models import User, Tokens, Documents, Tags, Authors, FileLinks
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-
-# use when restructuring database - first drop tables manually through mysql console
-"""
-@app.before_first_request
-def init_request():
-    db.create_all()
-    db.session.commit()
-"""
 
 #csrf protection from http://flask.pocoo.org/snippets/3/
 #(must use  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"> in template forms
@@ -59,6 +52,12 @@ def user_loader(user_id):
     if user.count() == 1:
         return user.one()
     return None
+
+"""
+@app.route('/testing')
+def testing():
+    pass
+"""
 
 @app.route('/')
 def index():
@@ -522,12 +521,10 @@ def refresh():
     if request.args.get('name') == 'Mendeley':
         if current_user.mendeley == 1:
             update_mendeley()
-            flash('Documents from Mendeley have been refreshed.')
             return render_template('settings.html')
     if request.args.get('name') == 'Goodreads':
         if current_user.goodreads == 1:
             update_goodreads()
-            flash('Books from Goodreads have been refreshed.')
             return render_template('settings.html')
 
 #delete account
@@ -560,6 +557,8 @@ def delete_account():
 ################################################################################
 ### MENDELEY ###################################################################
 # uses Oauth 2, returns json
+# uses requests-oauthlib: https://requests-oauthlib.readthedocs.io/en/latest/oauth2_workflow.html#web-application-flow
+# mendely documentation: http://dev.mendeley.com/reference/topics/authorization_overview.html
 # service_id = 1
 
 @app.route('/mendeley')
@@ -583,55 +582,28 @@ def mendeley_authorize():
     # check against CSRF attacks
     if state != session['oauth_state']:
         return "Sorry, there has been an error."
-    else:
-        mendeley = OAuth2Session(m['client_id'], state=session['oauth_state'], redirect_uri=m['redirect_uri'])
-        token = mendeley.fetch_token(m['token_url'], code=code, username=m['client_id'], password=m['client_secret'])
 
-        #first get db object
-        user = User.query.get(current_user.id)
+    mendeley = OAuth2Session(m['client_id'], state=session['oauth_state'], redirect_uri=m['redirect_uri'])
+    token = mendeley.fetch_token(m['token_url'], code=code, username=m['client_id'], password=m['client_secret'])
 
-        #update User db record - flag them as Mendeley user
-        user.mendeley = 1
-        #save token in Tokens table
-        tokens = Tokens(user_id=user.id, service_id=1, access_token=token['access_token'], refresh_token=token['refresh_token'])
-        db.session.add(tokens)
-        db.session.commit()
+    #save token in Tokens table
+    tokens = Tokens(user_id=current_user.id, service_id=1, access_token=token['access_token'], refresh_token=token['refresh_token'])
+    db.session.add(tokens)
+    db.session.commit()
 
-        store_mendeley()
-
-        return redirect(url_for('index'))
+    return store_mendeley()
 
 #gets doc info from mendeley and stores in database (only once, after initial authorization of service)
 def store_mendeley():
-
     #get tokens from Tokens table
     tokens = Tokens.query.filter_by(user_id=current_user.id, service_id=1).first()
 
-    #for whatever reason, 0Auth2Session requires that its token parameter is in a dict
+    #0Auth2Session requires that its token parameter is in a dict
     token = {'access_token':tokens.access_token,
              'refresh_token':tokens.refresh_token}
 
-    token['expires_in'] = time() - 10
-
-    extra = {'client_id': m['client_id'],
-             'client_secret': m['client_secret'],
-             'refresh_token': tokens.refresh_token}
-
-    #these next 15 lines are not what requests_oauthlib suggested, but they work
-
-    #get 0auth object
-    mendeley = OAuth2Session(m['client_id'], token=token)
-
-    #get new access token (and possibly refresh token)
-    new_token = mendeley.refresh_token(m['refresh_url'], **extra)
-
-    #resave
-    tokens.access_token = new_token['access_token']
-    tokens.refresh_token = new_token['refresh_token']
-    db.session.commit()
-
     #get new 0auth object with new token
-    mendeley = OAuth2Session(m['client_id'], token=new_token)
+    mendeley = OAuth2Session(m['client_id'], token=token)
 
     #parameters
     payload = {'limit':'500', 'order':'desc', 'sort':'created', 'view':'all'}
@@ -654,6 +626,7 @@ def store_mendeley():
             r = mendeley.get(mendeley_link)
             m_docs = m_docs + r.json() #add new list of docs to old one
 
+
     #keep only those things we want, store in db
     for doc in m_docs:
         #skip items not read
@@ -662,8 +635,8 @@ def store_mendeley():
 
         new_doc = Documents(current_user.id, 1, doc['title'])
         new_doc.created=doc['created']
-        new_doc.read=doc['read'] #stores as boolean
-        new_doc.starred=doc['starred'] #stores as boolean
+        new_doc.read=doc['read']
+        new_doc.starred=doc['starred']
         new_doc.native_doc_id = doc['id']
 
         if 'year' in doc:
@@ -724,18 +697,18 @@ def store_mendeley():
 
         db.session.commit()
 
+    current_user.mendeley = 1
     current_user.mendeley_update = datetime.now()
     db.session.commit()
 
-    return
+    return redirect(url_for('index'))
 
 #update doc info from Mendeley
 def update_mendeley():
-
-    #get tokens from Tokens table
+    #get existing tokens from Tokens table
     tokens = Tokens.query.filter_by(user_id=current_user.id, service_id=1).first()
 
-    #for whatever reason, 0Auth2Session requires that its token parameter is in a dict
+    #0Auth2Session requires that its token parameter is in a dict
     token = {'access_token':tokens.access_token,
              'refresh_token':tokens.refresh_token}
 
@@ -745,13 +718,17 @@ def update_mendeley():
              'client_secret': m['client_secret'],
              'refresh_token': tokens.refresh_token}
 
-    #these next 15 lines are not what requests_oauthlib suggested, but they work
+    #these next 20 lines or so are not what requests_oauthlib suggested, but they work
 
     #get 0auth object
     mendeley = OAuth2Session(m['client_id'], token=token)
 
     #get new access token (and possibly refresh token)
-    new_token = mendeley.refresh_token(m['refresh_url'], **extra)
+    try:
+        new_token = mendeley.refresh_token(m['refresh_url'], **extra)
+    except InvalidGrantError:
+        flash("There is a problem with your Mendeley authorization. Please contact me for help.")
+        return redirect(url_for('settings'))
 
     #resave
     tokens.access_token = new_token['access_token']
@@ -761,11 +738,8 @@ def update_mendeley():
     #get new 0auth object with new token
     mendeley = OAuth2Session(m['client_id'], token=new_token)
 
-    #update since 1 day before last update (to be sure to not miss anything due to timezone differences)
-    since = current_user.mendeley_update - timedelta(days=1)
-
     #parameters
-    payload = {'limit':'500', 'modified_since':since.isoformat(), 'view':'all'}
+    payload = {'limit':'500', 'view':'all'}
 
     r = mendeley.get('https://api.mendeley.com/documents', params=payload)
     m_docs = r.json()
@@ -785,89 +759,180 @@ def update_mendeley():
             r = mendeley.get(mendeley_link)
             m_docs = m_docs + r.json() #add new list of docs to old one
 
+    #create a list of ids only, to use for removing deleted Mendeley docs later
+    m_doc_ids = []
 
-    #keep only those things we want, store in db
+    #first, updating or inserting
     for doc in m_docs:
+        m_doc_ids.append(doc['id'])
+
         #skip items not read
         if doc['read'] == 0:
             continue
 
-        #see if it already exists, delete if so and re-insert
-        Documents.query.filter_by(user_id=current_user.id, service_id=1, native_doc_id=doc['id']).delete()
-        db.session.commit()
+        #see if it's in the db
+        check_doc = Documents.query.filter_by(user_id=current_user.id, service_id=1, native_doc_id=doc['id']).first()
 
-        new_doc = Documents(current_user.id, 1, doc['title'])
-        new_doc.created=doc['created']
-        new_doc.read=doc['read'] #stores as boolean
-        new_doc.starred=doc['starred'] #stores as boolean
-        new_doc.native_doc_id = doc['id']
+        #if not, insert it
+        if check_doc == None:
+            new_doc = Documents(current_user.id, 1, doc['title'])
+            new_doc.created=doc['created']
+            new_doc.read=doc['read']
+            new_doc.starred=doc['starred']
+            new_doc.native_doc_id=doc['id']
 
-        if 'year' in doc:
-            new_doc.year = doc['year']
-        if 'last_modified' in doc:
-            new_doc.last_modified=doc['last_modified']
+            if 'year' in doc:
+                new_doc.year = doc['year']
+            if 'last_modified' in doc:
+                new_doc.last_modified=doc['last_modified']
 
-        #Mendeley allows multiple links, but only include first one
-        if 'websites' in doc:
-            new_doc.link = doc['websites'][0]
+            #Mendeley allows multiple links, but only include first one
+            if 'websites' in doc:
+                new_doc.link = doc['websites'][0]
 
-        #get notes
-        an_params = {'document_id':doc['id'], 'type':'note'}
-        annotations = mendeley.get('https://api.mendeley.com/annotations', params=an_params).json()
-        if annotations:
-            new_doc.note = annotations[0]['text']
+            #get notes
+            an_params = {'document_id':doc['id'], 'type':'note'}
+            annotations = mendeley.get('https://api.mendeley.com/annotations', params=an_params).json()
+            if annotations:
+                new_doc.note = annotations[0]['text']
 
-        db.session.add(new_doc)
-        db.session.commit()
-
-        if 'tags' in doc:
-            for tag in doc['tags']:
-                new_tag = Tags(current_user.id, new_doc.id, tag)
-                db.session.add(new_tag)
-
-        if 'authors' in doc:
-            for author in doc['authors']:
-                try:
-                    new_author = Authors(current_user.id, new_doc.id, author['first_name'], author['last_name'], 0)
-                except KeyError:
-                    try:
-                        new_author = Authors(current_user.id, new_doc.id, '', author['last_name'], 0)
-                    except KeyError:
-                        new_author = Authors(current_user.id, new_doc.id, author['first_name'], '', 0)
-                db.session.add(new_author)
-
-        if 'editors' in doc:
-            for editor in doc['editors']:
-                try:
-                    new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], editor['last_name'], 1)
-                except KeyError:
-                    try:
-                        new_editor = Authors(current_user.id, new_doc.id, '', editor['last_name'], 1)
-                    except KeyError:
-                        new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], '', 1)
-                db.session.add(new_editor)
-
-        #get file id to link to
-        file_params = {'document_id':doc['id']}
-        files = mendeley.get('https://api.mendeley.com/files', params=file_params).json()
-
-        if files:
-            for file in files:
-                new_filelink = FileLinks(new_doc.id, file['id'])
-                new_filelink.mime_type = file['mime_type']
-                db.session.add(new_filelink)
+            db.session.add(new_doc)
             db.session.commit()
+
+            if 'tags' in doc:
+                for tag in doc['tags']:
+                    new_tag = Tags(current_user.id, new_doc.id, tag)
+                    db.session.add(new_tag)
+
+            if 'authors' in doc:
+                for author in doc['authors']:
+                    try:
+                        new_author = Authors(current_user.id, new_doc.id, author['first_name'], author['last_name'], 0)
+                    except KeyError:
+                        try:
+                            new_author = Authors(current_user.id, new_doc.id, '', author['last_name'], 0)
+                        except KeyError:
+                            new_author = Authors(current_user.id, new_doc.id, author['first_name'], '', 0)
+                    db.session.add(new_author)
+
+            if 'editors' in doc:
+                for editor in doc['editors']:
+                    try:
+                        new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], editor['last_name'], 1)
+                    except KeyError:
+                        try:
+                            new_editor = Authors(current_user.id, new_doc.id, '', editor['last_name'], 1)
+                        except KeyError:
+                            new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], '', 1)
+                    db.session.add(new_editor)
+
+            #get file id to link to
+            file_params = {'document_id':doc['id']}
+            files = mendeley.get('https://api.mendeley.com/files', params=file_params).json()
+
+            if files:
+                for file in files:
+                    new_filelink = FileLinks(new_doc.id, file['id'])
+                    new_filelink.mime_type = file['mime_type']
+                    db.session.add(new_filelink)
+                db.session.commit()
+
+        #else, update it (possibly)
+        else:
+            if not doc['last_modified']:
+                continue
+            #otherwise, convert it to datetime object and see check if updated since one in db
+            check_date = datetime.strptime(doc['last_modified'], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+            if check_date > check_doc.last_modified:
+
+                check_doc.title = doc['title']
+                check_doc.created=doc['created']
+                check_doc.read=doc['read']
+                check_doc.starred=doc['starred']
+                check_doc.last_modified=doc['last_modified']
+
+                if 'year' in doc:
+                    check_doc.year = doc['year']
+
+                #Mendeley allows multiple links, but only include first one
+                if 'websites' in doc:
+                    check_doc.link = doc['websites'][0]
+
+                #get notes
+                an_params = {'document_id':doc['id'], 'type':'note'}
+                annotations = mendeley.get('https://api.mendeley.com/annotations', params=an_params).json()
+                if annotations:
+                    check_doc.note = annotations[0]['text']
+
+                db.session.commit()
+
+                #delete tags, authors and file_links and replace (seems much easier to do than try to update)
+                Tags.query.filter_by(document_id=check_doc.id).delete()
+                Authors.query.filter_by(document_id=check_doc.id).delete()
+                FileLinks.query.filter_by(document_id=check_doc.id).delete()
+
+                if 'tags' in doc:
+                    for tag in doc['tags']:
+                        new_tag = Tags(current_user.id, check_doc.id, tag)
+                        db.session.add(new_tag)
+                    db.session.commit()
+
+                if 'authors' in doc:
+                    for author in doc['authors']:
+                        try:
+                            new_author = Authors(current_user.id, check_doc.id, author['first_name'], author['last_name'], 0)
+                        except KeyError:
+                            try:
+                                new_author = Authors(current_user.id, check_doc.id, '', author['last_name'], 0)
+                            except KeyError:
+                                new_author = Authors(current_user.id, check_doc.id, author['first_name'], '', 0)
+                        db.session.add(new_author)
+                    db.session.commit()
+
+                if 'editors' in doc:
+                    for editor in doc['editors']:
+                        try:
+                            new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], editor['last_name'], 1)
+                        except KeyError:
+                            try:
+                                new_editor = Authors(current_user.id, check_doc.id, '', editor['last_name'], 1)
+                            except KeyError:
+                                new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], '', 1)
+                        db.session.add(new_editor)
+                    db.session.commit()
+
+                #get file id to link to
+                file_params = {'document_id':doc['id']}
+                files = mendeley.get('https://api.mendeley.com/files', params=file_params).json()
+
+                if files:
+                    for file in files:
+                        new_filelink = FileLinks(check_doc.id, file['id'])
+                        new_filelink.mime_type = file['mime_type']
+                        db.session.add(new_filelink)
+                    db.session.commit()
+
+
+    #now remove any deleted docs
+    #first, get docs in db
+    docs = db.session.query(Documents.native_doc_id).filter_by(user_id=current_user.id, service_id=1).all()
+
+    #if doc.native_doc_id is not in m_doc_ids, delete it
+    for doc in docs:
+        if doc.native_doc_id not in m_doc_ids:
+            Documents.query.filter_by(user_id=current_user.id, service_id=1, native_doc_id=doc.native_doc_id).delete()
 
     current_user.mendeley_update = datetime.now()
     db.session.commit()
 
+    flash('Documents from Mendeley have been refreshed.')
     return
 
 ################################################################################
 ################################################################################
 ## WYR NATIVE   ################################################################
 #service_id = 3
-
 
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
@@ -1327,6 +1392,8 @@ def update_goodreads():
 
     #store
     store_goodreads()
+
+    flash('Documents from Mendeley have been refreshed.')
 
     return
 
