@@ -941,7 +941,7 @@ def add():
 
         #if this is from bookmarklet, pass along variables
         title = request.args.get('title')
-        link = request.args.get('link')
+        link = request.args.get('link', '')
 
         #also pass along tags for autocomplete
         new_tags = list()
@@ -950,10 +950,11 @@ def add():
             new_tags.append(tag.name)
 
         #check if link already exists, redirect user to edit if so
-        if Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).count() == 1:
-            doc = Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).first()
-            flash("You've already saved that link; you may edit it below.")
-            return redirect(url_for('edit', id=doc.id))
+        if link:
+            if Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).count() == 1:
+                doc = Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).first()
+                flash("You've already saved that link; you may edit it below.")
+                return redirect(url_for('edit', id=doc.id))
 
         return render_template('add.html', title=title, link=link, tags=new_tags)
 
@@ -973,10 +974,11 @@ def add():
             return redirect(url_for('add'))
 
         #check if link already exists, redirect user to edit if so
-        if Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).count() == 1:
-            doc = Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).first()
-            flash("You've already saved that link; you may edit it below.")
-            return redirect(url_for('edit', id=doc.id))
+        if link:
+            if Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).count() == 1:
+                doc = Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).first()
+                flash("You've already saved that link; you may edit it below.")
+                return redirect(url_for('edit', id=doc.id))
 
         #insert
         new_doc = Documents(current_user.id, 3, title)
