@@ -90,9 +90,16 @@
     </div>
     <p></p>
 
-    <script type="text/javascript" language="JavaScript">
-    document.forms['add'].elements['title'].focus();
-    </script>
+    {# cursor focus on tags if from bookmarklet, otherwise title #}
+    {% if title %}
+        <script type="text/javascript" language="JavaScript">
+        document.forms['add'].elements['tags'].focus();
+        </script>
+    {% else %}
+        <script type="text/javascript" language="JavaScript">
+        document.forms['add'].elements['title'].focus();
+        </script>
+    {% endif %}
 
 </div>
 {% endblock %}
