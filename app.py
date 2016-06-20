@@ -1226,7 +1226,14 @@ def bulk_edit():
         tags = db.session.query(Tags.name).join(Documents).filter(Documents.user_id==current_user.id, Documents.service_id=="3").\
         order_by(Tags.name).distinct()
 
-        return render_template('edit_tags.html', tags=tags)
+        #form names can't contain spaces, so have to work around - send dict of tag names, temp_ids
+        tag_list = list()
+        i=0
+        for tag in tags:
+            tag_list.append({'temp_id':i, 'name':tag.name})
+            i += 1
+
+        return render_template('edit_tags.html', tags=tag_list)
 
     else:
         return render_template('contact.html')
@@ -1236,6 +1243,9 @@ def bulk_edit():
 
 
         form_variables = request.form
+        #go through each one starting with "rename." or "delete." and rename/delete?
+
+        #original dict is in input tag_list, has temp_ids and names, use to associate with rename.#/delete.#
 
         return render_template('test_bulk_edit.html', variables=form_variables)
         """
