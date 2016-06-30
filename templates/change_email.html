@@ -3,8 +3,9 @@
 <div id="main">
     <div class="block-center">
         <h2>Change Email</h2>
+        Changing email is temporarily not available.
         {% if step == "1" %}
-            <p class ="left">Your email is currently {{current_user.email}}. To ensure the
+        {#    <p class ="left">Your email is currently {{current_user.email}}. To ensure the
             security of your account, changing your email is a multi-step process. First, click on the
             submit button below. You will be emailed a unique link, which will take you to another
             page to enter your new email address (and confirm you password). After that,
@@ -13,8 +14,9 @@
                 <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
                 <button type="submit" name="step1" value="Submit">Submit</button>&nbsp;<button type="submit" name="step1" value="Cancel">Cancel</button>
             </form>
+        #}
         {% elif step == "2" %}
-            <p>Please enter a new email address and your password. A message will be sent to your new email address
+        {#    <p>Please enter a new email address and your password. A message will be sent to your new email address
             with a link to confirm the change. (And then that's it, I promise!)</p>
             <form name="change_email2" action="{{ url_for('change_email') }}" method="post">
                 <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"/>
@@ -25,6 +27,7 @@
                 <input class="login_form" type="password" size="20" id="wyr_current_password" name="wyr_current_password" placeholder="Password"/><br>
                 <button type="submit" name="step2" value="Submit">Submit</button>&nbsp;<button type="submit" name="step2" value="Cancel">Cancel</button>
             </form>
+        #}
         {% endif %}
     </div>
 

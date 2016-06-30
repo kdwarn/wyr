@@ -154,10 +154,12 @@ def sign_up():
         myctx = CryptContext(schemes=['pbkdf2_sha256'])
         hash = myctx.encrypt(password)
 
-        user = User(username=username, password=hash)
+        user = User(username=username, password=hash, email=email)
         db.session.add(user)
         db.session.commit()
 
+        """
+        #do this after first login instead
         #generate the token, send the email, then return user to login
         action = 'confirm' #used to differentiate between confirming and changing email in confirm()
         serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
@@ -166,8 +168,13 @@ def sign_up():
         msg = Message('Confirm your email address', sender='whatyouveread@gmail.com', recipients=[email])
         msg.body = "Welcome to What You've Read. Please confirm your email by clicking on this link: http://www.whatyouveread.com/confirm/{}".format(email_hash)
         mail.send(msg)
+        """
 
-        flash('You\'ve registered the username {}. Please check your email and follow the link provided to confirm your address.'.format(username))
+        #log the user in
+        login_user(user)
+
+        #redirect them back to home page
+        flash('Welcome to What You\'ve Read, {}!'.format(username))
         return redirect(url_for('index'))
     else:
         abort(405)
