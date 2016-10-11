@@ -2,19 +2,11 @@
 {% extends 'header.html' %}
 {% block content %}
 <div id="main">
-    <div class="block-center">
-        <span class="small center">
-            <a href="{{url_for('index')}}">all</a>
-            | tags
-            | <a href="{{url_for('authors')}}">authors</a>
-            <br><br>
-            <a href="{{ url_for('bulk_edit') }}">bulk edit</a>
-        </span>
-    </div>
-    <br>
+    {% set page = '2' %}
+    {% include 'sort_subheader.html' %}
     <div style="line-height:1.5em">
     {% for tag in tags %}
-        <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>&nbsp;
+        <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }} </a>&nbsp;
     {% endfor %}
     </div>
 </div>

@@ -1,20 +1,46 @@
-#see this for SQLAlchemy foreign keys: http://docs.sqlalchemy.org/en/latest/core/constraints.html
-
 from app import db
 from flask.ext.login import UserMixin
+from sqlalchemy_utils import auto_delete_orphans
+
+#association tables
+#see for many-to-many tags-documents relationship
+# http://flask-sqlalchemy.pocoo.org/2.1/models/
+# and http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
+document_tags = db.Table('document_tags',
+                      db.Column('document_id', db.Integer, db.ForeignKey('documents.id'), primary_key=True),
+                      db.Column('tag_id', db.Integer, db.ForeignKey('tags.id'), primary_key=True))
+
+
+document_authors = db.Table('document_authors',
+                        db.Column('author_id', db.ForeignKey('authors.id'), primary_key=True),
+                        db.Column('document_id', db.ForeignKey('documents.id'), primary_key=True))
 
 #main user table
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(25), unique=True)
+    username = db.Column(db.String(50), unique=True)
     password = db.Column(db.String(200))
     email = db.Column(db.String(100), unique=True)
     mendeley = db.Column(db.Integer)
     mendeley_update = db.Column(db.DateTime)
     goodreads = db.Column(db.Integer)
     goodreads_update = db.Column(db.DateTime)
+    stripe_id = db.Column(db.String(50))
+
+    #relationships
+    #this works, and the fastest way so far
+    documents = db.relationship('Documents', lazy='dynamic', backref=db.backref('documents', cascade='all, delete'))
+
+    #seems to be about twice as fast as this:
+    #documents = db.relationship('Documents', backref='user', lazy='dynamic')
+
+    #how about this? still slow
+    #documents = db.relationship('Documents', backref='user', lazy='joined')
 
 #table of different services - manually add through mysql
+# 1 - Mendeley
+# 2 - Goodreads
+# 3 - Native
 class Services(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(25), unique=True)
@@ -30,7 +56,6 @@ class Tokens(db.Model, UserMixin):
 
 ###TABLES FOR DOCUMENT DATA#####################################################
 
-#documents table
 class Documents(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE"))
@@ -46,41 +71,43 @@ class Documents(db.Model, UserMixin):
     native_doc_id = db.Column(db.String(50)) #need for Mendeley, maybe others
 
     #relationships
-    tags = db.relationship('Tags', lazy="joined", backref="documents", cascade="all, delete-orphan")
-    authors = db.relationship('Authors', lazy="joined", backref="documents", cascade="all, delete-orphan")
-    file_links = db.relationship('FileLinks', lazy="joined", backref="documents", cascade="all, delete-orphan")
+    #fastest; deletes orphans in document_tags but not tags
+    tags = db.relationship('Tags', secondary=document_tags, lazy='joined', backref=db.backref('documents', cascade='all, delete'))
 
+    #2 - this one works - much faster than #3 experimental below - but seems slower than above
+    #tags = db.relationship('Tags', secondary=document_tags, lazy='joined', backref=db.backref('tags'))
+    #3 experimental
+    #tags = db.relationship('Tags', secondary=document_tags, backref=db.backref('documents', lazy='dynamic'))
 
-    def __init__(self, user_id, service_id, title):
-        self.user_id = user_id
+    #fastest; delete orpahs in document_authors but not authors
+    authors = db.relationship('Authors', secondary=document_authors, lazy='joined', backref=db.backref('authors', cascade="all, delete"))
+    #which is faster than this:
+    #authors = db.relationship('Authors', secondary=document_authors, lazy='joined', backref=db.backref('documents', lazy='dynamic'))
+
+    file_links = db.relationship('FileLinks', lazy="joined", backref="documents", cascade="all, delete, delete-orphan")
+
+    def __init__(self, service_id, title):
         self.service_id = service_id
         self.title = title
+    #user_id is also required, but instead of doing adding it here, it gets added when doing a current_user.documents.append() statement
 
 class Tags(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE"))
-    document_id = db.Column(db.Integer, db.ForeignKey('documents.id', onupdate="CASCADE", ondelete="CASCADE"))
     name = db.Column(db.String(100))
 
-    def __init__(self, user_id, document_id, name):
-        self.user_id = user_id
-        self.document_id = document_id
+    def __init__(self, name):
         self.name = name
 
 class Authors(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE"))
-    document_id = db.Column(db.Integer, db.ForeignKey('documents.id', onupdate="CASCADE", ondelete="CASCADE"))
     first_name = db.Column(db.String(100))
     last_name = db.Column(db.String(100))
-    role = db.Column(db.String(1), default=0)
+    role = db.Column(db.Integer, default=0)
 
-    def __init__(self, user_id, document_id, first_name, last_name, role):
-        self.user_id = user_id
-        self.document_id = document_id
+    def __init__(self, first_name, last_name):
         self.first_name = first_name
         self.last_name = last_name
-        self.role = role
+
 
 class FileLinks(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -93,6 +120,24 @@ class FileLinks(db.Model, UserMixin):
         self.file_link = file_link
 
 
+# bunches
+
+class Bunches(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE"))
+    name = db.Column(db.String(100))
+
+    def __init__(self, user_id, name):
+        self.user_id = user_id
+        self.name = name
+
+#this should be an association table
+class BunchTags(db.Model, UserMixin):
+    bunch_id = db.Column(db.Integer, db.ForeignKey('bunches.id', onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
+    tag_id = db.Column(db.Integer,  db.ForeignKey('tags.id', onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
 
 
+# not working
+#auto_delete_orphans(Documents.tags)
+#auto_delete_orphans(Documents.authors)
 

@@ -5,6 +5,8 @@
     {# autocomplete from http://jqueryui.com/autocomplete/#multiple #}
     <script src="http://code.jquery.com/jquery-1.10.2.js"></script>
     <script src="http://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+
+    {# script for autocomplete of tags #}
     <script>
     $(function() {
         var availableTags = {{ all_tags|tojson }};
@@ -34,6 +36,36 @@
     });
     </script>
 
+    {# script for autocomplete of authors #}
+    <script>
+    $(function() {
+        var availableAuthors = {{ all_authors|tojson }};
+        function split( val ) { return val.split( /,\s*/ );}
+        function extractLast( term ) { return split( term ).pop();}
+        $( "#authors" )
+        .bind( "keydown", function( event ) {
+            if ( event.keyCode === $.ui.keyCode.TAB && $( this ).autocomplete( "instance" ).menu.active ) {
+            event.preventDefault(); }
+            })
+        .autocomplete({
+            minLength: 2,
+            source: function( request, response ) {
+                response( $.ui.autocomplete.filter(
+                availableAuthors, extractLast( request.term ) ) );
+            },
+        focus: function() { return false; },
+        select: function( event, ui ) {
+            var terms = split( this.value );
+            terms.pop();
+            terms.push( ui.item.value );
+            terms.push( "" );
+            this.value = terms.join( "; " );
+            return false;
+            }
+        });
+    });
+    </script>
+
 <div id="main">
     <div class="block-center">
         <h2>Edit</h2>
@@ -57,9 +89,6 @@
             <label class="sr-only" for="authors">Authors**</label>
             <input class="login_form" type="text" size="40" id="authors" name="authors" value="{{authors}}" placeholder="Author(s)"/><br>
 
-            <label class="sr-only" for="editors">Editors**</label>
-            <input class="login_form" type="text" size="40" id="editors" name="editors" value="{{editors}}" placeholder="Editor(s)"/><br>
-
             <label class="sr-only" for="notes">Notes</label>
             {% if doc.note %}
                 <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes">{{ doc.note.replace('<br>', '\n') }}</textarea>
@@ -72,13 +101,15 @@
             <input type="hidden" name="authorpage" value="{{request.args.get('authorpage')}}">
             <input type="hidden" name="first_name" value="{{request.args.get('first_name')}}">
             <input type="hidden" name="last_name" value="{{request.args.get('last_name')}}">
+            <input type="hidden" name="old_tags" value="{{tags}}">
+            <input type="hidden" name="old_authors" value="{{authors}}">
             <br><br>
             <button type="submit" name="submit" value="Submit">Submit</button>&nbsp;
             <button type="submit" name="submit" value="Cancel">Cancel</button>
             <br><br>
             <span class="small">tags should be separated by commas
             <br>
-            authors/editors should be in the format: Austin, Jane; Douglass, Frederick</span><br>
+            authors should be in the format: Austin, Jane; Douglass, Frederick</span><br>
         </form>
     </div>
 

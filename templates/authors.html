@@ -2,14 +2,8 @@
 {% extends 'header.html' %}
 {% block content %}
 <div id="main">
-    <div class="center">
-    <span class="small center">
-    <a href="{{url_for('index')}}">all</a>
-    | <a href="{{url_for('tags')}}">tags</a>
-    | authors
-    </span>
-    <br><br>
-    </div>
+    {% set page = '4' %}
+    {% include 'sort_subheader.html' %}
     <div  style="line-height:1.5em">
     {% if current_user.is_authenticated %}
         {% for author in authors %}

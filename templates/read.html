@@ -2,38 +2,45 @@
 {% extends 'header.html' %}
 {% block content %}
 <div id="main">
-    <div class="center">
-    {% if tagpage or authorpage %}
+    {% if tagpage or authorpage or tags %}
         <h2>
+
+        {# items by one tag #}
         {% if tagpage %}
             tagged {{tagpage}}
         {% endif %}
+
+        {# items by multiple tags #}
+        {% if tags %}
+            <form method="post" name="save_bunch" action="{{url_for('save_bunch')}}">
+            tagged
+            {% for b_tag in tags|sort %}
+                {% if b_tag != tags|sort|last %}
+                    {% if selector == 'or' %}
+                        {{ b_tag }} or
+                    {% else %}
+                        {{ b_tag }} and
+                    {% endif %}
+                {% else %}
+                    {{ b_tag }}
+                {% endif %}
+            {% endfor %}
+            <button type="submit" name="save" value="1" class="info no_button">save bunch</button>
+            <input type="hidden" name="tags" value="{{tags}}">
+            </form>
+        {% endif %}
+
+
+        {# items by author #}
         {% if authorpage %}
             by {{first_name}} {{last_name}}
         {% endif %}
         </h2>
-        <span class="small center">
-            <a href="{{url_for('index')}}">all</a>
-            | <a href="{{url_for('tags')}}">tags</a>
-            | <a href="{{url_for('authors')}}">authors</a>
-        </span>
     {% else %}
-        <span class="small center">
-        all
-        {% if tags %}
-            | tags
-        {% else %}
-            | <a href="{{url_for('tags')}}">tags</a>
-        {% endif %}
-        {% if authors %}
-            | authors
-        {% else %}
-            | <a href="{{url_for('authors')}}">authors</a>
-        {% endif %}
-        </span>
+        {% set page = '1' %}
     {% endif %}
-    </div>
-    <br>
+    {% include 'sort_subheader.html' %}
+
     <div>
     {% if current_user.is_authenticated %}
         {% for doc in docs %}

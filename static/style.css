@@ -135,3 +135,76 @@ button[type=submit]:hover {
     border:1px solid #0A0A2A;
     color: #0A0A2A;
 }
+
+
+#multiple_tags ul {
+    list-style: none;
+    padding-left:0;
+}
+
+
+#multiple_tags li {
+    display: inline;
+}
+
+#multiple_tags input[type=checkbox] {
+    display: none;
+}
+
+
+#multiple_tags input[type="checkbox"]:checked + label {
+    background: #0A0A2A;
+    color: white;
+    padding: 1px 3px 1px 3px;
+    border: 1px solid #0A0A2A;
+    border-radius: 3px;
+}
+
+#multiple_tags input[type=radio] {
+    display: none;
+}
+
+
+#multiple_tags input[type="radio"]:checked + label {
+    background: #0A0A2A;
+    color: white;
+    padding: 1px 3px 1px 3px;
+    border: 1px solid #0A0A2A;
+    border-radius: 3px;
+}
+
+/* Remove all decorations to make button look like simple text*/
+button.no_button, button.no_button:focus, button.no_button:active {
+    background: none;
+    border: none;
+    display: inline;
+    font: inherit;
+    margin: 0;
+    padding: 0;
+    outline: none;
+    outline-offset: 0;
+    /* Additional styles to look like a link */
+    color: blue;
+    font-size:0.75rem;
+    font-weight: normal;
+}
+
+button.no_button:hover {
+    background: none;
+    border: none;
+    display: inline;
+    font: inherit;
+    margin: 0;
+    padding: 0;
+    outline: none;
+    outline-offset: 0;
+    /* Additional styles to look like a link */
+    color: blue;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size:0.75rem;
+    font-weight: normal;
+}
+
+
+

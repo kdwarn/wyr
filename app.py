@@ -3,20 +3,23 @@ from flask import Flask, render_template, request, session, redirect, url_for, \
 from flask.ext.login import LoginManager, login_user, logout_user, \
     login_required, current_user
 from flask.ext.sqlalchemy import SQLAlchemy
-from sqlalchemy import desc
+from sqlalchemy import desc, func, distinct, text
 from requests_oauthlib import OAuth2Session, OAuth1Session
 from oauthlib.oauth2 import InvalidGrantError
 from xml.etree import ElementTree
 from time import time
-from config import m, g
+from config import m, g, stripe_keys, mailgun
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-from flask.ext.mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 from random import random
 from math import ceil
+import stripe
+import requests
 
 #from testing import test_doc, test_tag, test_author
+
+stripe.api_key = stripe_keys['secret_key']
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -46,6 +49,14 @@ def generate_csrf_token():
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 #end csrf protection
 
+#function for displaying datetime in jinja, defaulting to date like May 1, 1886
+def datetimeformat(value, format='%B %d, %Y'):
+    value = datetime.fromtimestamp(value)
+    return value.strftime(format)
+#now make it a filter
+app.jinja_env.filters['datetime'] = datetimeformat
+
+
 @login_manager.user_loader
 def user_loader(user_id):
     user = User.query.filter_by(id=user_id)
@@ -53,24 +64,192 @@ def user_loader(user_id):
         return user.one()
     return None
 
+def send_simple_message(to, subject, text):
+    """ send email via mailgun """
+    return requests.post(
+        mailgun['messages_url'],
+        auth=('api', mailgun['api_key']),
+        data={'from': mailgun['from'],
+              'h:Reply-To': mailgun['reply_to'],
+              'to': to,
+              'subject': subject,
+              'html': text})
+
+def get_stripe_info():
+    """ get user's Stripe info """
+    if current_user.stripe_id is not None:
+        donor = stripe.Customer.retrieve(current_user.stripe_id)
+
+        #simplify object a bit, see if user has current subscription to plan
+        try:
+            subscription = donor.subscriptions['data'][0]
+        except IndexError:
+            subscription = ''
+
+        #drop everything else from donor
+        #to do
+
+    else:
+        donor = ''
+        subscription = ''
+
+    return donor, subscription
+
+def get_user_tags():
+    '''
+    Use sql (can't figure out how to get SQLAlchemy to do this) to get user's
+    tags - id and name
+    '''
+    sql = text('SELECT DISTINCT tags.name, tags.id from tags \
+            JOIN document_tags ON (document_tags.tag_id = tags.id) \
+            JOIN documents ON (documents.id = document_tags.document_id) \
+            JOIN user ON (user.id = documents.user_id) \
+            WHERE user.id = :x \
+            ORDER BY tags.name');
+    result = db.engine.execute(sql, x=current_user.id)
+    tags = []
+    for row in result:
+        tags.append({'id': row[1], 'name': row[0]})
+    return tags
+
+def get_user_tag_names():
+    '''
+    Use sql (can't figure out how to get SQLAlchemy to do this) to get user's
+    tag names only
+    '''
+    sql = text('SELECT DISTINCT tags.name from tags \
+            JOIN document_tags ON (document_tags.tag_id = tags.id) \
+            JOIN documents ON (documents.id = document_tags.document_id) \
+            JOIN user ON (user.id = documents.user_id) \
+            WHERE user.id = :x \
+            ORDER BY tags.name');
+    result = db.engine.execute(sql, x=current_user.id)
+    tags = []
+    for row in result:
+        tags.append(row[0])
+    return tags
+
+def str_tags_to_list(tags):
+    ''' Input: string of (possibly comma-separated) tags
+        Output: list of tags, stripped of empty tags and whitesapce
+    '''
+
+    #turn string into tags into list
+    tags = tags.split(',')
+    #strip whitespace
+    i = 0
+    for tag in tags[:]:
+        tags[i] = tags[i].strip()
+        i += 1
+
+    #delete empty tags
+    for tag in tags[:]:
+        if not tag:
+            tags.remove(tag)
+
+    return tags
+
+def get_user_authors():
+    '''
+    Use sql (can't figure out how to get SQLAlchemy to do this) to get user's
+    authors - id, first_name, last_name
+    '''
+    sql = text('SELECT DISTINCT authors.id, authors.first_name, authors.last_name from authors \
+            JOIN document_authors ON (document_authors.author_id = authors.id) \
+            JOIN documents ON (documents.id = document_authors.document_id) \
+            JOIN user ON (user.id = documents.user_id) \
+            WHERE user.id = :x \
+            ORDER BY authors.last_name');
+    result = db.engine.execute(sql, x=current_user.id)
+    authors = []
+    for row in result:
+        authors.append({'id': row[0], 'first_name': row[1], 'last_name': row[2]})
+    return authors
+
+def get_user_author_names():
+    '''
+    Use sql (can't figure out how to get SQLAlchemy to do this) to get user's
+    author names only
+    '''
+    sql = text('SELECT DISTINCT authors.first_name, authors.last_name from authors \
+            JOIN document_authors ON (document_authors.author_id = authors.id) \
+            JOIN documents ON (documents.id = document_authors.document_id) \
+            JOIN user ON (user.id = documents.user_id) \
+            WHERE user.id = :x \
+            ORDER BY authors.last_name');
+    result = db.engine.execute(sql, x=current_user.id)
+    authors = []
+    for row in result:
+        authors.append(row[1] + ', ' + row[0])
+    return authors
+
+def str_authors_to_list(authors):
+    ''' Input: string of (possibly comma- and semi-colon-separated) authors
+        Output: list of list of authors, stripped of empty authors and whitesapce
+    '''
+
+    #turn authors string into list
+    authors = authors.split(';')
+
+    #delete any empty items
+    for author in authors[:]:
+        if not author.strip():
+            authors.remove(author)
+
+    #now turn into list of lists
+    i=0
+    for author in authors[:]:
+        authors[i] = author.split(',')
+        i += 1
+
+    #now strip white space and replace any empty name with None
+    for author in authors:
+        i = 0
+        for name in author:
+            author[i] = author[i].strip()
+            if not name.strip():
+                author[i] = ''
+            i += 1
+
+    #it's still possible that there's an empty author set or set with only first name
+    for author in authors:
+        if not author[0]:
+            authors.remove(author)
+
+    return authors
+
 """
 @app.route('/testing')
 def testing():
     pass
 """
 
+@app.route('/sandbox/ <two>', defaults={'one': None})
+def sandbox(one, two):
+    variable = [one, two]
+    #if not one:
+    #    variable = ['empty', two]
+    return render_template('sandbox.html', variable=variable)
+
+
 @app.route('/')
 def index():
+    ''' Return documents or settings page for autenticated page, else return
+    main sign up/info page.
+
+    This also is where the function to update non-native docs is called.
+    '''
     if current_user.is_authenticated:
-        #fetch and display read items from various services
+        # fetch and display read items from various services
+        """ disabling for now
         then = datetime.now() - timedelta(days=7)
         if current_user.mendeley == 1 and current_user.mendeley_update < then:
             update_mendeley()
         if current_user.goodreads == 1 and current_user.goodreads_update < then:
             update_goodreads()
-
-        #this is this easy b/c I set up sqlalchemy relationships in models.py
-        docs = Documents.query.filter_by(user_id=current_user.id).order_by(desc(Documents.created)).all()
+        """
+        # put user's docs into variable to return
+        docs = current_user.documents.order_by(desc(Documents.created))
 
         if not docs:
             flash("""You don't appear to have any read documents yet. See below
@@ -82,12 +261,124 @@ def index():
     else:
         return render_template('index.html')
 
+@app.route('/donate')
+@login_required
+def donate():
+    ''' get user stripe info and send to donate page'''
+    donor, subscription = get_stripe_info()
+
+    return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
+
+@app.route('/cancel_donation', methods=['GET', 'POST'])
+@login_required
+def cancel_donation():
+    ''' let user cancel a donation '''
+    if request.method == 'GET':
+        return render_template('cancel_donation.html')
+
+    if request.method == 'POST':
+        #get user stripe info
+        donor, subscription = get_stripe_info()
+
+        #otherwise process form
+        if request.form['cancel_next_donation'] == 'Yes':
+            #cancel it
+            subscription = stripe.Subscription.retrieve(subscription.id)
+            subscription.delete()
+
+            flash('Your scheduled donation has been cancelled.')
+        else:
+            flash('Your scheduled donation has NOT been cancelled.')
+
+        #get user stripe info
+        donor, subscription = get_stripe_info()
+
+        return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
+
+@app.route('/charge', methods=['GET', 'POST'])
+@login_required
+def charge():
+    ''' charge user's donation to their payment method '''
+    if request.method == 'POST':
+
+        # Get the credit card details submitted by the form
+        token = request.form['stripeToken']
+        plan = request.form['plan']
+        sub_id = request.form['sub_id']
+        customer_id = request.form['customer_id']
+
+        # Create the charge on Stripe's servers - this will charge the user's card
+        try:
+            #if current subscription, update it, else create new customer (and subscription)
+            if sub_id != '':
+                customer = stripe.Customer.retrieve(customer_id)
+                subscription = stripe.Subscription.retrieve(sub_id)
+                if plan == '0': #################I'm fairly certain I can delete this if
+                    #cancel it
+                    subscription.delete()
+                else:
+                    #update it
+                    subscription.plan = plan
+                    subscription.save()
+            else:
+                customer = stripe.Customer.create(email=current_user.email, plan=plan, source=token)
+
+        except stripe.error.CardError as e:
+            flash('Sorry, your card has been declined. Please try again.')
+            return redirect(url_for('donate'))
+        except stripe.error.RateLimitError as e:
+            # Too many requests made to the API too quickly
+            flash('Sorry, the server has been overloaded. Please try again in a moment.')
+            return redirect(url_for('donate'))
+
+        except stripe.error.InvalidRequestError as e:
+            # Invalid parameters were supplied to Stripe's API
+            flash('Sorry, we have made an error(1). Please try again later.')
+            return redirect(url_for('donate'))
+
+        except stripe.error.AuthenticationError as e:
+            # Authentication with Stripe's API failed
+            # (maybe you changed API keys recently)
+            flash('Sorry, we have made an error(2). Please try again later.')
+            return redirect(url_for('donate'))
+
+        except stripe.error.APIConnectionError as e:
+            # Network communication with Stripe failed
+            flash('Sorry, we have made an error(3). Please try again later.')
+            return redirect(url_for('donate'))
+
+        except stripe.error.StripeError as e:
+            # Display a very generic error to the user, and maybe send yourself an email
+            pass
+
+        except Exception as e:
+            # Something else happened, completely unrelated to Stripe
+            flash('Sorry, we have made an error(4). Please try again later.')
+            return redirect(url_for('donate'))
+
+        #add the customer.id to user table, as stripe_id
+        current_user.stripe_id = customer.id
+        db.session.commit()
+
+        flash("""Thanks for the donation. A receipt will be emailed to you.
+            If you do not get it, contact me.""")
+
+    donor, subscription = get_stripe_info()
+
+    return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
+
+@app.route('/donate_paypal')
+def paypal():
+    return render_template('donate_paypal.html')
+
 @app.route('/screenshots')
 def screenshots():
+    ''' screenshots of WYR for new potential users '''
     return render_template('screenshots.html')
 
 @app.route('/contact', methods = ['GET', 'POST'])
 def contact():
+    ''' contact me '''
     if request.method == 'GET':
         return render_template('contact.html')
     elif request.method == 'POST':
@@ -110,17 +401,24 @@ def contact():
             flash("You didn't add any comments.")
             return render_template('contact.html')
 
-        comments = name + ' (' + email + ') said: ' + comments
-        mail = Mail(app)
-        msg = Message('Comments on WYR from ' + name + ' (' + email + ')', sender='whatyouveread@gmail.com', recipients=['whatyouveread@gmail.com'])
-        msg.body = comments
-        mail.send(msg)
+        to = 'whatyouveread@gmail.com'
+        subject = 'Submitted comments on WYR'
+        text = '{} ({}) submitted these comments:<br>{}'.format(name, email, comments)
+
+        send_simple_message(to, subject, text)
+
         flash("Your comments have been sent. Thank you.")
 
     return redirect(url_for('index'))
 
 @app.route('/sign_up', methods=['GET', 'POST'])
 def sign_up():
+    ''' Sign up page.
+
+    Display form for new user to fill out, validate it, and create new user account.
+
+    '''
+
     if request.method == 'GET':
         return render_template('index.html')
     elif request.method == 'POST':
@@ -158,17 +456,17 @@ def sign_up():
         db.session.add(user)
         db.session.commit()
 
-        """
         #do this after first login instead
         #generate the token, send the email, then return user to login
         action = 'confirm' #used to differentiate between confirming and changing email in confirm()
         serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
         email_hash = serializer.dumps([user.id, email, action], salt='email')
-        mail = Mail(app)
-        msg = Message('Confirm your email address', sender='whatyouveread@gmail.com', recipients=[email])
-        msg.body = "Welcome to What You've Read. Please confirm your email by clicking on this link: http://www.whatyouveread.com/confirm/{}".format(email_hash)
-        mail.send(msg)
-        """
+
+        subject = 'Confirm your email address'
+        text = """Welcome to What You've Read. Please confirm your email by following
+        this link:<br> http://www.whatyouveread.com/confirm/{}.""".format(email_hash)
+
+        send_simple_message(email, subject, text)
 
         #log the user in
         login_user(user)
@@ -181,6 +479,7 @@ def sign_up():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    ''' Let users log in. '''
     if request.method == 'GET':
         return render_template('index.html', next=request.args.get('next'))
     elif request.method == 'POST':
@@ -218,6 +517,7 @@ def login():
 
 @app.route('/logout')
 def logout():
+    ''' Log out users. '''
     logout_user()
     flash('You\'ve been logged out.')
     return redirect(url_for('index'))
@@ -225,14 +525,20 @@ def logout():
 @app.route('/settings')
 @login_required
 def settings():
+    ''' Settings page. '''
     return render_template('settings.html')
 
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
 def change_password():
+    ''' Let users change password, set email to confirm. '''
     if request.method == 'GET':
         return render_template('change_password.html')
     elif request.method == 'POST':
+        if request.form['submit'] == 'Cancel':
+            flash('Password change cancelled.')
+            return redirect(url_for('settings'))
+
         current_password = request.form['wyr_current_password']
         new_password = request.form['wyr_new_password']
         confirm_password = request.form['wyr_confirm_password']
@@ -267,9 +573,9 @@ def change_password():
     else:
         return abort(405)
 
-#display form to send email link to reset password
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
+    ''' Display form to send email link to reset password. '''
     if request.method == 'GET':
         return render_template('forgot_password.html')
     elif request.method == 'POST':
@@ -283,12 +589,16 @@ def forgot_password():
             #generate the token, send the email, then return user to login
             serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
             email_hash = serializer.dumps([email], salt='email')
-            mail = Mail(app)
-            msg = Message('Reset password', sender='whatyouveread@gmail.com', recipients=[email])
-            msg.body = 'To reset your password, please follow this link: http://www.whatyouveread.com/reset_password/{}'.format(email_hash)
-            mail.send(msg)
+
+            subject = 'Reset password'
+            text = """To reset your password, please follow this link:<br>
+                http://www.whatyouveread.com/reset_password/{}""".format(email_hash)
+
+            send_simple_message(email, subject, text)
+
             flash('An email has been sent to you. Please follow the link provided to reset your password.')
             return redirect(url_for('index'))
+
         else:
             flash('No account with that email exists.')
             return redirect(url_for('index'))
@@ -297,6 +607,10 @@ def forgot_password():
 
 @app.route('/reset_password/<hash>', methods=['GET', 'POST'])
 def reset_password(hash, expiration=3600):
+    '''
+    GET: form to change password, from link emailed to user
+    POST: change the password
+    '''
     if request.method == 'GET':
         serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
         try:
@@ -345,84 +659,66 @@ def reset_password(hash, expiration=3600):
     else:
         return abort(405)
 
-# change user email (in confunction with confirm())
 @app.route('/change_email', methods=['GET', 'POST'])
 @login_required
 def change_email():
+    '''
+    Change user email, in conjuction with confirm()
+    '''
     if request.method == 'GET':
-        step = request.args.get('step')
-        hash = request.args.get('hash')
-        return render_template('change_email.html', step=step, hash=hash)
+        return render_template('change_email.html')
     elif request.method == 'POST':
-        #email user to confirm they one who initiated email change
-        if 'step1' in request.form:
-            if request.form['step1'] == "Cancel":
-                return redirect(url_for('settings'))
-
-            action = 'change' #used to differentiate between confirming and changing email in confirm()
-            serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-            email_hash = serializer.dumps([current_user.id, current_user.email, action], salt='email')
-            mail = Mail(app)
-            msg = Message('Confirm request to change email', sender='whatyouveread@gmail.com', recipients=[current_user.email])
-            msg.body = "What You've Read has received a request to change your email address. Please follow this link to confirm this was you: http://www.whatyouveread.com/confirm/{}".format(email_hash)
-            mail.send(msg)
-
-            flash("""Please check your email and follow the link provided to confirm your current email address. You will then
-            be able to enter a new email address (which you will also have to verify.)""")
+        if request.form['submit'] == "Cancel":
+            flash('Email change cancelled.')
             return redirect(url_for('settings'))
 
-        #get user's new email address, send another confirmation to that one
-        if 'step2' in request.form:
-            if request.form['step2'] == "Cancel":
-                return redirect(url_for('settings'))
+        new_email = request.form['new_email']
+        confirm_email = request.form['confirm_email']
 
-            hash = request.form['hash']
-            new_email = request.form['new_email']
-            current_password = request.form['wyr_current_password']
+        #minimum check that it's an email:
+        if '@' not in new_email:
+            flash('That didn\'t look like an email address. Please try again.')
+            return redirect(url_for('change_email'))
 
-            #check hash
-            serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-            try:
-                serializer.loads(hash, salt='email', max_age=3600)
-            except SignatureExpired:
-                flash('The link has expired. If you still want to change your email address, you must re-start the process.')
-                return redirect(url_for('settings'))
-            except: #fix elsewhere.
-                return "Error confirming your credentials." ### need to see what this returns and probably make more user friendly#############################################################################
+        #check if email already in use in another account
+        if User.query.filter_by(email=new_email).count() > 0:
+            flash('Sorry, that email address is already in use.')
+            return redirect(url_for('change_email'))
 
-            #verify password
-            myctx = CryptContext(schemes=['pbkdf2_sha256'])
-            if myctx.verify(current_password, current_user.password) != True:
-                flash('Password is incorrect. Please hit back in your browser and refresh the page to try again.')
-                return redirect(url_for('settings'))
+        #check that they match
+        if new_email != confirm_email:
+            flash("""The emails you entered did not match. Please try again. (This
+                is a safety feature to make sure you are entering the correct email.)""")
+            return redirect(url_for('change_email'))
 
-            #minimum check that it's an email:
-            if '@' not in new_email:
-                flash('That doesn\'t look like an email address.  Please hit back in your browser and refresh the page to try again.')
-                return redirect(url_for('settings'))
+        action = 'change' #used to differentiate between confirming and changing email in confirm()
+        serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+        email_hash = serializer.dumps([current_user.id, current_user.email, action, new_email], salt='email')
 
-            #check if email already in use in another account
-            if User.query.filter_by(email=new_email).count() > 0:
-                flash('Sorry, that email address is already in use.  Please hit back in your browser and refresh the page to try again.')
-                return redirect(url_for('settings'))
+        to = current_user.email
+        subject = 'Email address change'
+        text = """What You've Read has received a request to change your email
+            address. If this was you, please follow this link to confirm:<br><br>
+            http://www.whatyouveread.com/confirm/{}<br><br>
+            If this was not you, someone has access to your account. You should
+            <a href="http://www.whatyouveread.com/forgot_password">reset your
+            password</a> immediately.""".format(email_hash)
 
-            #send verification email to new email address
-            action = 'confirm' #used to differentiate between confirming and changing email in confirm()
-            serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-            email_hash = serializer.dumps([current_user.id, new_email, action], salt='email')
-            mail = Mail(app)
-            msg = Message('Confirm new email address', sender='whatyouveread@gmail.com', recipients=[new_email])
-            msg.body = 'You (or someone pretending to be you) has sent a request to associate this email address with their What You\'ve Read account. Please follow this link to confirm this was you: http://www.whatyouveread.com/confirm/{}'.format(email_hash)
-            mail.send(msg)
+        send_simple_message(to, subject, text)
 
-            flash('Email address change almost complete: Please check your email and follow the link provided to confirm your new email address.')
-            return redirect(url_for('settings'))
+        flash("""Please check your email and follow the link provided to confirm
+            your new email address.""")
+        return redirect(url_for('settings'))
+
     else:
         return abort(405)
 
-#confirm new or changed emailed address
+
 @app.route('/confirm/<hash>')
 def confirm(hash, expiration=3600):
+    '''
+    confirm new or changed emailed address
+    '''
     serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
     try:
         decoded = serializer.loads(hash, salt='email', max_age=expiration)
@@ -437,57 +733,137 @@ def confirm(hash, expiration=3600):
         return redirect(url_for('settings'))
 
     if decoded[2] == 'change':
-        return redirect(url_for('change_email', step=2, hash=hash))
+        user = User.query.get(decoded[0])
+        user.email = decoded[3]
+        db.session.commit()
+        flash('Your new email address has been saved.')
+        return redirect(url_for('settings'))
 
 @app.route('/u/<username>')
 @login_required
 def show_user_profile(username):
     # show the user profile for that user
-    return 'Hello %s' % username
+    return 'Hello {}'.format(username)
 
+#items by tag
 @app.route('/tag/<tag>/')
 @login_required
 def docs_by_tag(tag):
-    docs = Documents.query.join(Tags).filter(Documents.user_id==current_user.id, Tags.name==tag).order_by(desc(Documents.created)).all()
+    ''' Return all user's documents tagged <tag>. '''
+
+    #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
+    docs = current_user.documents.filter(Documents.tags.any(name=tag)).order_by(desc(Documents.created)).all()
 
     #tagpage is used for both header and to return user to list of docs by tag if user editing or deleting from there
     return render_template('read.html', docs=docs, tagpage=tag)
 
+
 @app.route('/authors/<first_name> <last_name>')
 @login_required
 def docs_by_author(first_name, last_name):
-    docs = Documents.query.join(Authors).filter(Documents.user_id==current_user.id). \
-           filter(Authors.last_name==last_name).filter(Authors.first_name==first_name).order_by(desc(Documents.created)).all()
+    ''' Return all documents by particular author. '''
+
+    #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
+    docs = current_user.documents.filter(Documents.authors.any(first_name=first_name)).\
+        filter(Documents.authors.any(last_name=last_name)).order_by(desc(Documents.created)).all()
 
     #authorpage, first_name, last_name used for header
     return render_template('read.html', docs=docs, authorpage=1, first_name=first_name, last_name=last_name)
 
-#page of all tags
+
+@app.route('/authors/ <last_name>')
+@login_required
+def docs_by_author_last(last_name):
+    ''' Same as above, but in the special case where there is only a last name (institional name) '''
+
+    #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
+    docs = current_user.documents.filter(Documents.authors.any(last_name=last_name)).order_by(desc(Documents.created)).all()
+
+    #authorpage, first_name, last_name used for header
+    return render_template('read.html', docs=docs, authorpage=1, last_name=last_name)
+
+
 @app.route('/tags')
 @login_required
 def tags():
-    #tags = Tags.query.filter_by(user_id=current_user.id).order_by(Tags.name).distinct()
-    tags = db.session.query(Tags.name).filter_by(user_id=current_user.id).order_by(Tags.name).distinct()
-
-    #to resize
-    #first, need count of each
-    #for tag in tags:
-    #    tag.number = Tags.query.filter_by(name=tag.name).count()
-
+    ''' Return page of all tags, which user can select to display documents with that tag. '''
+    tags = get_user_tags()
     return render_template('tags.html', tags=tags)
 
-#page of all authors
+@app.route('/bunches', methods=['GET', 'POST'])
+@login_required
+def bunches():
+    '''
+    Let user select multip tags and display the docs that fit the criteria.
+
+    Include link to save the bunch, which takes place through save_bunch().
+
+    '''
+    if request.method == 'GET':
+        tags = db.session.query(Tags.name).filter_by(user_id=current_user.id).order_by(Tags.name).distinct()
+        return render_template('bunches.html', tags=tags)
+    else:
+        selector = request.form['selector'] # "and" or "or"
+        tags = request.form.getlist('tags')
+
+        if not tags:
+            flash("You didn't choose any tags.")
+            return redirect(url_for('bunches'))
+
+        if selector == 'or':
+            #select docs that have any of the tags selected
+            docs = Documents.query.join(Tags).filter(Documents.user_id==current_user.id, Tags.name.in_(tags)).order_by(desc(Documents.created)).all()
+
+        #defaults to 'and'
+        else:
+            #first need to readjust tags, documents, document_tags tables
+            #this is not quite right - I need to utilize a JOIN here but I don't understand them well enough
+            #after much struggling, slightly adapted this:
+            #http://stackoverflow.com/questions/13349832/sqlalchemy-filter-to-match-all-instead-of-any-values-in-list
+            docs = db.session.query(Documents).order_by(desc(Documents.created))
+            for tag in tags:
+                docs = docs.filter(Documents.tags.any(Tags.name==tag))
+
+
+        if not docs:
+            flash("Sorry, no items matched your tag choices.")
+            return redirect(url_for('bunches'))
+
+        #send back docs as well as list of tags and how they were chosen
+        return render_template('read.html', docs=docs, tags=tags, selector=selector)
+
+@app.route('/save_bunch', methods=['POST'])
+@login_required
+def save_bunch():
+    ''' Process a bunch save request from a user.'''
+
+    #user wants to save, send them to form to provide name
+    if request.form['save'] == '1':
+        tags = request.form.getlist('tags')
+        render_template('save_bunch.html', tags=tags)
+
+    if request.form['save'] == '2':
+        tags = request.form.getlist('tags')
+        name = request.form['name']
+
+        bunch = Bunches(current_user.id, name)
+        db.session.commit()
+
+        for tag in tags:
+            bunch_tags = BunchTags(bunch.id, tag.id)
+
 @app.route('/authors')
 @login_required
 def authors():
-    authors = db.session.query(Authors.first_name, Authors.last_name).filter_by(user_id=current_user.id).order_by(Authors.last_name).distinct()
+    ''' Display all authors for user's documents. '''
 
+    authors = get_user_authors()
     return render_template('authors.html', authors=authors)
 
-#deauthorize a service
 @app.route('/deauthorize', methods=['GET', 'POST'])
 @login_required
 def deauthorize():
+    ''' Deauthorize a service and remove all docs from user's WYR account. '''
     if request.method == 'GET':
         return render_template('deauthorize.html', name=request.args.get('name'))
     elif request.method == 'POST':
@@ -521,10 +897,10 @@ def deauthorize():
     else:
         return redirect(url_for('index'))
 
-#manually refersh docs from a service
 @app.route('/refresh')
 @login_required
 def refresh():
+    ''' Manually refresh docs from a service. '''
     if request.args.get('name') == 'Mendeley':
         if current_user.mendeley == 1:
             update_mendeley()
@@ -534,10 +910,10 @@ def refresh():
             update_goodreads()
             return render_template('settings.html')
 
-#delete account
 @app.route('/delete_account', methods=['GET', 'POST'])
 @login_required
 def delete_account():
+    ''' delete account, after password validation '''
     if request.method == 'GET':
         return render_template('delete_account.html')
     elif request.method == 'POST':
@@ -560,6 +936,8 @@ def delete_account():
     else:
         return redirect(url_for('index'))
 
+
+
 ################################################################################
 ################################################################################
 ### MENDELEY ###################################################################
@@ -567,6 +945,7 @@ def delete_account():
 # uses requests-oauthlib: https://requests-oauthlib.readthedocs.io/en/latest/oauth2_workflow.html#web-application-flow
 # mendely documentation: http://dev.mendeley.com/reference/topics/authorization_overview.html
 # service_id = 1
+# to do: turn much of this code into functions
 
 @app.route('/mendeley')
 @login_required
@@ -640,7 +1019,9 @@ def store_mendeley():
         if doc['read'] == 0:
             continue
 
-        new_doc = Documents(current_user.id, 1, doc['title'])
+        new_doc = Documents(1, doc['title'])
+        current_user.documents.append(new_doc)
+
         new_doc.created=doc['created']
         new_doc.read=doc['read']
         new_doc.starred=doc['starred']
@@ -662,35 +1043,92 @@ def store_mendeley():
             new_doc.note = annotations[0]['text']
 
         db.session.add(new_doc)
+
         db.session.commit()
 
         if 'tags' in doc:
-            for tag in doc['tags']:
-                new_tag = Tags(current_user.id, new_doc.id, tag)
-                db.session.add(new_tag)
+            tags = doc['tags']
 
+            #get user's existing tags to check if tags for this doc already exist
+            user_tags = get_user_tags()
+
+            #append any user's existing tags to the document, remove from list tags
+            for sublist in user_tags:
+                for tag in tags[:]:
+                    if sublist['name'] == tag:
+                        #get the tag object and append to new_doc.tags
+                        existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
+                        new_doc.tags.append(existing_tag)
+                        #now remove it, so we don't create a new tag object below
+                        tags.remove(tag)
+
+            #any tag left in tags list will be a new one that needs to be created
+            #create new tag objects for new tags, append to the doc
+            for tag in tags:
+                new_tag = Tags(tag)
+                new_doc.tags.append(new_tag)
+
+        if 'authors' in doc:
+            authors = doc['authors']
+
+            #get user's existing authors to check if authors for this doc already exist
+            user_authors = get_user_authors()
+
+            #append any of user's exsting authors to document, remove from list authors
+            for sublist in user_authors:
+                for author in authors[:]:
+                    #if there's only one name, author[1] will through index error,
+                    #but must try to match both first_name and last_name first
+                    try:
+                        if sublist['first_name'] == author['first_name'] and sublist['last_name'] == author['last_name']:
+                            #get the author object and append to new_doc.authors
+                            existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                            new_doc.authors.append(existing_author)
+                            #now remove it, so we don't create a new author object below
+                            authors.remove(author)
+                    except KeyError:
+                        if sublist['last_name'] == author['last_name']:
+                            #get the author object and append to new_doc.authors
+                            existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                            new_doc.authors.append(existing_author)
+                            #now remove it, so we don't create a new author object below
+                            authors.remove(author)
+
+            #any author left in authors list will be a new one that needs to be created and appended to new_doc
+            for author in authors:
+                try:
+                    new_author = Authors(author['first_name'], author['last_name'])
+                except KeyError:
+                    new_author = Authors(first_name='', last_name=author['last_name'])
+
+                new_doc.authors.append(new_author)
+
+        """
+        #old
         if 'authors' in doc:
             for author in doc['authors']:
                 try:
-                    new_author = Authors(current_user.id, new_doc.id, author['first_name'], author['last_name'], 0)
+                    new_author = Authors(author['first_name'], author['last_name'], 0)
                 except KeyError:
                     try:
-                        new_author = Authors(current_user.id, new_doc.id, '', author['last_name'], 0)
+                        new_author = Authors('', author['last_name'], 0)
                     except KeyError:
-                        new_author = Authors(current_user.id, new_doc.id, author['first_name'], '', 0)
+                        new_author = Authors(author['first_name'], '', 0)
                 db.session.add(new_author)
-
+        """
+        """
+        # skip editors for now - need to restructure database
         if 'editors' in doc:
             for editor in doc['editors']:
                 try:
-                    new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], editor['last_name'], 1)
+                    new_editor = Authors(editor['first_name'], editor['last_name'], 1)
                 except KeyError:
                     try:
-                        new_editor = Authors(current_user.id, new_doc.id, '', editor['last_name'], 1)
+                        new_editor = Authors('', editor['last_name'], 1)
                     except KeyError:
-                        new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], '', 1)
+                        new_editor = Authors(editor['first_name'], '', 1)
                 db.session.add(new_editor)
-
+        """
 
         #get file id to link to
         file_params = {'document_id':doc['id']}
@@ -769,7 +1207,7 @@ def update_mendeley():
     #create a list of ids only, to use for removing deleted Mendeley docs later
     m_doc_ids = []
 
-    #first, updating or inserting
+    # go through each doc, and see if we need to insert or update it
     for doc in m_docs:
         m_doc_ids.append(doc['id'])
 
@@ -780,9 +1218,10 @@ def update_mendeley():
         #see if it's in the db
         check_doc = Documents.query.filter_by(user_id=current_user.id, service_id=1, native_doc_id=doc['id']).first()
 
-        #if not, insert it
-        if check_doc == None:
-            new_doc = Documents(current_user.id, 1, doc['title'])
+        #if not in db, insert it
+        if not check_doc:
+            new_doc = Documents(1, doc['title'])
+            current_user.documents.append(new_doc)
             new_doc.created=doc['created']
             new_doc.read=doc['read']
             new_doc.starred=doc['starred']
@@ -806,32 +1245,77 @@ def update_mendeley():
             db.session.add(new_doc)
             db.session.commit()
 
+            #add tags
             if 'tags' in doc:
-                for tag in doc['tags']:
-                    new_tag = Tags(current_user.id, new_doc.id, tag)
-                    db.session.add(new_tag)
+                tags = doc['tags']
+
+                #get user's existing tags to check if tags for this doc already exist
+                user_tags = get_user_tags()
+
+                #append any user's existing tags to the document, remove from list tags
+                for sublist in user_tags:
+                    for tag in tags[:]:
+                        if sublist['name'] == tag:
+                            #get the tag object and append to new_doc.tags
+                            existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
+                            new_doc.tags.append(existing_tag)
+                            #now remove it, so we don't create a new tag object below
+                            tags.remove(tag)
+
+                #any tag left in tags list will be a new one that needs to be created
+                #create new tag objects for new tags, append to the doc
+                for tag in tags:
+                    new_tag = Tags(tag)
+                    new_doc.tags.append(new_tag)
 
             if 'authors' in doc:
-                for author in doc['authors']:
-                    try:
-                        new_author = Authors(current_user.id, new_doc.id, author['first_name'], author['last_name'], 0)
-                    except KeyError:
-                        try:
-                            new_author = Authors(current_user.id, new_doc.id, '', author['last_name'], 0)
-                        except KeyError:
-                            new_author = Authors(current_user.id, new_doc.id, author['first_name'], '', 0)
-                    db.session.add(new_author)
+                authors = doc['authors']
 
-            if 'editors' in doc:
-                for editor in doc['editors']:
-                    try:
-                        new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], editor['last_name'], 1)
-                    except KeyError:
+                #get user's existing authors to check if authors for this doc already exist
+                user_authors = get_user_authors()
+
+                #append any of user's exsting authors to document, remove from list authors
+                for sublist in user_authors:
+                    for author in authors[:]:
+                        #if there's only one name, author[1] will through index error,
+                        #but must try to match both first_name and last_name first
                         try:
-                            new_editor = Authors(current_user.id, new_doc.id, '', editor['last_name'], 1)
+                            if sublist['first_name'] == author[1] and sublist['last_name'] == author[0]:
+                                #get the author object and append to new_doc.authors
+                                existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                                new_doc.authors.append(existing_author)
+                                #now remove it, so we don't create a new author object below
+                                authors.remove(author)
                         except KeyError:
-                            new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], '', 1)
-                    db.session.add(new_editor)
+                            if sublist['last_name'] == author[0]:
+                                #get the author object and append to new_doc.authors
+                                existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                                new_doc.authors.append(existing_author)
+                                #now remove it, so we don't create a new author object below
+                                authors.remove(author)
+
+                #any author left in authors list will be a new one that needs to be created and appended to new_doc
+                for author in authors:
+                    try:
+                        new_author = Authors(author[1], author[0])
+                    except KeyError:
+                        new_author = Authors(first_name='', last_name=author[0])
+
+                    new_doc.authors.append(new_author)
+
+                """
+                #skip editors for now
+                if 'editors' in doc:
+                    for editor in doc['editors']:
+                        try:
+                            new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], editor['last_name'], 1)
+                        except KeyError:
+                            try:
+                                new_editor = Authors(current_user.id, new_doc.id, '', editor['last_name'], 1)
+                            except KeyError:
+                                new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], '', 1)
+                        db.session.add(new_editor)
+                """
 
             #get file id to link to
             file_params = {'document_id':doc['id']}
@@ -844,11 +1328,20 @@ def update_mendeley():
                     db.session.add(new_filelink)
                 db.session.commit()
 
-        #else, update it (possibly)
+        #else, update it
         else:
+            # first get tags, authors, and files from doc in db to check against updated doc
+            old_tags = check_doc.tags
+            old_authors = check_doc.authors
+            old_file_links = check_doc.file_links
+
+            # if it doesn't have 'last_modified' then it would have already been
+            # caught by insert above, so skip rest of the loop
             if not doc['last_modified']:
                 continue
-            #otherwise, convert it to datetime object and see check if updated since one in db
+
+            # if it does have last_modified, convert it to datetime object and check if newer than one in db
+            # (no need to update if not)
             check_date = datetime.strptime(doc['last_modified'], "%Y-%m-%dT%H:%M:%S.%fZ")
 
             if check_date > check_doc.last_modified:
@@ -874,51 +1367,164 @@ def update_mendeley():
 
                 db.session.commit()
 
-                #delete tags, authors and file_links and replace (seems much easier to do than try to update)
-                Tags.query.filter_by(document_id=check_doc.id).delete()
-                Authors.query.filter_by(document_id=check_doc.id).delete()
-                FileLinks.query.filter_by(document_id=check_doc.id).delete()
+                # update tags
+                # one scenario not caught by "if tags:" below: there were old tags, but no
+                # new tags (user deleted one/all). Have to treat this separately.
+                if old_tags and not 'tags' in doc:
+                    for old_tag in old_tags:
+                        check_doc.tags.remove(old_tag)
 
                 if 'tags' in doc:
-                    for tag in doc['tags']:
-                        new_tag = Tags(current_user.id, check_doc.id, tag)
-                        db.session.add(new_tag)
-                    db.session.commit()
+                    tags = doc['tags']
+
+                    # check old tag list against tags submitted after edit, remove any no longer there
+                    if old_tags:
+
+                        # remove it from doc's tags if necessary
+                        ################################################################
+                        # to do
+                        # one issue with this: doesn't delete an orphaned tag from tags table
+                        # I'm not sure if I need to do this manually or better configure relationships
+                        ###############################################################
+
+                        for old_tag in old_tags[:]:
+                            if old_tag not in tags:
+                                check_doc.tags.remove(tag)
+
+                        #don't add tags if they were already in old_tags - would be a duplicate
+                        for tag in tags[:]:
+                            if tag in old_tags:
+                                tags.remove(tag)
+
+                    #get user's existing tags to check if tags for this doc already exist
+                    user_tags = get_user_tags()
+
+                    #append any user's existing tags to the document, remove from list tags
+                    for sublist in user_tags:
+                        for tag in tags[:]:
+                            if sublist['name'] == tag:
+                                #get the tag object and append to new_doc.tags
+                                existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
+                                check_doc.tags.append(existing_tag)
+                                #now remove it, so we don't create a new tag object below
+                                tags.remove(tag)
+
+                    #any tag left in tags list will be a new one that needs to be created
+                    #create new tag objects for new tags, append to the doc
+                    for tag in tags:
+                        new_tag = Tags(tag)
+                        check_doc.tags.append(new_tag)
+
+                # update authors
+                # one scenario not caught by "if authors:" below: there were old authors, but no
+                # new authors (user deleted one/all). Have to treat this separately.
+                if old_authors and not 'authors' in doc:
+                    for old_author in old_authors[:]:
+                        check_doc.authors.remove(old_author)
 
                 if 'authors' in doc:
-                    for author in doc['authors']:
-                        try:
-                            new_author = Authors(current_user.id, check_doc.id, author['first_name'], author['last_name'], 0)
-                        except KeyError:
-                            try:
-                                new_author = Authors(current_user.id, check_doc.id, '', author['last_name'], 0)
-                            except KeyError:
-                                new_author = Authors(current_user.id, check_doc.id, author['first_name'], '', 0)
-                        db.session.add(new_author)
-                    db.session.commit()
+                    authors = doc['authors']
 
-                if 'editors' in doc:
-                    for editor in doc['editors']:
-                        try:
-                            new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], editor['last_name'], 1)
-                        except KeyError:
-                            try:
-                                new_editor = Authors(current_user.id, check_doc.id, '', editor['last_name'], 1)
-                            except KeyError:
-                                new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], '', 1)
-                        db.session.add(new_editor)
-                    db.session.commit()
+                    # check old author list of lists against authors submitted after edit, remove any no longer there
+                    if old_authors:
 
-                #get file id to link to
+                    # remove it from doc's authors if necessary
+                    ################################################################
+                    # to do
+                    # one issue with this: doesn't delete an orphaned author
+                    # I'm not sure if I need to do this manually or better configure relationships
+                    ################################################################
+
+                        for old_author in old_authors[:]:
+                            if old_author not in authors:
+                                check_doc.authors.remove(old_author)
+
+                        #don't add authors if they were already in old_authors - would be a duplicate
+                        for author in authors[:]:
+                            if author in old_authors:
+                                authors.remove(author)
+
+                    #get user's existing authors to check if authors for this doc already exist
+                    user_authors = get_user_authors()
+
+                    #append any of user's exsting authors to document, remove from list authors
+                    for sublist in user_authors:
+                        for author in authors[:]:
+                            #if there's only one name, author[1] will through index error,
+                            #but must try to match both first_name and last_name first
+                            try:
+                                if sublist['first_name'] == author['first_name'] and sublist['last_name'] == author['last_name']:
+                                    #get the author object and append to new_doc.authors
+                                    existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                                    check_doc.authors.append(existing_author)
+                                    #now remove it, so we don't create a new author object below
+                                    authors.remove(author)
+                            except KeyError:
+                                if sublist['last_name'] == author['last_name']:
+                                    #get the author object and append to new_doc.authors
+                                    existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                                    check_doc.authors.append(existing_author)
+                                    #now remove it, so we don't create a new author object below
+                                    authors.remove(author)
+
+                    #any author left in authors list will be a new one that needs to be created and appended to new_doc
+                    for author in authors:
+                        try:
+                            new_author = Authors(author['first_name'], author['last_name'])
+                        except KeyError:
+                            new_author = Authors(first_name='', last_name=author['last_name'])
+
+                        check_doc.authors.append(new_author)
+
+                    """do editors later - need to restructure database
+                    if 'editors' in doc:
+                        for editor in doc['editors']:
+                            try:
+                                new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], editor['last_name'], 1)
+                            except KeyError:
+                                try:
+                                    new_editor = Authors(current_user.id, check_doc.id, '', editor['last_name'], 1)
+                                except KeyError:
+                                    new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], '', 1)
+                            db.session.add(new_editor)
+                        db.session.commit()
+                    """
+
+                # update file_links
+                # get file id to link to
                 file_params = {'document_id':doc['id']}
                 files = mendeley.get('https://api.mendeley.com/files', params=file_params).json()
 
+
+                # one scenario not caught by "if files:" below: there were old files, but no
+                # new files (user deleted one/all). Have to treat this separately.
+                if old_file_links and not files:
+                    for old_file_link in old_file_links:
+                        check_doc.file_links.remove(old_file_link)
+
                 if files:
+
+                    #create list of file_ids to check against
+                    file_ids = [file['id'] for file in files]
+
+                    # check old file list against files submitted after edit, remove any no longer there
+                    if old_file_links:
+                        for old_file_link in old_file_links:
+                            if old_file_link.file_link not in file_ids:
+                                check_doc.file_links.remove(old_file_link)
+
+                        #don't add files if they were already in old_files - would be a duplicate
+                        for file in files[:]:
+                            if file['id'] in file_ids:
+                                files.remove(file)
+
+                    #add new files
                     for file in files:
                         new_filelink = FileLinks(check_doc.id, file['id'])
                         new_filelink.mime_type = file['mime_type']
                         db.session.add(new_filelink)
-                    db.session.commit()
+
+                db.session.commit()
 
 
     #now remove any deleted docs
@@ -936,6 +1542,7 @@ def update_mendeley():
     flash('Documents from Mendeley have been refreshed.')
     return
 
+
 ################################################################################
 ################################################################################
 ## WYR NATIVE   ################################################################
@@ -950,20 +1557,18 @@ def add():
         title = request.args.get('title')
         link = request.args.get('link', '')
 
-        #also pass along tags for autocomplete
-        new_tags = list()
-        tags = list(db.session.query(Tags.name).filter_by(user_id=current_user.id).order_by(Tags.name).distinct().all())
-        for tag in tags:
-            new_tags.append(tag.name)
+        #also pass along tags and author names for autocomplete
+        tags = get_user_tag_names()
+        authors = get_user_author_names()
 
         #check if link already exists, redirect user to edit if so
         if link:
-            if Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).count() == 1:
-                doc = Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).first()
+            if current_user.documents.filter(Documents.link==link, Documents.service_id==3).count() >= 1:
+                doc = current_user.documents.filter(Documents.link==link, Documents.service_id==3).first()
                 flash("You've already saved that link; you may edit it below.")
                 return redirect(url_for('edit', id=doc.id))
 
-        return render_template('add.html', title=title, link=link, tags=new_tags)
+        return render_template('add.html', title=title, link=link, tags=tags, authors=authors)
 
     elif request.method == 'POST':
         title = request.form['title']
@@ -971,7 +1576,6 @@ def add():
         year = request.form['year']
         tags = request.form['tags']
         authors = request.form['authors']
-        editors = request.form['editors']
         notes = request.form['notes'].replace('\n', '<br>')
         submit = request.form['submit']
 
@@ -982,13 +1586,14 @@ def add():
 
         #check if link already exists, redirect user to edit if so
         if link:
-            if Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).count() == 1:
-                doc = Documents.query.filter_by(user_id=current_user.id, link=link, service_id=3).first()
+            if current_user.documents.filter(Documents.link==link, Documents.service_id==3).count() >= 1:
+                doc = current_user.documents.filter_by(Documents.link==link, Documents.service_id==3).first()
                 flash("You've already saved that link; you may edit it below.")
                 return redirect(url_for('edit', id=doc.id))
 
         #insert
-        new_doc = Documents(current_user.id, 3, title)
+        new_doc = Documents(3, title)
+        current_user.documents.append(new_doc)
 
         #add "http://" if not there or else will be relative link within site
         if link:
@@ -1001,43 +1606,66 @@ def add():
         new_doc.read = 1
         new_doc.created = datetime.now()
         db.session.add(new_doc)
-        db.session.commit()
 
         if tags:
-            tags = tags.split(',')
+            #cleanup into list of tags
+            tags = str_tags_to_list(tags)
+
+            #get user's existing tags to check if tags for this doc already exist
+            user_tags = get_user_tags()
+
+            #append any user's existing tags to the document, remove from list tags
+            for sublist in user_tags:
+                for tag in tags[:]:
+                    if sublist['name'] == tag:
+                        #get the tag object and append to new_doc.tags
+                        existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
+                        new_doc.tags.append(existing_tag)
+                        #now remove it, so we don't create a new tag object below
+                        tags.remove(tag)
+
+            #any tag left in tags list will be a new one that needs to be created
+            #create new tag objects for new tags, append to the doc
             for tag in tags:
-                if tag != ' ': #if user or autcomplately puts a space and comma at end, don't add empty tag
-                    new_tag = Tags(current_user.id, new_doc.id, tag.strip())
-                    db.session.add(new_tag)
+                new_tag = Tags(tag)
+                new_doc.tags.append(new_tag)
 
         if authors:
-            #get rid of a trailing ; so it doesn't make extra split with empty value in list
-            if authors[-1] == ';':
-                authors = authors[:-1]
-            authors = authors.split(';')
+            #cleanup into list of list of authors
+            authors = str_authors_to_list(authors)
+
+            #get user's existing authors to check if authors for this doc already exist
+            user_authors = get_user_authors()
+
+            #append any of user's exsting authors to document, remove from list authors
+            for sublist in user_authors:
+                for author in authors[:]:
+                    #if there's only one name, author[1] will through index error,
+                    #but must try to match both first_name and last_name first
+                    try:
+                        if sublist['first_name'] == author[1] and sublist['last_name'] == author[0]:
+                            #get the author object and append to new_doc.authors
+                            existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                            new_doc.authors.append(existing_author)
+                            #now remove it, so we don't create a new author object below
+                            authors.remove(author)
+                    except IndexError:
+                        if sublist['last_name'] == author[0]:
+                            #get the author object and append to new_doc.authors
+                            existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                            new_doc.authors.append(existing_author)
+                            #now remove it, so we don't create a new author object below
+                            authors.remove(author)
+
+            #any author left in authors list will be a new one that needs to be created and appended to new_doc
             for author in authors:
                 try:
-                    author = author.split(',')
-                    new_author = Authors(current_user.id, new_doc.id, author[1].strip(), author[0].strip(), 0)
+                    new_author = Authors(author[1], author[0])
                 except IndexError:
-                    new_author = Authors(current_user.id, new_doc.id, '', author[0].strip(), 0)
-                db.session.add(new_author)
-                db.session.commit()
+                    new_author = Authors(first_name='', last_name=author[0])
 
-        if editors:
-            #get rid of a trailing ; so it doesn't make extra split with empty value in list
-            if editors[-1] == ';':
-                editors = editors[:-1]
-            editors = editors.split(';')
-            for editor in editors:
-                try:
-                    editor = editor.split(',')
-                    new_editor = Authors(current_user.id, new_doc.id, editor[1].strip(), editor[0].strip(), 1)
-                except IndexError:
-                    new_editor = Authors(current_user.id, new_doc.id, '', editor[0].strip(), 1)
+                new_doc.authors.append(new_author)
 
-                db.session.add(new_editor)
-                db.session.commit()
 
         db.session.commit()
         flash('Item added.')
@@ -1057,18 +1685,19 @@ def edit():
     if request.method == 'GET':
         #check that doc is one of current_user's
         id = request.args.get('id', '')
-        doc = Documents.query.filter_by(user_id=current_user.id, service_id=3, id=id).first()
+
+        doc = current_user.documents.filter(Documents.id==id).first()
 
         if doc:
+
             new_tags = ''
             new_authors_list = []
-            new_editors_list = []
             new_authors = ''
-            new_editors = ''
 
-            #have to format tags, authors, and editors for form
+            #have to format tags and authors for form
             if doc.tags:
-                super_new_tag_list=[tag.name for tag in doc.tags] #put names into list to sort
+                #put names into list to sort
+                super_new_tag_list=[tag.name for tag in doc.tags]
                 super_new_tag_list.sort() #sort
                 for name in super_new_tag_list:
                     if name != super_new_tag_list[-1]:
@@ -1076,12 +1705,10 @@ def edit():
                     else:
                         new_tags += name
 
-            if doc.authors: # need to add if/else for no first name?
+            if doc.authors:
                 for author in doc.authors:
-                    if author.role == 0:
-                        new_authors_list.append(author)
-                    else:
-                        new_editors_list.append(author)
+                    new_authors_list.append(author)
+
 
             for author in new_authors_list:
                 if author != new_authors_list[-1]:
@@ -1089,19 +1716,14 @@ def edit():
                 else:
                     new_authors += author.last_name + ', ' + author.first_name
 
-            for editor in new_editors_list:
-                if editor != new_editors_list[-1]:
-                    new_editors += editor.last_name + ', ' + editor.first_name + '; '
-                else:
-                    new_editors += editor.last_name + ', ' + editor.first_name
-
             #also pass along all tags for autocomplete
-            all_tags = list()
-            tags = list(db.session.query(Tags.name).filter_by(user_id=current_user.id).order_by(Tags.name).distinct().all())
-            for tag in tags:
-                all_tags.append(tag.name)
+            all_tags = get_user_tag_names()
 
-            return render_template('edit.html', doc=doc, tags=new_tags, all_tags=all_tags, authors=new_authors, editors=new_editors)
+            #also pass along all authors for autocomplete
+            all_authors = get_user_author_names()
+
+            #took out all_tags=all_tags from below to see if it would work
+            return render_template('edit.html', doc=doc, tags=new_tags, all_tags=all_tags, all_authors=all_authors, authors=new_authors)
         else:
             return redirect(url_for('index'))
 
@@ -1111,8 +1733,9 @@ def edit():
         link = request.form['link']
         year = request.form['year']
         tags = request.form['tags']
+        old_tags = request.form['old_tags']
         authors = request.form['authors']
-        editors = request.form['editors']
+        old_authors = request.form['old_authors']
         notes = request.form['notes'].replace('\n', '<br>')
         tagpage = request.form['tagpage']
         authorpage = request.form['authorpage']
@@ -1135,7 +1758,7 @@ def edit():
             return redirect(url_for('edit'))
 
         #update
-        update_doc = Documents.query.filter_by(user_id=current_user.id, service_id=3, id=id).first()
+        update_doc = current_user.documents.filter(Documents.service_id==3, Documents.id==id).first()
 
         update_doc.title = title
 
@@ -1148,45 +1771,143 @@ def edit():
         update_doc.year = year
         update_doc.note = notes
         update_doc.last_modified = datetime.now()
-        db.session.commit()
 
-        #delete tags and authors and reinsert
 
-        Tags.query.filter_by(document_id=id).delete()
-        Authors.query.filter_by(document_id=id).delete()
+        # one scenario not caught by "if tags:" below: there were old tags, but no
+        # new tags (user deleted one/all). Have to treat this separately.
+        if old_tags and not tags:
+            old_tags = str_tags_to_list(old_tags)
+            for old_tag in old_tags[:]:
+                #to get the right tag to remove, loop through all and match by name
+                for tag in update_doc.tags[:]:
+                    if tag.name == old_tag:
+                        update_doc.tags.remove(tag)
 
         if tags:
-            tags = tags.split(',')
+            #cleanup into list of tags
+            tags = str_tags_to_list(tags)
+
+            # check old tag list against tags submitted after edit, remove any no longer there
+            if old_tags:
+                # get old tags
+                old_tags = str_tags_to_list(old_tags)
+
+
+                # remove it from doc's tags if necessary
+                ################################################################
+                # to do
+                # one issue with this: doesn't delete an orphaned tag from tags table
+                # I'm not sure if I need to do this manually or better configure relationships
+                ###############################################################
+                for old_tag in old_tags[:]:
+                    if old_tag not in tags:
+                        #to get the right tag to remove, loop through all and match by name
+                        for tag in update_doc.tags[:]:
+                            if tag.name == old_tag:
+                                update_doc.tags.remove(tag)
+
+
+
+                #don't add tags if they were already in old_tags - would be a duplicate
+                for tag in tags[:]:
+                    if tag in old_tags:
+                        tags.remove(tag)
+
+
+            #get user's existing tags to check if tags for this doc already exist
+            user_tags = get_user_tags()
+
+            #append any user's existing tags to the document, remove from list tags
+            for sublist in user_tags:
+                for tag in tags[:]:
+                    if sublist['name'] == tag:
+                        #get the tag object and append to new_doc.tags
+                        existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
+                        update_doc.tags.append(existing_tag)
+                        #now remove it, so we don't create a new tag object below
+                        tags.remove(tag)
+
+            #any tag left in tags list will be a new one that needs to be created
+            #create new tag objects for new tags, append to the doc
             for tag in tags:
-                if tag != ' ': #if user or autcomplately puts a space and comma at end, don't add empty tag
-                    update_tags = Tags(current_user.id, update_doc.id, tag.strip())
-                    db.session.add(update_tags)
+                new_tag = Tags(tag)
+                update_doc.tags.append(new_tag)
+
+
+        # one scenario not caught by "if authors:" below: there were old authors, but no
+        # new authors (user deleted one/all). Have to treat this separately.
+        if old_authors and not authors:
+            old_authors = str_authors_to_list(old_authors)
+            for old_author in old_authors[:]:
+                #to get the right author to remove, loop through all and match by name
+                for author in update_doc.authors[:]:
+                    if author.first_name == old_author[1] and author.last_name == old_author[0]:
+                        update_doc.authors.remove(author)
 
         if authors:
-            #get rid of a trailing ; so it doesn't make extra split with empty value in list
-            if authors[-1] == ';':
-                authors = authors[:-1]
-            authors = authors.split(';')
+            #cleanup into list of lists
+            authors = str_authors_to_list(authors)
+
+            # check old author list of lists against authors submitted after edit, remove any no longer there
+            if old_authors:
+                # get old tags
+                old_authors = str_authors_to_list(old_authors)
+
+                # remove it from doc's authors if necessary
+                ################################################################
+                # to do
+                # one issue with this: doesn't delete an orphaned author
+                # I'm not sure if I need to do this manually or better configure relationships
+                ################################################################
+                for old_author in old_authors[:]:
+                    if old_author not in authors:
+                        #to get the right author to remove, loop through all and match by name
+                        for author in update_doc.authors[:]:
+                            if author.first_name == old_author[1] and author.last_name == old_author[0]:
+                                update_doc.authors.remove(author)
+
+                #don't add authors if they were already in old_authors - would be a duplicate
+                for author in authors[:]:
+                    if author in old_authors:
+                        authors.remove(author)
+
+            #get user's existing authors to check if authors for this doc already exist
+            user_authors = get_user_authors()
+
+            #append any of user's exsting authors to document, remove from list authors
+            for sublist in user_authors:
+                for author in authors[:]:
+                    #if there's only one name, author[1] will through index error,
+                    #but must try to match both first_name and last_name first
+                    try:
+                        if sublist['first_name'] == author[1] and sublist['last_name'] == author[0]:
+                            #get the author object and append to new_doc.authors
+                            existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                            update_doc.authors.append(existing_author)
+                            #now remove it, so we don't create a new author object below
+                            authors.remove(author)
+                    except IndexError:
+                        if sublist['last_name'] == author[0]:
+                            #get the author object and append to new_doc.authors
+                            existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                            update_doc.authors.append(existing_author)
+                            #now remove it, so we don't create a new author object below
+                            authors.remove(author)
+
+            #any author left in authors list will be a new one that needs to be created and appended to new_doc
             for author in authors:
                 try:
-                    author = author.split(',')
-                    update_authors = Authors(current_user.id, update_doc.id, author[1].strip(), author[0].strip(), 0)
+                    new_author = Authors(author[1], author[0])
                 except IndexError:
-                    update_authors = Authors(current_user.id, update_doc.id, '', author[0].strip(), 0)
-                db.session.add(update_authors)
+                    new_author = Authors(first_name='', last_name=author[0])
 
-        if editors:
-            #get rid of a trailing ; so it doesn't make extra split with empty value in list
-            if editors[-1] == ';':
-                editors = editors[:-1]
-            editors = editors.split(';')
-            for editor in editors:
-                try:
-                    editor = editor.split(',')
-                    update_editors = Authors(current_user.id, update_doc.id, editor[1].strip(), editor[0].strip(), 1)
-                except IndexError:
-                    update_editors = Authors(current_user.id, update_doc.id, '', editor[0].strip(), 1)
-                db.session.add(update_editors)
+                update_doc.authors.append(new_author)
+
+        #remove orphaned tags
+        #auto_delete_orphans(Documents.tags)
+
+        #remove orphaned authors
+        #auto_delete_orphans(Documents.authors)
 
         db.session.commit()
         flash('Item edited.')
@@ -1205,7 +1926,7 @@ def delete():
     if request.method == 'GET':
         #check that doc is one of current_user's
         id = request.args.get('id', '')
-        doc = Documents.query.filter_by(user_id=current_user.id, service_id=3, id=id).first()
+        doc = current_user.documents.filter(Documents.id==id, Documents.service_id==3).first()
         if doc:
             return render_template('delete.html', doc=doc)
         else:
@@ -1214,7 +1935,20 @@ def delete():
         delete = request.form['delete']
         id = request.form['id']
         if delete == 'Delete':
-            Documents.query.filter_by(user_id=current_user.id, service_id=3, id=id).delete()
+            #delete doc
+            doc = current_user.documents.filter(Documents.id==id, Documents.service_id==3).one()
+
+            #delete docs tags
+            for tag in doc.tags:
+                doc.tags.remove(tag)
+
+            #delete docs authors
+            for author in doc.authors:
+                doc.authors.remove(author)
+
+            #delete it
+            doc = current_user.documents.filter(Documents.id==id, Documents.service_id==3).delete()
+
             db.session.commit()
             flash("Item deleted.")
             return redirect(url_for('index'))
@@ -1354,7 +2088,8 @@ def store_goodreads():
 
         #keep only those things we want, store in db
         for doc in g_docs[1]:
-            new_doc = Documents(current_user.id, 2, doc.find('book/title').text)
+            new_doc = Documents(2, doc.find('book/title').text)
+            current_user.documents.append(new_doc)
             new_doc.native_doc_id = doc.find('id').text
             new_doc.read = 1 #only requested books from read shelf
 
@@ -1378,6 +2113,8 @@ def store_goodreads():
             db.session.add(new_doc)
             db.session.commit()
 
+            """
+            old
             if doc.find('shelves/shelf') is not None:
                 for shelf in doc.findall('shelves/shelf'):
                     #these are all in 'read' shelf, don't add that as a tag
@@ -1392,10 +2129,83 @@ def store_goodreads():
                     new_name = name.text.rsplit(' ', 1)
                     new_author = Authors(current_user.id, new_doc.id, new_name[0], new_name[1], 0)
                     db.session.add(new_author)
+            """
+            if doc.find('shelves/shelf') is not None:
+                #make list of tags from shelves, to make adding new or existing tags easier
+                tags = []
+                for shelf in doc.findall('shelves/shelf'):
+                #these are all in 'read' shelf, don't add that as a tag
+                    if shelf.get('name') == 'read':
+                        continue
+                    tags.append(shelf.get('name'))
 
-        i += 1
+                #get user's existing tags to check if tags for this doc already exist
+                user_tags = get_user_tags()
+
+                #append any user's existing tags to the document, remove from list tags
+                for sublist in user_tags:
+                    # loop through all book's shelves and add
+                    for tag in tags:
+                        #if already a tag, don't add new one,
+                        if sublist['name'] == tag:
+                            #get the tag object and append to new_doc.tags
+                            existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
+                            new_doc.tags.append(existing_tag)
+                            #now remove it, so we don't create a new tag object below
+                            tags.remove(tag)
+
+                #any tag left in tags list will be a new one that needs to be created
+                #create new tag objects for new tags, append to the doc
+                for tag in tags:
+                    new_tag = Tags(tag)
+                    new_doc.tags.append(new_tag)
+
+
+            if doc.find('book/authors/author/name') is not None:
+                #create list of authors
+                authors = []
+                for name in doc.findall('book/authors/author/name'):
+                    #split one full name into first and last (jr's don't work right now #to do)
+                    new_name = name.text.rsplit(' ', 1)
+                    authors.append([new_name[0], new_name[1]])
+
+
+                #get user's existing authors to check if authors for this doc already exist
+                user_authors = get_user_authors()
+
+                #append any of user's exsting authors to document, remove from list authors
+                for sublist in user_authors:
+                    for author in authors[:]:
+                        #if there's only one name, author[1] will through index error,
+                        #but must try to match both first_name and last_name first
+                        try:
+                            if sublist['first_name'] == author[1] and sublist['last_name'] == author[0]:
+                                #get the author object and append to new_doc.authors
+                                existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                                new_doc.authors.append(existing_author)
+                                #now remove it, so we don't create a new author object below
+                                authors.remove(author)
+                        except IndexError:
+                            if sublist['last_name'] == author[0]:
+                                #get the author object and append to new_doc.authors
+                                existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                                new_doc.authors.append(existing_author)
+                                #now remove it, so we don't create a new author object below
+                                authors.remove(author)
+
+                #any author left in authors list will be a new one that needs to be created and appended to new_doc
+                for author in authors:
+                    try:
+                        new_author = Authors(author[1], author[0])
+                    except IndexError:
+                        new_author = Authors(first_name='', last_name=author[0])
+
+                    new_doc.authors.append(new_author)
+
 
         db.session.commit()
+
+        i += 1
 
     current_user.goodreads_update = datetime.now()
     db.session.commit()
@@ -1412,7 +2222,7 @@ def update_goodreads():
     #store
     store_goodreads()
 
-    flash('Documents from Mendeley have been refreshed.')
+    flash('Documents from Goodreads have been refreshed.')
 
     return
 
@@ -1506,3 +2316,6 @@ def import_bookmarks():
             return redirect(url_for('index'))
 
     return render_template('import.html')
+
+
+

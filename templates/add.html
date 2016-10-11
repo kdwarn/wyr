@@ -5,12 +5,25 @@
 <div id="main">
     <div class="block-center">
     {% if bookmarklet %}
-        <button type="submit" onclick="window.open('', '_self', ''); window.close();">Close</button>
+        <p>This window will automatically close in a moment.</p>
+        <form id="close_form">
+            <button type="submit" name ="close" id="close"
+            onclick="window.open('', '_self', ''); window.close();">Close</button>
+        </form>
+
+        <script type="text/javascript" language="JavaScript">
+            document.forms['close_form'].elements['close'].focus();
+        </script>
+
+        <script type="text/javascript" language="JavaScript">
+            setTimeout('window.close()', 3000)
+        </script>
     {% else %}
         {# autocomplete from http://jqueryui.com/autocomplete/#multiple #}
         <script src="http://code.jquery.com/jquery-1.10.2.js"></script>
         <script src="http://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
 
+        {# script for autocomplete of tags #}
         <script>
         $(function() {
             var availableTags = {{ tags|tojson }};
@@ -34,6 +47,36 @@
                 terms.push( ui.item.value );
                 terms.push( "" );
                 this.value = terms.join( ", " );
+                return false;
+                }
+            });
+        });
+        </script>
+
+        {# script for autocomplete of authors #}
+        <script>
+        $(function() {
+            var availableAuthors = {{ authors|tojson }};
+            function split( val ) { return val.split( /,\s*/ );}
+            function extractLast( term ) { return split( term ).pop();}
+            $( "#authors" )
+            .bind( "keydown", function( event ) {
+                if ( event.keyCode === $.ui.keyCode.TAB && $( this ).autocomplete( "instance" ).menu.active ) {
+                event.preventDefault(); }
+                })
+            .autocomplete({
+                minLength: 2,
+                source: function( request, response ) {
+                    response( $.ui.autocomplete.filter(
+                    availableAuthors, extractLast( request.term ) ) );
+                },
+            focus: function() { return false; },
+            select: function( event, ui ) {
+                var terms = split( this.value );
+                terms.pop();
+                terms.push( ui.item.value );
+                terms.push( "" );
+                this.value = terms.join( "; " );
                 return false;
                 }
             });
@@ -66,11 +109,8 @@
             <label class="sr-only ui-widget" for="tags">Tags*</label>
             <input class="login_form" type="text" size="40" id="tags" name="tags" placeholder="Tags*"/><br/>
 
-            <label class="sr-only" for="authors">Authors**</label>
+            <label class="sr-only ui-widget" for="authors">Authors**</label>
             <input class="login_form" type="text" size="40" id="authors" name="authors" placeholder="Author(s)**"/><br/>
-
-            <label class="sr-only" for="editors">Editors**</label>
-            <input class="login_form" type="text" size="40" id="editors" name="editors" placeholder="Editor(s)**"/><br/>
 
             <label class="sr-only" for="notes">Notes</label>
             <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes"></textarea><br><br>
@@ -82,7 +122,7 @@
             {% endif %}
             <br><br>
             <span class="small">*tags should be separated by commas<br>
-            **authors/editors should be in the format: Austin, Jane; Douglass, Frederick</span><br>
+            **authors should be in the format: Austin, Jane; Douglass, Frederick</span><br>
         </form>
         <p class="small">If you haven't done so already, you can drag this link (<a href="javascript:(function(){window.open('http://www.whatyouveread.com/add?link='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)); })();">wyr</a>)
         to your bookmarks bar to easily add items from your browser. See <a href="{{url_for('settings')}}">settings</a> for more information.</p>
