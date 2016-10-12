@@ -241,10 +241,10 @@ def index():
     '''
     if current_user.is_authenticated:
         # fetch and display read items from various services
-        """ disabling for now
         then = datetime.now() - timedelta(days=7)
         if current_user.mendeley == 1 and current_user.mendeley_update < then:
             update_mendeley()
+        """ disabling for now
         if current_user.goodreads == 1 and current_user.goodreads_update < then:
             update_goodreads()
         """
