@@ -31,7 +31,7 @@ def add():
             if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
                 doc = current_user.documents.filter(Documents.link==link, Documents.source_id==3).first()
                 flash("You've already saved that link; you may edit it below.")
-                return redirect(url_for('edit', id=doc.id))
+                return redirect(url_for('native.edit', id=doc.id))
 
         return render_template('add.html', title=title, link=link, tags=tags, authors=authors)
 
@@ -54,7 +54,7 @@ def add():
             if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
                 doc = current_user.documents.filter_by(Documents.link==link, Documents.source_id==3).first()
                 flash("You've already saved that link; you may edit it below.")
-                return redirect(url_for('edit', id=doc.id))
+                return redirect(url_for('native.edit', id=doc.id))
 
         #insert
         new_doc = Documents(3, title)
@@ -220,7 +220,7 @@ def edit():
         #validation
         if not title:
             flash('Please enter a title. It is the only required field.')
-            return redirect(url_for('edit'))
+            return redirect(url_for('native.edit'))
 
         #update
         update_doc = current_user.documents.filter(Documents.source_id==3, Documents.id==id).first()
