@@ -5,7 +5,7 @@
     <div class="block-center">
         <h2>Deauthorize</h2>
         <p class="left">Are you sure you want to deauthorize {{ name }}? This will remove all items
-        from What You've Read related to this service.</p>
+        from What You've Read related to this source.</p>
         <form method="POST" action="/deauthorize">
             <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
             <input type="hidden" name="name" value="{{ name }}">
