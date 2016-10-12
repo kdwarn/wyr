@@ -45,11 +45,11 @@
     {% if current_user.is_authenticated %}
         {% for doc in docs %}
             <div class="doc">
-            {% if doc.service_id == 1 %}
+            {% if doc.source_id == 1 %}
                 <img class="logo" src="/static/mendeley_logo.png">
-            {% elif doc.service_id == 2 %}
+            {% elif doc.source_id == 2 %}
                 <img class="logo" src="/static/goodreads_logo.png">
-            {% elif doc.service_id == 3 %}
+            {% elif doc.source_id == 3 %}
                 <img class="logo" src="/static/wyr_logo.png">
             {% endif %}
 
@@ -114,7 +114,7 @@
                 {% endfor %}
             {% endif %}
 
-            {% if doc.service_id == 3 %}
+            {% if doc.source_id == 3 %}
                 {% if tagpage %}
                     <a href="{{ url_for('native.edit', id=doc.id, tagpage=tagpage) }}">Edit</a> |
                     <a href="{{ url_for('native.delete', id=doc.id, tagpage=tagpage) }}">Delete</a>

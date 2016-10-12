@@ -37,19 +37,19 @@ class User(db.Model, UserMixin):
     #how about this? still slow
     #documents = db.relationship('Documents', backref='user', lazy='joined')
 
-#table of different services - manually add through mysql
+#table of different sources - manually add through mysql
 # 1 - Mendeley
 # 2 - Goodreads
 # 3 - Native
-class Services(db.Model, UserMixin):
+class Sources(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(25), unique=True)
 
-#table for Tokens and Services by User
+#table for Tokens and Sources by User
 class Tokens(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', onupdate='CASCADE', ondelete='CASCADE'))
-    service_id = db.Column(db.Integer, db.ForeignKey('services.id'))
+    source_id = db.Column(db.Integer, db.ForeignKey('sources.id'))
     access_token = db.Column(db.String(200))
     refresh_token = db.Column(db.String(200))
     access_token_secret = db.Column(db.String(200))
@@ -59,7 +59,7 @@ class Tokens(db.Model, UserMixin):
 class Documents(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE"))
-    service_id = db.Column(db.Integer, db.ForeignKey('services.id'))
+    source_id = db.Column(db.Integer, db.ForeignKey('source.id'))
     title = db.Column(db.String(300))
     link = db.Column(db.String(300))
     created = db.Column(db.DateTime)
@@ -86,8 +86,8 @@ class Documents(db.Model, UserMixin):
 
     file_links = db.relationship('FileLinks', lazy="joined", backref="documents", cascade="all, delete, delete-orphan")
 
-    def __init__(self, service_id, title):
-        self.service_id = service_id
+    def __init__(self, source_id, title):
+        self.source_id = source_id
         self.title = title
     #user_id is also required, but instead of doing adding it here, it gets added when doing a current_user.documents.append() statement
 

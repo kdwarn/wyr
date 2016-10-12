@@ -1,18 +1,19 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask.ext.login import login_required, current_user
 from datetime import datetime
-from wyr.sources.source_functions import get_user_tags, get_user_tag_names, get_user_authors, \
+from db_functions import get_user_tags, get_user_tag_names, get_user_authors, \
     get_user_author_names, str_tags_to_list, str_authors_to_list
+from bs4 import BeautifulSoup
 from app import db
 from models import Documents, Tags, Authors
 
-native = Blueprint('native', __name__, template_folder='templates')
+native_blueprint = Blueprint('native', __name__, template_folder='templates')
 
 #
 # WYR NATIVE
-# service_id = 3
+# source_id = 3
 
-@native.route('/add', methods=['GET', 'POST'])
+@native_blueprint.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
     if request.method == 'GET':
@@ -27,8 +28,8 @@ def add():
 
         #check if link already exists, redirect user to edit if so
         if link:
-            if current_user.documents.filter(Documents.link==link, Documents.service_id==3).count() >= 1:
-                doc = current_user.documents.filter(Documents.link==link, Documents.service_id==3).first()
+            if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
+                doc = current_user.documents.filter(Documents.link==link, Documents.source_id==3).first()
                 flash("You've already saved that link; you may edit it below.")
                 return redirect(url_for('edit', id=doc.id))
 
@@ -50,8 +51,8 @@ def add():
 
         #check if link already exists, redirect user to edit if so
         if link:
-            if current_user.documents.filter(Documents.link==link, Documents.service_id==3).count() >= 1:
-                doc = current_user.documents.filter_by(Documents.link==link, Documents.service_id==3).first()
+            if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
+                doc = current_user.documents.filter_by(Documents.link==link, Documents.source_id==3).first()
                 flash("You've already saved that link; you may edit it below.")
                 return redirect(url_for('edit', id=doc.id))
 
@@ -143,7 +144,7 @@ def add():
     else:
         return redirect(url_for('index'))
 
-@native.route('/edit', methods=['GET', 'POST'])
+@native_blueprint.route('/edit', methods=['GET', 'POST'])
 @login_required
 def edit():
     if request.method == 'GET':
@@ -222,7 +223,7 @@ def edit():
             return redirect(url_for('edit'))
 
         #update
-        update_doc = current_user.documents.filter(Documents.service_id==3, Documents.id==id).first()
+        update_doc = current_user.documents.filter(Documents.source_id==3, Documents.id==id).first()
 
         update_doc.title = title
 
@@ -384,13 +385,13 @@ def edit():
     else:
         return redirect(url_for('index'))
 
-@native.route('/delete', methods=['GET', 'POST'])
+@native_blueprint.route('/delete', methods=['GET', 'POST'])
 @login_required
 def delete():
     if request.method == 'GET':
         #check that doc is one of current_user's
         id = request.args.get('id', '')
-        doc = current_user.documents.filter(Documents.id==id, Documents.service_id==3).first()
+        doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).first()
         if doc:
             return render_template('delete.html', doc=doc)
         else:
@@ -400,7 +401,7 @@ def delete():
         id = request.form['id']
         if delete == 'Delete':
             #delete doc
-            doc = current_user.documents.filter(Documents.id==id, Documents.service_id==3).one()
+            doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).one()
 
             #delete docs tags
             for tag in doc.tags:
@@ -411,7 +412,7 @@ def delete():
                 doc.authors.remove(author)
 
             #delete it
-            doc = current_user.documents.filter(Documents.id==id, Documents.service_id==3).delete()
+            doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).delete()
 
             db.session.commit()
             flash("Item deleted.")
@@ -422,13 +423,13 @@ def delete():
     else:
         return redirect(url_for('index'))
 
-@native.route('/tags/edit', methods=['GET', 'POST'])
+@native_blueprint.route('/tags/edit', methods=['GET', 'POST'])
 @login_required
 def bulk_edit():
     if request.method == 'GET':
         #display tags just like in /tags, but only for native docs
-        #tags = db.session.query(Tags.name).filter_by(user_id=current_user.id, service_id="3").order_by(Tags.name).distinct()
-        tags = db.session.query(Tags.name).join(Documents).filter(Documents.user_id==current_user.id, Documents.service_id=="3").\
+        #tags = db.session.query(Tags.name).filter_by(user_id=current_user.id, source_id="3").order_by(Tags.name).distinct()
+        tags = db.session.query(Tags.name).join(Documents).filter(Documents.user_id==current_user.id, Documents.source_id=="3").\
         order_by(Tags.name).distinct()
 
         #form names can't contain spaces, so have to work around - send dict of tag names, temp_ids
@@ -454,3 +455,94 @@ def bulk_edit():
 
         return render_template('test_bulk_edit.html', variables=form_variables)
         """
+
+################################################################################
+################################################################################
+## IMPORT BOOKMARKS FROM HTML FILE #############################################
+# also source_id 3
+
+@native_blueprint.route('/import', methods=['GET', 'POST'])
+@login_required
+def import_bookmarks():
+    if request.method == 'POST':
+        #get folders so user can select which ones to import
+        if 'step1' in request.form:
+
+            if request.form['step1'] == "Cancel":
+                flash("Bookmarks import cancelled.")
+                return redirect(url_for('settings'))
+
+            #get file and return user to form if none selected
+            file = request.files['bookmarks']
+
+            #limit size of file
+            #except RequestEntityTooLarge:
+            #    flash('Sorry, that file is a bit too big.')
+            #    return render_template('import.html')
+
+
+            if not file:
+                flash('No file was selected. Please choose a file.')
+                return render_template('import.html')
+
+            #get file extension and return user to form if not .html
+            file_extension = file.filename.rsplit('.', 1)[1]
+            if file_extension != 'html':
+                flash("Sorry, that doesn't look like a .html file.")
+                return render_template('import.html')
+
+            #limit size of file
+
+            #make object global to get it again, parse file for folders
+            global soup
+            soup = BeautifulSoup(file, 'html.parser')
+            folders = []
+            for each in soup.find_all('h3'):
+                folders.append(each.string)
+
+            #return user to import to choose which folders to pull links from
+            return render_template('import.html', step2='yes', folders=folders)
+
+        #import bookmarks and their most immediate folder into db
+        if 'step2' in request.form:
+
+            if request.form['step2'] == 'Cancel':
+                flash("Bookmarks import cancelled.")
+                return redirect(url_for('settings'))
+
+            #put checked folders into list
+            folders = request.form.getlist('folder')
+
+            global soup
+
+            for each in soup.find_all('a'):
+                if each.string != None:
+                    # get the dl above the link
+                    parent_dl = each.find_parent('dl')
+                    # get the dt above that
+                    grandparent_dt = parent_dl.find_parent('dt')
+                    if grandparent_dt != None:
+                        #get the h3 below the grandparent dt
+                        h3 = grandparent_dt.find_next('h3')
+                        #check that there is a folder and that it's in user-reviewed list
+                        if h3 != None:
+                            if h3.string in folders:
+                                #replace commas with spaces in folders before inserting into db
+                                h3.string = h3.string.replace(',', '')
+                                new_doc = Documents(3, each.string)
+                                current_user.docsuments.append(new_doc)
+                                new_doc.link = each['href']
+                                new_doc.read = 1
+                                #convert add_date (seconds from epoch format) to datetime
+                                new_doc.created = datetime.fromtimestamp(int(each['add_date']))
+                                db.session.add(new_doc)
+                                db.session.commit()
+                                new_tag = Tags(current_user.id, new_doc.id, h3.string)
+                                db.session.add(new_tag)
+                                db.session.commit()
+
+            flash('Bookmarks successfully imported.')
+            return redirect(url_for('index'))
+
+    return render_template('import.html')
+
