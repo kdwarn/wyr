@@ -1,20 +1,151 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from jinja2 import TemplateNotFound
 from flask.ext.login import login_required, current_user
 from datetime import datetime
 from wyr.sources.source_functions import get_user_tags, get_user_tag_names, get_user_authors, \
     get_user_author_names, str_tags_to_list, str_authors_to_list
-
 from app import db
-
 from models import Documents, Tags, Authors
 
-native = Blueprint('test', __name__, template_folder='templates')
+native = Blueprint('native', __name__, template_folder='templates')
 
-@native.route('/edit2', methods=['GET', 'POST'])
+#
+# WYR NATIVE
+# service_id = 3
+
+@native.route('/add', methods=['GET', 'POST'])
 @login_required
-def edit2():
+def add():
+    if request.method == 'GET':
 
+        #if this is from bookmarklet, pass along variables
+        title = request.args.get('title')
+        link = request.args.get('link', '')
+
+        #also pass along tags and author names for autocomplete
+        tags = get_user_tag_names()
+        authors = get_user_author_names()
+
+        #check if link already exists, redirect user to edit if so
+        if link:
+            if current_user.documents.filter(Documents.link==link, Documents.service_id==3).count() >= 1:
+                doc = current_user.documents.filter(Documents.link==link, Documents.service_id==3).first()
+                flash("You've already saved that link; you may edit it below.")
+                return redirect(url_for('edit', id=doc.id))
+
+        return render_template('add.html', title=title, link=link, tags=tags, authors=authors)
+
+    elif request.method == 'POST':
+        title = request.form['title']
+        link = request.form['link']
+        year = request.form['year']
+        tags = request.form['tags']
+        authors = request.form['authors']
+        notes = request.form['notes'].replace('\n', '<br>')
+        submit = request.form['submit']
+
+        #validation
+        if not title:
+            flash('Please enter a title. It is the only required field.')
+            return redirect(url_for('add'))
+
+        #check if link already exists, redirect user to edit if so
+        if link:
+            if current_user.documents.filter(Documents.link==link, Documents.service_id==3).count() >= 1:
+                doc = current_user.documents.filter_by(Documents.link==link, Documents.service_id==3).first()
+                flash("You've already saved that link; you may edit it below.")
+                return redirect(url_for('edit', id=doc.id))
+
+        #insert
+        new_doc = Documents(3, title)
+        current_user.documents.append(new_doc)
+
+        #add "http://" if not there or else will be relative link within site
+        if link:
+            if 'http://' not in link and 'https://' not in link:
+                link = 'http://' + link
+
+        new_doc.link = link
+        new_doc.year = year
+        new_doc.note = notes
+        new_doc.read = 1
+        new_doc.created = datetime.now()
+        db.session.add(new_doc)
+
+        if tags:
+            #cleanup into list of tags
+            tags = str_tags_to_list(tags)
+
+            #get user's existing tags to check if tags for this doc already exist
+            user_tags = get_user_tags()
+
+            #append any user's existing tags to the document, remove from list tags
+            for sublist in user_tags:
+                for tag in tags[:]:
+                    if sublist['name'] == tag:
+                        #get the tag object and append to new_doc.tags
+                        existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
+                        new_doc.tags.append(existing_tag)
+                        #now remove it, so we don't create a new tag object below
+                        tags.remove(tag)
+
+            #any tag left in tags list will be a new one that needs to be created
+            #create new tag objects for new tags, append to the doc
+            for tag in tags:
+                new_tag = Tags(tag)
+                new_doc.tags.append(new_tag)
+
+        if authors:
+            #cleanup into list of list of authors
+            authors = str_authors_to_list(authors)
+
+            #get user's existing authors to check if authors for this doc already exist
+            user_authors = get_user_authors()
+
+            #append any of user's exsting authors to document, remove from list authors
+            for sublist in user_authors:
+                for author in authors[:]:
+                    #if there's only one name, author[1] will through index error,
+                    #but must try to match both first_name and last_name first
+                    try:
+                        if sublist['first_name'] == author[1] and sublist['last_name'] == author[0]:
+                            #get the author object and append to new_doc.authors
+                            existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                            new_doc.authors.append(existing_author)
+                            #now remove it, so we don't create a new author object below
+                            authors.remove(author)
+                    except IndexError:
+                        if sublist['last_name'] == author[0]:
+                            #get the author object and append to new_doc.authors
+                            existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
+                            new_doc.authors.append(existing_author)
+                            #now remove it, so we don't create a new author object below
+                            authors.remove(author)
+
+            #any author left in authors list will be a new one that needs to be created and appended to new_doc
+            for author in authors:
+                try:
+                    new_author = Authors(author[1], author[0])
+                except IndexError:
+                    new_author = Authors(first_name='', last_name=author[0])
+
+                new_doc.authors.append(new_author)
+
+
+        db.session.commit()
+        flash('Item added.')
+        if submit == "Submit and Return Home":
+            return redirect(url_for('index'))
+        if submit == "Submit and Add Another":
+            return redirect(url_for('add'))
+        #if submitted from bookmarklet, just send to confirmation page, don't reload site (to mark it quicker)
+        if submit == "Submit":
+            return render_template('add.html', bookmarklet=1)
+    else:
+        return redirect(url_for('index'))
+
+@native.route('/edit', methods=['GET', 'POST'])
+@login_required
+def edit():
     if request.method == 'GET':
         #check that doc is one of current_user's
         id = request.args.get('id', '')
@@ -252,3 +383,74 @@ def edit2():
 
     else:
         return redirect(url_for('index'))
+
+@native.route('/delete', methods=['GET', 'POST'])
+@login_required
+def delete():
+    if request.method == 'GET':
+        #check that doc is one of current_user's
+        id = request.args.get('id', '')
+        doc = current_user.documents.filter(Documents.id==id, Documents.service_id==3).first()
+        if doc:
+            return render_template('delete.html', doc=doc)
+        else:
+            return redirect(url_for('index'))
+    elif request.method == 'POST':
+        delete = request.form['delete']
+        id = request.form['id']
+        if delete == 'Delete':
+            #delete doc
+            doc = current_user.documents.filter(Documents.id==id, Documents.service_id==3).one()
+
+            #delete docs tags
+            for tag in doc.tags:
+                doc.tags.remove(tag)
+
+            #delete docs authors
+            for author in doc.authors:
+                doc.authors.remove(author)
+
+            #delete it
+            doc = current_user.documents.filter(Documents.id==id, Documents.service_id==3).delete()
+
+            db.session.commit()
+            flash("Item deleted.")
+            return redirect(url_for('index'))
+        if delete == 'Cancel':
+            flash("Item not deleted.")
+            return redirect(url_for('index'))
+    else:
+        return redirect(url_for('index'))
+
+@native.route('/tags/edit', methods=['GET', 'POST'])
+@login_required
+def bulk_edit():
+    if request.method == 'GET':
+        #display tags just like in /tags, but only for native docs
+        #tags = db.session.query(Tags.name).filter_by(user_id=current_user.id, service_id="3").order_by(Tags.name).distinct()
+        tags = db.session.query(Tags.name).join(Documents).filter(Documents.user_id==current_user.id, Documents.service_id=="3").\
+        order_by(Tags.name).distinct()
+
+        #form names can't contain spaces, so have to work around - send dict of tag names, temp_ids
+        tag_list = list()
+        i=0
+        for tag in tags:
+            tag_list.append({'temp_id':i, 'name':tag.name})
+            i += 1
+
+        return render_template('edit_tags.html', tags=tag_list)
+
+    else:
+        return render_template('contact.html')
+        """
+        if request.form['submit'] == 'Cancel':
+            return redirect(url_for('tags'))
+
+
+        form_variables = request.form
+        #go through each one starting with "rename." or "delete." and rename/delete?
+
+        #original dict is in input tag_list, has temp_ids and names, use to associate with rename.#/delete.#
+
+        return render_template('test_bulk_edit.html', variables=form_variables)
+        """

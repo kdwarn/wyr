@@ -116,13 +116,13 @@
 
             {% if doc.service_id == 3 %}
                 {% if tagpage %}
-                    <a href="{{ url_for('edit', id=doc.id, tagpage=tagpage) }}">Edit</a> |
-                    <a href="{{ url_for('delete', id=doc.id, tagpage=tagpage) }}">Delete</a>
+                    <a href="{{ url_for('native.edit', id=doc.id, tagpage=tagpage) }}">Edit</a> |
+                    <a href="{{ url_for('native.delete', id=doc.id, tagpage=tagpage) }}">Delete</a>
                 {% elif authorpage %}
-                    <a href="{{ url_for('edit', id=doc.id, authorpage=authorpage, first_name=first_name, last_name=last_name) }}">Edit</a> |
-                    <a href="{{ url_for('delete', id=doc.id, authorpage=authorpage, first_name=first_name, last_name=last_name) }}">Delete</a>
+                    <a href="{{ url_for('native.edit', id=doc.id, authorpage=authorpage, first_name=first_name, last_name=last_name) }}">Edit</a> |
+                    <a href="{{ url_for('native.delete', id=doc.id, authorpage=authorpage, first_name=first_name, last_name=last_name) }}">Delete</a>
                 {% else %}
-                    <a href="{{ url_for('edit', id=doc.id) }}">Edit</a> | <a href="{{ url_for('delete', id=doc.id) }}">Delete</a>
+                    <a href="{{ url_for('native.edit', id=doc.id) }}">Edit</a> | <a href="{{ url_for('native.delete', id=doc.id) }}">Delete</a>
                 {% endif %}
                 <br>
             {% endif %}
