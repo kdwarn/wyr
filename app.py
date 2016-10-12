@@ -27,6 +27,9 @@ app.config.from_object('config')
 db = SQLAlchemy(app)
 
 from models import User, Tokens, Documents, Tags, Authors, FileLinks
+from wyr.sources.native import native
+
+app.register_blueprint(native)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
