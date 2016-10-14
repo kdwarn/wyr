@@ -15,6 +15,10 @@ document_authors = db.Table('document_authors',
                         db.Column('author_id', db.ForeignKey('authors.id'), primary_key=True),
                         db.Column('document_id', db.ForeignKey('documents.id'), primary_key=True))
 
+bunch_tags = db.Table('bunch_tags',
+                        db.Column('bunch_id', db.Integer, db.ForeignKey('bunches.id'), primary_key=True),
+                        db.Column('tag_id', db.Integer, db.ForeignKey('tags.id'), primary_key=True))
+
 #main user table
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -119,23 +123,17 @@ class FileLinks(db.Model, UserMixin):
         self.document_id = document_id
         self.file_link = file_link
 
-
-# bunches
-
 class Bunches(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE"))
-    name = db.Column(db.String(100))
+    separator = db.Column(db.Integer) # 0 for "and", 1 for "or"
 
-    def __init__(self, user_id, name):
+    #relationships
+    tags = db.relationship('Tags', secondary=bunch_tags, lazy='joined', backref=db.backref('bunches', cascade='all, delete'))
+
+    def __init__(self, user_id, separator):
         self.user_id = user_id
-        self.name = name
-
-#this should be an association table
-class BunchTags(db.Model, UserMixin):
-    bunch_id = db.Column(db.Integer, db.ForeignKey('bunches.id', onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
-    tag_id = db.Column(db.Integer,  db.ForeignKey('tags.id', onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
-
+        self.separator = separator
 
 # not working
 #auto_delete_orphans(Documents.tags)
