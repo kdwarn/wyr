@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, session, redirect, url_for, \
 from flask.ext.login import LoginManager, login_user, logout_user, \
     login_required, current_user
 from flask.ext.sqlalchemy import SQLAlchemy
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from config import stripe_keys, mailgun
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -171,14 +171,11 @@ def docs_by_tag(tag):
 @app.route('/bunches', methods=['GET', 'POST'])
 @login_required
 def bunches():
-    '''
-    Let user select multip tags and display the docs that fit the criteria.
+    '''Let user select multiple tags and display the docs that fit the criteria.
+    Include link to save the bunch, which takes place through save_bunch().'''
 
-    Include link to save the bunch, which takes place through save_bunch().
-
-    '''
     if request.method == 'GET':
-        tags = db.session.query(Tags.name).filter_by(user_id=current_user.id).order_by(Tags.name).distinct()
+        tags = get_user_tags()
         return render_template('bunches.html', tags=tags)
     else:
         selector = request.form['selector'] # "and" or "or"
@@ -189,19 +186,20 @@ def bunches():
             return redirect(url_for('bunches'))
 
         if selector == 'or':
-            #select docs that have any of the tags selected
-            docs = Documents.query.join(Tags).filter(Documents.user_id==current_user.id, Tags.name.in_(tags)).order_by(desc(Documents.created)).all()
+            docs = current_user.documents.filter(Documents.tags.any(Tags.name.in_([t for t in tags]))).order_by(desc(Documents.created)).all()
 
-        #defaults to 'and'
+        #selector defaults to 'and'
         else:
-            #first need to readjust tags, documents, document_tags tables
-            #this is not quite right - I need to utilize a JOIN here but I don't understand them well enough
-            #after much struggling, slightly adapted this:
-            #http://stackoverflow.com/questions/13349832/sqlalchemy-filter-to-match-all-instead-of-any-values-in-list
-            docs = db.session.query(Documents).order_by(desc(Documents.created))
-            for tag in tags:
-                docs = docs.filter(Documents.tags.any(Tags.name==tag))
+            #couldn't figure out how to do this in one query, so this is probably inefficient, but...
+            #first get the docs that have any of the tags chosen
+            docs = current_user.documents.filter(Documents.tags.any(Tags.name.in_([t for t in tags]))).order_by(desc(Documents.created)).all()
 
+            # now go through docs and eliminate them if they don't have every tag in tags
+            for doc in docs[:]:
+                for tag in tags:
+                    if tag not in [each.name for each in doc.tags]:
+                        docs.remove(doc)
+                        break
 
         if not docs:
             flash("Sorry, no items matched your tag choices.")

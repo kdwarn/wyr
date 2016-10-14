@@ -1,0 +1,35 @@
+
+{% extends 'header.html' %}
+{% block content %}
+<div id="main">
+    {% set page = '3' %}
+    {% include 'sort_subheader.html' %}
+    Bunches are groups of tags. Choose how to connect them ("AND" or "OR") and then
+    which tags you want to group together. Submit below, and you will be
+    taken to the results with the option to save the bunch for quick access later.
+    <form name="bunch" id="bunch" method="post" action="{{url_for('bunches')}}">
+        <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+        <div id="multiple_tags" class="center">
+            <ul>
+                <li><input type="radio" name="selector" id="and" value="and" checked>
+                <label for="and">AND</label></li>
+                <li><input type="radio" name="selector" id="or" value="or">
+                <label for="or">OR</label></li>
+            </ul>
+        </div>
+        <div style="line-height:1.5em" id="multiple_tags">
+            <ul>
+            {% for tag in tags %}
+                <li><input type="checkbox" name="tags" id="{{tag.name}}" value="{{tag.name}}">
+                <label for="{{ tag.name }}">{{tag.name}}</label></li>
+            {% endfor %}
+            </ul>
+        </div>
+        <div class="center">
+        <button type="submit" name="submit" value="Submit">Submit</button>
+        </div>
+    </form>
+    <br><br>
+</div>
+<br>
+{% endblock %}
