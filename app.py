@@ -235,11 +235,16 @@ def bunch():
     return render_template('read.html', docs=docs, tags=tags, selector=bunch.selector)
 """
 
+
+#This will work when I type in the URL, but not from the form on read.html.
 @app.route('/save_bunch', methods=['GET', 'POST'])
 @login_required
 def save_bunch():
     ''' Process a bunch save request from a user.'''
     #for some reason, not getting to here
+    if request.method == 'POST':
+        return "post"
+
     return "hello"
     """
     #tags = request.form.getlist('tags')

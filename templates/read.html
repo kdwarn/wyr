@@ -41,12 +41,12 @@
     {# option to save bunch #}
     {% if tags %}
         <div style="margin-top:-20px" class="block-center small">
-            <form method="POST" name="save_bunch" action="/save_bunch">
-                To save this group of tags as a bunch, provide a name (optional) and click save.
-                <input class="login_form" type="text" size="15" id="bunch_name" name="bunch_name" placeholder=""/>
-                <button type="submit" name="save_bunch">Save test </button>
-                <input type="hidden" name="selector" value="{{ selector }}">
-                {# <input type="hidden" name="tags" value="{{ tags }}"> #}
+            To save this group of tags as a bunch, provide a name (optional) and click save.
+            <form method="POST" name="save_bunch1" action="/save_bunch">
+                <input type="text" size="15" id="bunch_name" name="bunch_name">
+                <button type="submit" name="save_bunch2">Save test </button>
+                {# <input type="hidden" name="selector" value="{{ selector }}">
+                <input type="hidden" name="tags" value="{{ tags }}"> #}
             </form>
         </div>
     {% endif %}
