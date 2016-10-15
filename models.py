@@ -126,14 +126,16 @@ class FileLinks(db.Model, UserMixin):
 class Bunches(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE"))
-    separator = db.Column(db.Integer) # 0 for "and", 1 for "or"
+    selector = db.Column(db.String(4)) #"and" or "or"
+    name = db.Column(db.String(100))
 
     #relationships
     tags = db.relationship('Tags', secondary=bunch_tags, lazy='joined', backref=db.backref('bunches', cascade='all, delete'))
 
-    def __init__(self, user_id, separator):
+    def __init__(self, user_id, selector, name):
         self.user_id = user_id
-        self.separator = separator
+        self.selector = selector
+        self.name = name
 
 # not working
 #auto_delete_orphans(Documents.tags)

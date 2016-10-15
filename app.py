@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, session, redirect, url_for, \
 from flask.ext.login import LoginManager, login_user, logout_user, \
     login_required, current_user
 from flask.ext.sqlalchemy import SQLAlchemy
-from sqlalchemy import desc, or_
+from sqlalchemy import desc
 from config import stripe_keys, mailgun
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -122,7 +122,7 @@ def get_stripe_info():
 #main display
 @app.route('/')
 def index():
-    ''' Return documents or settings page for autenticated page, else return
+    ''' Return documents or settings page for authenticated page, else return
     main sign up/info page.
 
     This also is where the function to update non-native docs is called.
@@ -167,7 +167,6 @@ def docs_by_tag(tag):
     #tagpage is used for both header and to return user to list of docs by tag if user editing or deleting from there
     return render_template('read.html', docs=docs, tagpage=tag)
 
-#todo
 @app.route('/bunches', methods=['GET', 'POST'])
 @login_required
 def bunches():
@@ -176,7 +175,9 @@ def bunches():
 
     if request.method == 'GET':
         tags = get_user_tags()
-        return render_template('bunches.html', tags=tags)
+        bunches = db.session.query(Bunches).filter(Bunches.user_id==current_user.id).all()
+        return render_template('bunches.html', tags=tags, bunches=bunches)
+    # maybe turn this into a function? (most of it will be repeated for bunch()
     else:
         selector = request.form['selector'] # "and" or "or"
         tags = request.form.getlist('tags')
@@ -205,29 +206,57 @@ def bunches():
             flash("Sorry, no items matched your tag choices.")
             return redirect(url_for('bunches'))
 
-        #send back docs as well as list of tags and how they were chosen
+        #return docs as well as list of tags and how they were chosen
         return render_template('read.html', docs=docs, tags=tags, selector=selector)
 
-#todo
-@app.route('/save_bunch', methods=['POST'])
+"""
+@app.route('/bunch/<id>')
+@login_required
+def bunch():
+    ''' Display docs from saved bunch '''
+    #get the name, tags, and selector for this bunch
+    bunch = Bunches.filter(user_id=current_user.id, id=id)
+
+    if bunch.selector == 'or':
+        docs = current_user.documents.filter(Documents.tags.any(Tags.name.in_([t for t in bunch.tags]))).order_by(desc(Documents.created)).all()
+
+    if bunch.selector == 'and':
+            #couldn't figure out how to do this in one query, so this is probably inefficient, but...
+            #first get the docs that have any of the tags chosen
+            docs = current_user.documents.filter(Documents.tags.any(Tags.name.in_([t for t in bunch.tags]))).order_by(desc(Documents.created)).all()
+
+            # now go through docs and eliminate them if they don't have every tag in tags
+            for doc in docs[:]:
+                for tag in bunch.tags:
+                    if tag not in [each.name for each in doc.tags]:
+                        docs.remove(doc)
+                        break
+    #return docs as well as list of tags and how they were chosen
+    return render_template('read.html', docs=docs, tags=tags, selector=bunch.selector)
+"""
+
+@app.route('/save_bunch', methods=['GET', 'POST'])
 @login_required
 def save_bunch():
     ''' Process a bunch save request from a user.'''
+    #for some reason, not getting to here
+    return "hello"
+    """
+    #tags = request.form.getlist('tags')
+    selector = request.form['selector']
+    name = request.form['bunch_name']
 
-    #user wants to save, send them to form to provide name
-    if request.form['save'] == '1':
-        tags = request.form.getlist('tags')
-        render_template('save_bunch.html', tags=tags)
+    new_bunch = Bunches(current_user.id, selector, name)
+    db.session.add(new_bunch)
+    db.session.commit()
 
-    if request.form['save'] == '2':
-        tags = request.form.getlist('tags')
-        name = request.form['name']
+    #for tag in tags:
+    #    new_bunch.tags.append(tag)
+    #    db.session.commit()
 
-        bunch = Bunches(current_user.id, name)
-        db.session.commit()
-
-        for tag in tags:
-            bunch_tags = BunchTags(bunch.id, tag.id)
+    flash("New bunch saved.")
+    return render_template('bunches.html')
+    """
 
 @app.route('/authors')
 @login_required

@@ -4,6 +4,26 @@
 <div id="main">
     {% set page = '3' %}
     {% include 'sort_subheader.html' %}
+    {% if bunches %}
+        <div class="small">
+        {% for bunch in bunches %}
+            <a href="{{ url_for('bunch', name=bunch.name) }}">{{ bunch.name }}</a>
+            (
+            {% for tag in bunch.tags %}
+                {{tag.name}}
+                {% if tag != bunch.tags|sort(attribute='name')|last %}
+                    {{tag.name}},
+                {% else %}
+                    {{tag.name}}
+                {% endif %}
+            {% endfor %}
+            )
+            <br>
+        {% endfor %}
+        </div>
+    {% endif %}
+
+
     Bunches are groups of tags. Choose how to connect them ("AND" or "OR") and then
     which tags you want to group together. Submit below, and you will be
     taken to the results with the option to save the bunch for quick access later.

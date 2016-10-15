@@ -12,7 +12,7 @@
 
         {# items by multiple tags #}
         {% if tags %}
-            <form method="post" name="save_bunch" action="{{url_for('save_bunch')}}">
+
             tagged
             {% for b_tag in tags|sort %}
                 {% if b_tag != tags|sort|last %}
@@ -25,9 +25,6 @@
                     {{ b_tag }}
                 {% endif %}
             {% endfor %}
-            <button type="submit" name="save" value="1" class="info no_button">save bunch</button>
-            <input type="hidden" name="tags" value="{{tags}}">
-            </form>
         {% endif %}
 
 
@@ -40,6 +37,19 @@
         {% set page = '1' %}
     {% endif %}
     {% include 'sort_subheader.html' %}
+
+    {# option to save bunch #}
+    {% if tags %}
+        <div style="margin-top:-20px" class="block-center small">
+            <form method="POST" name="save_bunch" action="/save_bunch">
+                To save this group of tags as a bunch, provide a name (optional) and click save.
+                <input class="login_form" type="text" size="15" id="bunch_name" name="bunch_name" placeholder=""/>
+                <button type="submit" name="save_bunch">Save test </button>
+                <input type="hidden" name="selector" value="{{ selector }}">
+                {# <input type="hidden" name="tags" value="{{ tags }}"> #}
+            </form>
+        </div>
+    {% endif %}
 
     <div>
     {% if current_user.is_authenticated %}
