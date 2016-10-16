@@ -207,9 +207,13 @@ def bunches():
                         docs.remove(doc)
                         break
 
+        # store tags in session var to use in save_bunch (rather than passing to form and getting back)
+        session['tags'] = tags
+
         if not docs:
             flash("Sorry, no items matched your tag choices.")
             return redirect(url_for('bunches'))
+
 
         #return docs as well as list of tags and how they were chosen
         return render_template('read.html', docs=docs, tags=tags, selector=selector)
@@ -237,25 +241,13 @@ def bunch(name):
                         docs.remove(doc)
                         break
     #return docs as well as list of tags and how they were chosen
-    session['bunch_tags'] = tags
+
     return render_template('read.html', docs=docs, tags=tags, selector=bunch.selector)
 
 @app.route('/save_bunch', methods=['GET', 'POST'])
 @login_required
-def save_bunch(tags):
+def save_bunch():
     ''' Process a bunch save request from a user.'''
-
-    #in bunches() above, set session for list of tags and then access it here instead of
-    #passing list variable to template in hidden input and trying to get it back (it doesn't stay a list)
-
-    #the alternative it to manually build the list in the template and then get it get through request.form.getlist('tags')
-
-    #tags = request.form.getlist('tags')
-    #tags = request.form['tags']
-    #tags = str_tags_to_list(tags)
-
-    for tag in session['bunch_tags']:
-        print(tag)
 
     selector = request.form['selector']
     name = request.form['bunch_name']
@@ -264,7 +256,7 @@ def save_bunch(tags):
     db.session.add(new_bunch)
     db.session.commit()
 
-    for tag in tags:
+    for tag in session['tags']:
         #get tag object
         existing_tag = Tags.query.filter(Tags.name==tag).one()
         new_bunch.tags.append(existing_tag)
