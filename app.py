@@ -208,7 +208,7 @@ def bunches():
                         break
 
         # store tags in session var to use in save_bunch (rather than passing to form and getting back)
-        session['tags'] = tags
+        session['bunch_tags'] = tags
 
         if not docs:
             flash("Sorry, no items matched your tag choices.")
@@ -242,7 +242,7 @@ def bunch(name):
                         break
     #return docs as well as list of tags and how they were chosen
 
-    return render_template('read.html', docs=docs, tags=tags, selector=bunch.selector)
+    return render_template('read.html', docs=docs, tags=[tag.name for tag in bunch.tags], selector=bunch.selector)
 
 @app.route('/save_bunch', methods=['GET', 'POST'])
 @login_required
@@ -256,11 +256,29 @@ def save_bunch():
     db.session.add(new_bunch)
     db.session.commit()
 
-    for tag in session['tags']:
-        #get tag object
-        existing_tag = Tags.query.filter(Tags.name==tag).one()
-        new_bunch.tags.append(existing_tag)
-        db.session.commit()
+    """
+    #append any user's existing tags to the document, remove from list tags
+            for sublist in user_tags:
+                for tag in tags[:]:
+                    if sublist['name'] == tag:
+                        #get the tag object and append to new_doc.tags
+                        existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
+                        update_doc.tags.append(existing_tag)
+                        #now remove it, so we don't create a new tag object below
+                        tags.remove(tag)
+    """
+
+    user_tags = get_user_tags()
+
+    #get tag id, then tag object, and append to new_bunch
+    for sublist in user_tags:
+        for tag in session['bunch_tags']:
+            if sublist['name'] == tag:
+                #get the tag object and append to new_doc.tags
+                existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
+                new_bunch.tags.append(existing_tag)
+                db.session.commit()
+
 
     flash("New bunch saved.")
     return render_template('bunches.html')
