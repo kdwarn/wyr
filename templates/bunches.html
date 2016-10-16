@@ -4,11 +4,14 @@
 <div id="main">
     {% set page = '3' %}
     {% include 'sort_subheader.html' %}
+    <div class="center">Bunches are groups of tags.</div><br>
+
     {% if bunches %}
-        <div class="small">
+        <div>
+        <div class="small center bold">Saved bunches:</div><br>
         {% for bunch in bunches %}
             <a href="{{ url_for('bunch', name=bunch.name) }}">{{ bunch.name }}</a>
-            (
+            <span class="small">(
             {% for tag in bunch.tags %}
                 {{tag.name}}
                 {% if tag != bunch.tags|sort(attribute='name')|last %}
@@ -17,16 +20,20 @@
                     {{tag.name}}
                 {% endif %}
             {% endfor %}
-            )
+            )</span>
             <br>
         {% endfor %}
         </div>
+        <br>
     {% endif %}
 
-
-    Bunches are groups of tags. Choose how to connect them ("AND" or "OR") and then
-    which tags you want to group together. Submit below, and you will be
-    taken to the results with the option to save the bunch for quick access later.
+    <div class="small center bold">Create New Bunch</div><br>
+    <div class="small">Choose how to build the bunch (do you want items tagged
+    "tag1" <i>AND</i> "tag2" <i>AND</i> "tag3", etc, or do you want items
+    tagged "tag1" <i>OR</i> "tag2" <i>OR</i> "tag3", etc?), and then
+    the tags to group together. Submit below, and the items matching the bunch
+    will be displayed, with an option to save it. Saved bunches will be displayed
+    above.</div>
     <form name="bunch" id="bunch" method="post" action="{{url_for('bunches')}}">
         <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
         <div id="multiple_tags" class="center">

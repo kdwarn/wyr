@@ -26,7 +26,7 @@ app.config.from_object('config')
 db = SQLAlchemy(app)
 
 # import things that depend upon db
-from db_functions import get_user_tags, get_user_authors
+from db_functions import get_user_tags, get_user_authors, str_tags_to_list
 from models import User, Tokens, Documents, Tags, Bunches
 from sources.native import native_blueprint
 from sources.mendeley import mendeley_blueprint
@@ -49,7 +49,7 @@ login_manager.login_view = 'login'
 #######################
 
 #from http://flask.pocoo.org/snippets/3/
-#(must use  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"> in template forms
+#must use  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"> in template forms
 @app.before_request
 def csrf_protect():
     if request.method == "POST":
@@ -181,6 +181,7 @@ def bunches():
         tags = get_user_tags()
         bunches = db.session.query(Bunches).filter(Bunches.user_id==current_user.id).all()
         return render_template('bunches.html', tags=tags, bunches=bunches)
+
     # maybe turn this into a function? (most of it will be repeated for bunch()
     else:
         selector = request.form['selector'] # "and" or "or"
@@ -214,12 +215,12 @@ def bunches():
         return render_template('read.html', docs=docs, tags=tags, selector=selector)
 
 
-@app.route('/bunch/<id>')
+@app.route('/bunch/<name>')
 @login_required
-def bunch():
+def bunch(name):
     ''' Display docs from saved bunch '''
     #get the name, tags, and selector for this bunch
-    bunch = Bunches.filter(user_id=current_user.id, id=id)
+    bunch = db.session.query(Bunches).filter(Bunches.user_id==current_user.id, Bunches.name==name).one()
 
     if bunch.selector == 'or':
         docs = current_user.documents.filter(Documents.tags.any(Tags.name.in_([t for t in bunch.tags]))).order_by(desc(Documents.created)).all()
@@ -236,21 +237,26 @@ def bunch():
                         docs.remove(doc)
                         break
     #return docs as well as list of tags and how they were chosen
+    session['bunch_tags'] = tags
     return render_template('read.html', docs=docs, tags=tags, selector=bunch.selector)
 
-
-#This will work when I type in the URL, but not from the form on read.html.
 @app.route('/save_bunch', methods=['GET', 'POST'])
 @login_required
-def save_bunch():
+def save_bunch(tags):
     ''' Process a bunch save request from a user.'''
-    #for some reason, not getting to here
-    if request.method == 'POST':
-        return "post"
 
-    return "hello"
-    """
+    #in bunches() above, set session for list of tags and then access it here instead of
+    #passing list variable to template in hidden input and trying to get it back (it doesn't stay a list)
+
+    #the alternative it to manually build the list in the template and then get it get through request.form.getlist('tags')
+
     #tags = request.form.getlist('tags')
+    #tags = request.form['tags']
+    #tags = str_tags_to_list(tags)
+
+    for tag in session['bunch_tags']:
+        print(tag)
+
     selector = request.form['selector']
     name = request.form['bunch_name']
 
@@ -258,13 +264,14 @@ def save_bunch():
     db.session.add(new_bunch)
     db.session.commit()
 
-    #for tag in tags:
-    #    new_bunch.tags.append(tag)
-    #    db.session.commit()
+    for tag in tags:
+        #get tag object
+        existing_tag = Tags.query.filter(Tags.name==tag).one()
+        new_bunch.tags.append(existing_tag)
+        db.session.commit()
 
     flash("New bunch saved.")
     return render_template('bunches.html')
-    """
 
 @app.route('/authors')
 @login_required

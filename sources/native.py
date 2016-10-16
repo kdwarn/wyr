@@ -187,7 +187,6 @@ def edit():
             #also pass along all authors for autocomplete
             all_authors = get_user_author_names()
 
-            #took out all_tags=all_tags from below to see if it would work
             return render_template('edit.html', doc=doc, tags=new_tags, all_tags=all_tags, all_authors=all_authors, authors=new_authors)
         else:
             return redirect(url_for('index'))
