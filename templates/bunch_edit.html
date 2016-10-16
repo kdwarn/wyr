@@ -4,41 +4,12 @@
 <div id="main">
     {% set page = '3' %}
     {% include 'sort_subheader.html' %}
-    <div class="center">Bunches are groups of tags.</div><br>
+    <div class="center">Edit {{Bunch.name}} Bunch</div><br>
 
-    {# user's saved bunches #}
-    {% if bunches %}
-        <div>
-        {% for bunch in bunches %}
-            <a href="{{ url_for('bunch', name=bunch.name) }}">{{ bunch.name }}</a>
-
-            <span class="small">(
-            {% for tag in bunch.tags|sort(attribute='name') %}
-                {% if tag != bunch.tags|sort(attribute='name')|last %}
-                    {{tag.name}},
-                {% else %}
-                    {{tag.name}}
-                {% endif %}
-            {% endfor %}
-            )</span>
-            <span class="small">[{{bunch.selector}}]</span>
-            <span class="small">edit | delete</span>
-            <br>
-        {% endfor %}
-        </div>
-        <br>
-    {% endif %}
-
-    {# create new bunch #}
-    <div class="small center bold">Create New Bunch</div><br>
     <div class="small">Choose how to build the bunch (do you want items tagged
     "tag1" <i>AND</i> "tag2" <i>AND</i> "tag3", etc, or do you want items
     tagged "tag1" <i>OR</i> "tag2" <i>OR</i> "tag3", etc?), and then
-    the tags to group together. Submit below, and the items matching the bunch
-    will be displayed, with an option to save it.
-    {% if not bunches %}
-        Saved bunches will be displayed above.
-    {% endif %}
+    the tags to group together. Save below.
     </div>
 
     {# show selector and tags #}
@@ -53,12 +24,13 @@
             </ul>
         </div>
         <div style="line-height:1.5em" id="multiple_tags">
-            {# <ul> #}
+
+            {# do check here if tag in bunch.tags #}
+
             {% for tag in tags %}
                 <input type="checkbox" name="tags" id="{{tag.name}}" value="{{tag.name}}">
                 <label for="{{ tag.name }}">{{tag.name}}</label><br>
             {% endfor %}
-            {# </ul> #}
         </div>
         <div class="center">
         <button type="submit" name="submit" value="Submit">Submit</button>

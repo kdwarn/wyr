@@ -182,6 +182,14 @@ def bunches():
         bunches = db.session.query(Bunches).filter(Bunches.user_id==current_user.id).all()
         return render_template('bunches.html', tags=tags, bunches=bunches)
 
+        if request.args.get('edit'):
+            #use different template?
+            pass
+
+        if request.args.get('delete'):
+            #use different template
+            pass
+
     # maybe turn this into a function? (most of it will be repeated for bunch()
     else:
         selector = request.form['selector'] # "and" or "or"
@@ -216,7 +224,7 @@ def bunches():
 
 
         #return docs as well as list of tags and how they were chosen
-        return render_template('read.html', docs=docs, tags=tags, selector=selector)
+        return render_template('read.html', docs=docs, bunch_tags=tags, selector=selector)
 
 
 @app.route('/bunch/<name>')
@@ -227,22 +235,21 @@ def bunch(name):
     bunch = db.session.query(Bunches).filter(Bunches.user_id==current_user.id, Bunches.name==name).one()
 
     if bunch.selector == 'or':
-        docs = current_user.documents.filter(Documents.tags.any(Tags.name.in_([t for t in bunch.tags]))).order_by(desc(Documents.created)).all()
+        docs = current_user.documents.filter(Documents.tags.any(Tags.name.in_([t.name for t in bunch.tags]))).order_by(desc(Documents.created)).all()
 
     if bunch.selector == 'and':
-            #couldn't figure out how to do this in one query, so this is probably inefficient, but...
-            #first get the docs that have any of the tags chosen
-            docs = current_user.documents.filter(Documents.tags.any(Tags.name.in_([t for t in bunch.tags]))).order_by(desc(Documents.created)).all()
+        #couldn't figure out how to do this in one query, so this is probably inefficient, but...
+        #first get the docs that have any of the tags chosen
+        docs = current_user.documents.filter(Documents.tags.any(Tags.name.in_([t.name for t in bunch.tags]))).order_by(desc(Documents.created)).all()
 
-            # now go through docs and eliminate them if they don't have every tag in tags
-            for doc in docs[:]:
-                for tag in bunch.tags:
-                    if tag not in [each.name for each in doc.tags]:
-                        docs.remove(doc)
-                        break
-    #return docs as well as list of tags and how they were chosen
+        # now go through docs and eliminate them if they don't have every tag in tags
+        for doc in docs[:]:
+            for tag in bunch.tags:
+                if tag not in [each.name for each in doc.tags]:
+                    docs.remove(doc)
+                    break
 
-    return render_template('read.html', docs=docs, tags=[tag.name for tag in bunch.tags], selector=bunch.selector)
+    return render_template('read.html', docs=docs, bunch_tags=[tag.name for tag in bunch.tags], bunch_name=bunch.name, selector=bunch.selector)
 
 @app.route('/save_bunch', methods=['GET', 'POST'])
 @login_required
@@ -256,18 +263,6 @@ def save_bunch():
     db.session.add(new_bunch)
     db.session.commit()
 
-    """
-    #append any user's existing tags to the document, remove from list tags
-            for sublist in user_tags:
-                for tag in tags[:]:
-                    if sublist['name'] == tag:
-                        #get the tag object and append to new_doc.tags
-                        existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
-                        update_doc.tags.append(existing_tag)
-                        #now remove it, so we don't create a new tag object below
-                        tags.remove(tag)
-    """
-
     user_tags = get_user_tags()
 
     #get tag id, then tag object, and append to new_bunch
@@ -279,9 +274,8 @@ def save_bunch():
                 new_bunch.tags.append(existing_tag)
                 db.session.commit()
 
-
     flash("New bunch saved.")
-    return render_template('bunches.html')
+    return redirect(url_for('bunches'))
 
 @app.route('/authors')
 @login_required
