@@ -40,13 +40,14 @@
 
     {# option to save bunch #}
     {% if tags %}
-        <div style="margin-top:-20px" class="block-center small">
+        <div class="block-center small">
             To save this group of tags as a bunch, provide a name (optional) and click save.
-            <form method="POST" name="save_bunch1" action="/save_bunch">
+            <form method="POST" name="save_bunch1" action="{{url_for('save_bunch')}}">
+                <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
                 <input type="text" size="15" id="bunch_name" name="bunch_name">
-                <button type="submit" name="save_bunch2">Save test </button>
-                {# <input type="hidden" name="selector" value="{{ selector }}">
-                <input type="hidden" name="tags" value="{{ tags }}"> #}
+                <input type="submit" name="save_bunch2" value="save">Save
+                <input type="hidden" name="selector" value="{{ selector }}">
+                <input type="hidden" name="tags" value="{{ tags }}">
             </form>
         </div>
     {% endif %}

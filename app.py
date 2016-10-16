@@ -44,11 +44,11 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 
-########################
-### HELPER FUNCTIONS ###
-########################
+#######################
+### CSRF PROTECTION ###
+#######################
 
-#csrf protection from http://flask.pocoo.org/snippets/3/
+#from http://flask.pocoo.org/snippets/3/
 #(must use  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"> in template forms
 @app.before_request
 def csrf_protect():
@@ -63,7 +63,11 @@ def generate_csrf_token():
     return session['_csrf_token']
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
-#end csrf protection
+
+
+########################
+### HELPER FUNCTIONS ###
+########################
 
 #function for displaying datetime in jinja, defaulting to date like May 1, 1886
 def datetimeformat(value, format='%B %d, %Y'):
@@ -209,7 +213,7 @@ def bunches():
         #return docs as well as list of tags and how they were chosen
         return render_template('read.html', docs=docs, tags=tags, selector=selector)
 
-"""
+
 @app.route('/bunch/<id>')
 @login_required
 def bunch():
@@ -233,7 +237,6 @@ def bunch():
                         break
     #return docs as well as list of tags and how they were chosen
     return render_template('read.html', docs=docs, tags=tags, selector=bunch.selector)
-"""
 
 
 #This will work when I type in the URL, but not from the form on read.html.
