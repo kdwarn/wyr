@@ -6,7 +6,7 @@
     {% include 'sort_subheader.html' %}
     <div style="line-height:1.5em">
     {% for tag in tags %}
-        <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }} </a>&nbsp;
+        <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a><br>
     {% endfor %}
     </div>
 </div>
