@@ -7,7 +7,7 @@
     <div class="center">Edit {{bunch.name}} Bunch</div><br>
     <form name="bunch" id="bunch" method="post" action="{{url_for('bunch_edit')}}">
         <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
-        Name: <input name="new_bunch_name" size="15" value={{bunch.name}}>
+        Name: <input name="new_bunch_name" size="15" value="{{bunch.name}}">
 
         <div id="multiple_tags" class="center">
             <ul>

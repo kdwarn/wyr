@@ -27,7 +27,7 @@ app.config.from_object('config')
 db = SQLAlchemy(app)
 
 # import things that depend upon db
-from db_functions import get_user_tags, get_user_authors, str_tags_to_list
+from db_functions import get_user_tags, get_user_authors
 from models import User, Tokens, Documents, Tags, Bunches
 from sources.native import native_blueprint
 from sources.mendeley import mendeley_blueprint
@@ -281,7 +281,7 @@ def bunch_edit():
     #show page to edit bunch name, selector, and tags
     if request.method == 'GET':
         bunch_name = request.args.get('name', '')
-        bunch = db.session.query(Bunches).filter(Bunches.user_id==current_user.id, Bunches.name==bunch_name).one()
+        bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==bunch_name).one()
         tags = get_user_tags()
         return render_template('bunch_edit.html', bunch=bunch, tags=tags)
 
