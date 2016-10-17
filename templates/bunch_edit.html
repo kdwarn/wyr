@@ -4,39 +4,43 @@
 <div id="main">
     {% set page = '3' %}
     {% include 'sort_subheader.html' %}
-    <div class="center">Edit {{Bunch.name}} Bunch</div><br>
-
-    <div class="small">Choose how to build the bunch (do you want items tagged
-    "tag1" <i>AND</i> "tag2" <i>AND</i> "tag3", etc, or do you want items
-    tagged "tag1" <i>OR</i> "tag2" <i>OR</i> "tag3", etc?), and then
-    the tags to group together. Save below.
-    </div>
-
-    {# show selector and tags #}
-    <form name="bunch" id="bunch" method="post" action="{{url_for('bunches')}}">
+    <div class="center">Edit {{bunch.name}} Bunch</div><br>
+    <form name="bunch" id="bunch" method="post" action="{{url_for('bunch_edit')}}">
         <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+        Name: <input name="new_bunch_name" size="15" value={{bunch.name}}>
+
         <div id="multiple_tags" class="center">
             <ul>
-                <li><input type="radio" name="selector" id="and" value="and" checked>
+                <li><input type="radio" name="selector" id="and" value="and"
+                {% if bunch.selector == 'and' %}
+                    checked
+                {% endif %}
+                >
                 <label for="and">AND</label></li>
-                <li><input type="radio" name="selector" id="or" value="or">
+                <li><input type="radio" name="selector" id="or" value="or"
+                {% if bunch.selector == 'or' %}
+                    checked
+                {% endif %}
+                >
                 <label for="or">OR</label></li>
             </ul>
         </div>
         <div style="line-height:1.5em" id="multiple_tags">
-
-            {# do check here if tag in bunch.tags #}
-
             {% for tag in tags %}
-                <input type="checkbox" name="tags" id="{{tag.name}}" value="{{tag.name}}">
-                <label for="{{ tag.name }}">{{tag.name}}</label><br>
+                <input type="checkbox" name="bunch_tags" id="{{tag.id}}" value="{{tag.id}}"
+                {% if tag.id in bunch.tags|map(attribute='id') %}
+                    checked
+                {% endif %}
+                >
+                <label for="{{ tag.id }}">{{tag.name}}</label><br>
             {% endfor %}
         </div>
         <div class="center">
-        <button type="submit" name="submit" value="Submit">Submit</button>
+        <input type="hidden" name="old_bunch_name" value="{{bunch.name}}">
+        <button type="submit" name="submit" value="submit">Submit</button>&nbsp;
+        <button type="submit" name="submit" value="cancel">Cancel</button>
         </div>
     </form>
-    <br><br>
 </div>
 <br>
 {% endblock %}

@@ -3,7 +3,7 @@
 {% block content %}
 <div id="main">
     {# subset of documents - describe what is being shown #}
-    {% if tagpage or authorpage or bunch_tags %}
+    {% if tagpage or authorpage or bunch_tag_names %}
         <h2>
 
         {# items by one tag #}
@@ -12,10 +12,10 @@
         {% endif %}
 
         {# items by bunch #}
-        {% if bunch_tags %}
+        {% if bunch_tag_names %}
             tagged
-            {% for tag in bunch_tags|sort %}
-                {% if tag != bunch_tags|sort|last %}
+            {% for tag in bunch_tag_names|sort %}
+                {% if tag != bunch_tag_names|sort|last %}
                     {% if selector == 'or' %}
                         {{ tag }} or
                     {% else %}
@@ -44,10 +44,10 @@
     {% include 'sort_subheader.html' %}
 
     {# option to save bunch #}
-    {% if bunch_tags and not bunch_name %}
+    {% if bunch_tag_names and not bunch_name %}
         <div class="block-center small">
             To save this group of tags as a bunch, provide a name and submit.
-            <form method="POST" name="save_bunch" action="{{url_for('save_bunch')}}">
+            <form method="POST" name="save_bunch" action="{{url_for('bunch_save')}}">
                 <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
                 <input type="text" size="15" id="bunch_name" name="bunch_name">
                 <button type="submit">Save</button>

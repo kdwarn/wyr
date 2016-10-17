@@ -9,10 +9,15 @@
     {# user's saved bunches #}
     {% if bunches %}
         <div>
-        {% for bunch in bunches %}
-            <a href="{{ url_for('bunch', name=bunch.name) }}">{{ bunch.name }}</a>
-
-            <span class="small">(
+        {% for bunch in bunches|sort(attribute='name') %}
+            <a href="{{ url_for('bunch', name=bunch.name)}}">{{ bunch.name }}</a>
+            <br><span class="small">
+            <a href="{{ url_for('bunch_edit', name=bunch.name)}}">edit</a>
+            | <a href="{{ url_for('bunch_delete', name=bunch.name)}}">delete</a>
+            </span>
+            <br>
+            <div class="small">
+            [ {{bunch.selector}} ] (
             {% for tag in bunch.tags|sort(attribute='name') %}
                 {% if tag != bunch.tags|sort(attribute='name')|last %}
                     {{tag.name}},
@@ -20,9 +25,8 @@
                     {{tag.name}}
                 {% endif %}
             {% endfor %}
-            )</span>
-            <span class="small">[{{bunch.selector}}]</span>
-            <span class="small">edit | delete</span>
+            )
+            </div>
             <br>
         {% endfor %}
         </div>
@@ -55,8 +59,8 @@
         <div style="line-height:1.5em" id="multiple_tags">
             {# <ul> #}
             {% for tag in tags %}
-                <input type="checkbox" name="tags" id="{{tag.name}}" value="{{tag.name}}">
-                <label for="{{ tag.name }}">{{tag.name}}</label><br>
+                <input type="checkbox" name="bunch_tags" id="{{tag.id}}" value="{{tag.id}}">
+                <label for="{{ tag.id }}">{{tag.name}}</label><br>
             {% endfor %}
             {# </ul> #}
         </div>

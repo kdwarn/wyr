@@ -1,0 +1,21 @@
+
+{% extends 'header.html' %}
+{% block content %}
+<div id="main">
+    {% set page = '3' %}
+    {% include 'sort_subheader.html' %}
+    <div class="center">Delete Bunch<br>
+    <br>
+    Are you sure you want to delete the {{bunch_name}} bunch?
+    <br><br>
+    <form name="bunch" id="bunch" method="post" action="{{url_for('bunch_delete')}}">
+        <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+        <input type="hidden" name="bunch_name" value="{{bunch_name}}">
+        <button type="submit" name="submit" value="delete">Yes</button>&nbsp;
+        <button type="submit" name="submit" value="cancel">No</button>
+    </form>
+    </div>
+    <br><br>
+</div>
+<br>
+{% endblock %}
