@@ -132,6 +132,7 @@ def index():
 
     This also is where the function to update non-native docs is called.
     '''
+
     if current_user.is_authenticated:
         # fetch and display read items from various sources
         then = datetime.now() - timedelta(days=7)
@@ -165,7 +166,6 @@ def tags():
 @login_required
 def docs_by_tag(tag):
     ''' Return all user's documents tagged <tag>. '''
-
     #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
     docs = current_user.documents.filter(Documents.tags.any(name=tag)).order_by(desc(Documents.created)).all()
 
@@ -176,6 +176,7 @@ def docs_by_tag(tag):
 @login_required
 def bunch(name):
     ''' Display docs from saved bunch '''
+
     #get the name, tags, and selector for this bunch
     bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==name).one()
 
@@ -201,7 +202,6 @@ def bunch(name):
 def bunches():
     '''Let user select multiple tags and display the docs that fit the criteria.
     Include link to save the bunch, which takes place through bunch_save().'''
-
     if request.method == 'GET':
         tags = get_user_tags()
         bunches = Bunches.query.filter(Bunches.user_id==current_user.id).all()

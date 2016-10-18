@@ -1,5 +1,23 @@
 
 {% extends 'header.html' %}
+{% block title %}
+    {% if tagpage %}
+        - {{tagpage}}
+    {% endif %}
+
+    {% if bunch_tag_names and not bunch_name %}
+        - Bunch
+    {% endif %}
+
+    {% if authorpage %}
+        - {{first_name}} {{last_name}}
+    {% endif %}
+
+    {% if bunch_name %}
+        - {{bunch_name}}
+    {% endif %}
+{% endblock %}
+
 {% block content %}
 <div id="main">
     {# subset of documents - describe what is being shown #}
