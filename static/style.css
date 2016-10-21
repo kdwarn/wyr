@@ -78,11 +78,16 @@ nav a:hover {
 
 .bold {font-weight: bold;}
 
-.title {font-size:1.15rem;}
+.title {font-size:1.25rem;
+    color:blue;
+}
 
 .info {font-size:0.75rem}
 
-.notes {font-size:1rem;}
+.notes {font-size:0.90rem;
+        color:#252322;
+        padding-top: 8px;
+}
 
 .small {font-size:0.75rem}
 
@@ -205,6 +210,3 @@ button.no_button:hover {
     font-size:0.75rem;
     font-weight: normal;
 }
-
-
-

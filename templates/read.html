@@ -26,7 +26,7 @@
 
         {# items by one tag #}
         {% if tagpage %}
-            tagged {{tagpage}}
+            <span class="bold">tagged</span> {{tagpage}}
         {% endif %}
 
         {# items by bunch #}
@@ -75,10 +75,6 @@
         </div>
     {% endif %}
 
-
-
-
-
     <div>
     {% if current_user.is_authenticated %}
         {% for doc in docs %}
@@ -102,8 +98,9 @@
                 ({{ doc.year }})
             {% endif %}
 
+
             {% if doc.authors %}
-                by
+                <span style="font-size:1rem">by</span>
                 {% for author in doc.authors %}
                     {% if author != doc.authors[-1] %}
                         <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
@@ -127,11 +124,13 @@
             {% if doc.tags %}
                 Tagged:
                 {% for tag in doc.tags|sort(attribute='name') %}
+                    <span class="tags">
                     {% if tag != doc.tags|sort(attribute='name')|last %}
                         <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>,
                     {% else %}
                         <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>
                     {% endif %}
+                    </span>
                 {% endfor %}
             <br>
             {% endif %}
@@ -167,7 +166,7 @@
             </span>
 
             {% if doc.note %}
-                <span class="notes">{{ doc.note|safe }}</span>
+                <div class="notes">{{ doc.note|safe }}</div>
             {% endif %}
             </div>
         {% endfor %}
