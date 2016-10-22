@@ -79,8 +79,9 @@ nav a:hover {
 .bold {font-weight: bold;}
 
 .title {font-size:1.25rem;
-    color:blue;
 }
+
+.authors {font-size:1.10rem;}
 
 .info {font-size:0.75rem}
 

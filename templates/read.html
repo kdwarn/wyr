@@ -97,10 +97,11 @@
             {% if doc.year %}
                 ({{ doc.year }})
             {% endif %}
+            </span>
 
-
+            <span class="authors">
             {% if doc.authors %}
-                <span style="font-size:1rem">by</span>
+                <span style="font-size:1rem;">by</span>
                 {% for author in doc.authors %}
                     {% if author != doc.authors[-1] %}
                         <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
