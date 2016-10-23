@@ -12,7 +12,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from config import stripe_keys, mailgun
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-from itsdangerous import URLSafeTimedSerializer
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 from random import random
 import stripe
 import requests
@@ -409,18 +409,16 @@ def show_user_profile(username):
 @app.route('/sign_up', methods=['GET', 'POST'])
 def sign_up():
     ''' Sign up page.
-
     Display form for new user to fill out, validate it, and create new user account.
-
     '''
 
     if request.method == 'GET':
         return render_template('index.html')
     elif request.method == 'POST':
+        # do checks, send email to user to complete sign up
+
         username = request.form['wyr_username']
         email = request.form['email']
-        password = request.form['wyr_password']
-        confirm_password = request.form['wyr_confirm']
 
         #checks
         error = 0
@@ -430,47 +428,87 @@ def sign_up():
         if User.query.filter_by(email=email).count() > 0:
             error = 1
             flash('Sorry, the email address {} is already in use.'.format(email))
-        if password != confirm_password:
-            error = 1
-            flash('Your passwords did not match. Please try again.')
-        if len(password) < 5:
-            error = 1
-            flash('Your password is too short. Please try again.')
         if '@' not in email:
             error = 1
             flash('The email you entered does not appear to be valid.')
-
         if error == 1:
             return redirect(url_for('sign_up'))
 
-        #use passlib to encrypt password
-        myctx = CryptContext(schemes=['pbkdf2_sha256'])
-        hash = myctx.encrypt(password)
 
-        user = User(username=username, password=hash, email=email)
-        db.session.add(user)
-        db.session.commit()
-
-        #do this after first login instead
-        #generate the token, send the email, then return user to login
-        action = 'confirm' #used to differentiate between confirming and changing email in confirm()
+        #generate the token, send the email, then return user to index
         serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-        email_hash = serializer.dumps([user.id, email, action], salt='email')
+        email_hash = serializer.dumps([username, email], salt='sign_up')
 
-        subject = 'Confirm your email address'
-        text = """Welcome to What You've Read. Please confirm your email by following
-        this link:<br> http://www.whatyouveread.com/confirm/{}.""".format(email_hash)
+        subject = 'Activate your account'
+        text = """Please activate your account by following
+        <a href="http://www.whatyouveread.com/activate?code={}">this link</a>.<br>
+        <br>
+        -Kris @ What You've Read""".format(email_hash)
 
         send_simple_message(email, subject, text)
 
-        #log the user in
-        login_user(user)
-
         #redirect them back to home page
-        flash('Welcome to What You\'ve Read, {}!'.format(username))
+        flash('Please check your email to activate your account.')
         return redirect(url_for('index'))
     else:
         abort(405)
+
+@app.route('/activate', methods=['GET', 'POST'])
+def activate():
+    ''' Activate user account - finish the sign up process now that the email
+    is verified - get user's password, do checks on it, and insert user into database
+    '''
+
+    #send user to form to set password if hash is good
+    if request.method == 'GET':
+
+        #first, pull user's email and username out of hash
+        hash = request.args.get('code')
+        serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+        try:
+            decoded = serializer.loads(hash, salt='sign_up', max_age=3600)
+        except SignatureExpired:
+            flash('Activation period expired. Please sign up again.')
+            return redirect(url_for('index'))
+        except:
+            flash("Error activating your account. Please sign up again below.")
+            return redirect(url_for('index'))
+
+        return render_template('activate.html', username=decoded[0], email=decoded[1])
+
+    # get user's desired password, check, add account
+    if request.method == 'POST':
+
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        #checks - password
+        if password != confirm_password:
+            flash("Your passwords did not match. Please try again.")
+            return render_template('activate.html', username=username, email=email)
+        if len(password) < 5:
+            flash("Your password is too short. Please try again.")
+            return render_template('activate.html', username=username, email=email)
+        #checks - if user already completed sign up, redirect
+        if User.query.filter_by(username=username).count() > 0:
+            flash("You've already activated your account.")
+            return redirect(url_for('index'))
+
+        #use passlib to encrypt password
+        myctx = CryptContext(schemes=['pbkdf2_sha256'])
+        hashed_password = myctx.encrypt(password)
+
+        #add user
+        user = User(username=username, password=hashed_password, email=email)
+        db.session.add(user)
+        db.session.commit()
+
+        login_user(user)
+
+        flash('Thank you. Your account has been activated.')
+        return redirect(url_for('settings'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -526,7 +564,7 @@ def settings():
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
 def change_password():
-    ''' Let users change password, set email to confirm. '''
+    ''' Let users change password '''
     if request.method == 'GET':
         return render_template('change_password.html')
     elif request.method == 'POST':
@@ -586,8 +624,9 @@ def forgot_password():
             email_hash = serializer.dumps([email], salt='email')
 
             subject = 'Reset password'
-            text = """To reset your password, please follow this link:<br>
-                http://www.whatyouveread.com/reset_password/{}""".format(email_hash)
+            text = """To reset your password, please follow
+            <a href="http://www.whatyouveread.com/reset_password/{}">this link.</a><br>
+                """.format(email_hash)
 
             send_simple_message(email, subject, text)
 
@@ -601,11 +640,13 @@ def forgot_password():
         return abort(405)
 
 @app.route('/reset_password/<hash>', methods=['GET', 'POST'])
-def reset_password(hash, expiration=3600):
+def reset_password(hash):
     '''
     GET: form to change password, from link emailed to user
     POST: change the password
     '''
+    expiration = 3600
+
     if request.method == 'GET':
         serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
         try:
@@ -657,18 +698,40 @@ def reset_password(hash, expiration=3600):
 @app.route('/change_email', methods=['GET', 'POST'])
 @login_required
 def change_email():
-    '''
-    Change user email, in conjuction with confirm()
-    '''
+    ''' Change user email '''
+    # change email or display form to enter new email
     if request.method == 'GET':
+        #if this is coming from the link sent to confirm the change, change it
+        if request.args.get('code'):
+            hash = request.args.get('code')
+            serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+            try:
+                decoded = serializer.loads(hash, salt='change_email', max_age=3600)
+            except:
+                flash("""Error confirming your credentials. Please try again later or contact
+                us if this problem continues to exist.""")
+                return redirect(url_for('settings'))
+
+            #if for some reason some other logged in user clicks the link
+            if decoded[0] != current_user.username:
+                flash("Username does not match. Email not changed.")
+                redirect(url_for('index'))
+
+            current_user.email = decoded[1]
+            db.session.commit()
+            flash('Your email has been changed.')
+            return redirect(url_for('settings'))
+
+        #else, display the original form to request the email change
         return render_template('change_email.html')
+
+    # send email to current email address to confirm the change
     elif request.method == 'POST':
         if request.form['submit'] == "Cancel":
             flash('Email change cancelled.')
             return redirect(url_for('settings'))
 
         new_email = request.form['new_email']
-        confirm_email = request.form['confirm_email']
 
         #minimum check that it's an email:
         if '@' not in new_email:
@@ -680,21 +743,16 @@ def change_email():
             flash('Sorry, that email address is already in use.')
             return redirect(url_for('change_email'))
 
-        #check that they match
-        if new_email != confirm_email:
-            flash("""The emails you entered did not match. Please try again. (This
-                is a safety feature to make sure you are entering the correct email.)""")
-            return redirect(url_for('change_email'))
-
-        action = 'change' #used to differentiate between confirming and changing email in confirm()
         serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-        email_hash = serializer.dumps([current_user.id, current_user.email, action, new_email], salt='email')
+        email_hash = serializer.dumps([current_user.username, new_email], salt='change_email')
 
         to = current_user.email
         subject = 'Email address change'
         text = """What You've Read has received a request to change your email
-            address. If this was you, please follow this link to confirm:<br><br>
-            http://www.whatyouveread.com/confirm/{}<br><br>
+            address. If this was you, please follow
+            <a href="http://www.whatyouveread.com/change_email?code={}">
+            this link</a> to confirm.
+            <br><br>
             If this was not you, someone has access to your account. You should
             <a href="http://www.whatyouveread.com/forgot_password">reset your
             password</a> immediately.""".format(email_hash)
@@ -707,31 +765,6 @@ def change_email():
 
     else:
         return abort(405)
-
-@app.route('/confirm/<hash>')
-def confirm(hash, expiration=3600):
-    '''
-    confirm new or changed emailed address
-    '''
-    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-    try:
-        decoded = serializer.loads(hash, salt='email', max_age=expiration)
-    except:
-        return "Error confirming your credentials." ### need to see what this returns and probably make more user friendly#############################################################################
-
-    if decoded[2] == 'confirm':
-        user = User.query.get(decoded[0])
-        user.email = decoded[1]
-        db.session.commit()
-        flash('Thank you. Your email has been confirmed.')
-        return redirect(url_for('settings'))
-
-    if decoded[2] == 'change':
-        user = User.query.get(decoded[0])
-        user.email = decoded[3]
-        db.session.commit()
-        flash('Your new email address has been saved.')
-        return redirect(url_for('settings'))
 
 @app.route('/screenshots')
 def screenshots():

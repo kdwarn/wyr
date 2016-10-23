@@ -25,9 +25,9 @@
         <form name="login" action="/login" method="post">
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
         <label class="sr-only" for="wyr_username">Username</label>
-        <input class="login_form" type="text" size="15" id="wyr_username" name="wyr_username" placeholder="Username"/><br>
+        <input class="login_form" type="text" size="20" id="wyr_username" name="wyr_username" placeholder="Username"/><br>
         <label class="sr-only" for="wyr_password">Password</label>
-        <input class="login_form" type="password" size="15" id="wyr_password" name="wyr_password" placeholder="Password"/><br>
+        <input class="login_form" type="password" size="20" id="wyr_password" name="wyr_password" placeholder="Password"/><br>
         <input class="login_form" type="checkbox" name="remember" id="remember" value="1">
         <label class="login_form small" for="remember">Stay logged in</label><br>
 
@@ -41,18 +41,14 @@
     </br>
     <div class="block-center box">
         <h2>Sign Up</h2>
-        <p class="center small">Username must be unique and your password must be at least 5 characters long. An email
-        will be sent to you to verify your address.</p>
+        <p class="center small">Username must be unique. You will be
+        emailed a link to activate your account.</p>
         <form name="sign_up" action="/sign_up" method="post">
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
         <label class="sr-only" for="wyr_username">Username</label>
-        <input class="login_form" type="text" id="wyr_username" size="15" name="wyr_username" placeholder="Username"/><br>
+        <input class="login_form" type="text" id="wyr_username" size="20" name="wyr_username" placeholder="Username"/><br>
         <label class="sr-only" for="email">Email</label>
-        <input class="login_form" type="text" size="15" id="email" name="email" placeholder="Email"/><br>
-        <label class="sr-only" for="wyr_password">Password</label>
-        <input class="login_form" type="password" id="wyr_password" size="15" name="wyr_password" placeholder="Password"/><br>
-        <label class="sr-only" for="wyr_confirm">Confirm Password</label>
-        <input class="login_form" type="password" id="wyr_confirm" size="15" name="wyr_confirm" placeholder="Confirm password"/><br>
+        <input class="login_form" type="text" size="20" id="email" name="email" placeholder="Email"/><br>
         <button type="submit">Sign Up</button>
         </form>
     </div>
