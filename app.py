@@ -656,8 +656,7 @@ def reset_password():
     '''
 
     # user has clicked on reset password link in an email sent to them about
-    # changing their email address or they've been redirected after error
-    # display form to reset password
+    # changing their email address
     if request.method == 'GET':
         if request.args.get('code'):
             return render_template('reset_password.html', hash=request.args.get('code'), untimed='true')
@@ -674,13 +673,13 @@ def reset_password():
 
         # use untimed version of URL serializer - user has noticed attempt to change
         # their email and is resetting password
-        if request.args.get('untimed') == 'true':
-            untimed = request.args.get('untimed')
+        if request.form['untimed'] == 'true':
+            untimed = request.form['untimed']
             serializer = URLSafeSerializer(app.config['SECRET_KEY'])
             try:
                 decoded = serializer.loads(hash, salt='reset_password')
             except:
-                flash("Sorry, there was an error. Please try again1.")
+                flash("Sorry, there was an error. Please try again.")
                 return redirect(url_for('index'))
 
         #use timed version - user forgot password and was sent link to reset
@@ -692,7 +691,7 @@ def reset_password():
                 flash('The link has expired; password not reset.')
                 return redirect(url_for('index'))
             except:
-                flash("Sorry, there was an error. Please try again2.")
+                flash("Sorry, there was an error. Please try again.")
                 return redirect(url_for('index'))
 
         #try to update password
