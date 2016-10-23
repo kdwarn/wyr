@@ -6,7 +6,8 @@
         <h2>Change Email</h2>
         <p class ="left">Your email is currently {{current_user.email}}. If you'd
         like to change it, enter a new email address below and we will send you
-        an email with a link to confirm.</p>
+        an email with a link to confirm the requested change. After that,
+        another link will be sent to your new email address to confirm it is correct.</p>
 
         <form name="change_email" action="{{ url_for('change_email') }}" method="post">
             <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"/>
