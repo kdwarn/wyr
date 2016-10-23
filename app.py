@@ -12,7 +12,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from config import stripe_keys, mailgun
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-from itsdangerous import URLSafeTimedSerializer, SignatureExpired
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, URLSafeSerializer
 from random import random
 import stripe
 import requests
@@ -434,7 +434,6 @@ def sign_up():
         if error == 1:
             return redirect(url_for('sign_up'))
 
-
         #generate the token, send the email, then return user to index
         serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
         email_hash = serializer.dumps([username, email], salt='sign_up')
@@ -608,9 +607,19 @@ def change_password():
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
-    ''' Display form to send email link to reset password. '''
+    ''' Display form to send email link to reset password; display form to
+    reset password if user clicked on confirmation link. '''
     if request.method == 'GET':
-        return render_template('forgot_password.html')
+
+        # display form to enter email to initiate reset process
+        if not request.args.get('reset'):
+            return render_template('forgot_password.html')
+
+        # otherwise, user has already clicked on confirmation link
+        hash = request.args.get('reset')
+
+        return render_template('reset_password.html', hash=hash)
+
     elif request.method == 'POST':
         if request.form['send_email'] == "Cancel":
             return redirect(url_for('index'))
@@ -621,12 +630,13 @@ def forgot_password():
         if User.query.filter_by(email=email).count() > 0:
             #generate the token, send the email, then return user to login
             serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-            email_hash = serializer.dumps([email], salt='email')
+            email_hash = serializer.dumps([email], salt='forgot_password')
 
-            subject = 'Reset password'
-            text = """To reset your password, please follow
-            <a href="http://www.whatyouveread.com/reset_password/{}">this link.</a><br>
-                """.format(email_hash)
+            subject = 'Reset Forgotten Password'
+            text = """What You've Read has received a request to reset your
+            forgotten password. Please follow
+            <a href="http://www.whatyouveread.com/forgot_password?reset={}">this link</a>
+            to reset it.""".format(email_hash)
 
             send_simple_message(email, subject, text)
 
@@ -639,59 +649,78 @@ def forgot_password():
     else:
         return abort(405)
 
-@app.route('/reset_password/<hash>', methods=['GET', 'POST'])
-def reset_password(hash):
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_password():
+    ''' allow user to reset password
+    hash: variable emailed in link to user to confirm resetting
     '''
-    GET: form to change password, from link emailed to user
-    POST: change the password
-    '''
-    expiration = 3600
 
+    # user has clicked on reset password link in an email sent to them about
+    # changing their email address or they've been redirected after error
+    # display form to reset password
     if request.method == 'GET':
-        serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-        try:
-            decoded = serializer.loads(hash, salt='email', max_age=expiration)
-        except:
-            return False ### need to see what this returns and probably make more user friendly#############################################################################
+        if request.args.get('code'):
+            return render_template('reset_password.html', hash=request.args.get('code'), untimed='true')
+        return redirect(url_for('index'))
 
-        user = User.query.filter_by(email=decoded[0])
-        if user.count() > 0:
-            return render_template('reset_password.html', hash=hash)
-        else:
-            return abort(405)
+    # process the password reset request
     elif request.method == 'POST':
-        serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+        if request.form['submit'] == 'cancel':
+            flash("Password reset canceled.")
+            return redirect(url_for('index'))
+
+        hash = request.form['hash']
+        untimed = ''
+
+        # use untimed version of URL serializer - user has noticed attempt to change
+        # their email and is resetting password
+        if request.args.get('untimed') == 'true':
+            untimed = request.args.get('untimed')
+            serializer = URLSafeSerializer(app.config['SECRET_KEY'])
+            try:
+                decoded = serializer.loads(hash, salt='reset_password')
+            except:
+                flash("Sorry, there was an error. Please try again1.")
+                return redirect(url_for('index'))
+
+        #use timed version - user forgot password and was sent link to reset
+        else:
+            serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+            try:
+                decoded = serializer.loads(hash, salt='forgot_password', max_age=3600)
+            except SignatureExpired:
+                flash('The link has expired; password not reset.')
+                return redirect(url_for('index'))
+            except:
+                flash("Sorry, there was an error. Please try again2.")
+                return redirect(url_for('index'))
+
+        #try to update password
         try:
-            decoded = serializer.loads(hash, salt='email', max_age=expiration)
-        except:
-            return False ### need to see what this returns and probably make more user friendly#############################################################################
-
-        #get user's id to update password
-        user = User.query.filter_by(email=decoded[0]).first()
-
-        if user:
+            user = User.query.filter_by(email=decoded[0]).one()
+        except NoResultFound:
+            flash('Could not find an account associated with that email address.')
+            return redirect(url_for('index'))
+        else:
             password = request.form['password']
             confirm_password = request.form['confirm_password']
 
-            #password checks ############################ COULD TURN THIS INTO A FUNCITON #####################################
             if len(password) < 5:
                 flash('Password is too short. Please try again.')
-                return redirect(url_for('reset_password'))
+                return render_template('reset_password.html', hash=hash, untimed=untimed)
             elif password != confirm_password:
                 flash('The confirmation password did not match the new password you entered.')
-                return redirect(url_for('reset_password'))
+                return render_template('reset_password.html', hash=hash, untimed=untimed)
             else:
-                #use passlib to encrypt password
+                #use passlib to encrypt password and then update it
                 myctx = CryptContext(schemes=['pbkdf2_sha256'])
-                hash = myctx.encrypt(password)
-                user.password = hash
+                hashed_password = myctx.encrypt(password)
+                user.password = hashed_password
                 db.session.commit()
 
                 flash('Your password has been updated. Please use it to login.')
                 return redirect(url_for('login'))
-        else:
-            flash('Could not find an account associated with that email address.')
-            return redirect(url_for('forgot_password'))
+
     else:
         return abort(405)
 
@@ -727,11 +756,7 @@ def change_email():
             text = """What You've Read has received a request to change your email
             address to this one. If this was you, please follow
             <a href="http://www.whatyouveread.com/change_email?confirm={}">
-            this link</a> to confirm.
-            <br><br>
-            If this was not you, someone has access to your account. You should
-            <a href="http://www.whatyouveread.com/forgot_password">reset your
-            password</a> immediately.""".format(email_hash)
+            this link</a> to confirm.""".format(email_hash)
 
             send_simple_message(to, subject, text)
 
@@ -786,8 +811,14 @@ def change_email():
         myctx = CryptContext(schemes=['pbkdf2_sha256'])
         if myctx.verify(password, current_user.password) == True:
 
+            #hash for confirm change
             serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
             email_hash = serializer.dumps([current_user.username, new_email], salt='change_email')
+
+            # hash for resetting password if user didn't initiate this (change salt
+            # and use regular serializer, not timed one)
+            serializer2 = URLSafeSerializer(app.config['SECRET_KEY'])
+            email_hash2 = serializer2.dumps([current_user.email], salt='reset_password')
 
             to = current_user.email
             subject = 'Email address change'
@@ -797,8 +828,8 @@ def change_email():
             this link</a> to confirm.
             <br><br>
             If this was not you, someone has access to your account. You should
-            <a href="http://www.whatyouveread.com/forgot_password">reset your
-            password</a> immediately.""".format(new_email, email_hash)
+            <a href="http://www.whatyouveread.com/reset_password?code={}">reset your
+            password</a> immediately.""".format(new_email, email_hash, email_hash2)
 
             send_simple_message(to, subject, text)
 
