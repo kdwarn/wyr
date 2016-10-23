@@ -699,11 +699,49 @@ def reset_password(hash):
 @login_required
 def change_email():
     ''' Change user email '''
-    # change email or display form to enter new email
+    # change email or display form to enter new email or send confirmation
     if request.method == 'GET':
-        #if this is coming from the link sent to confirm the change, change it
+
+        # if this is coming from link sent to current email address, send another
+        # to new email address
         if request.args.get('code'):
             hash = request.args.get('code')
+            serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+            try:
+                decoded = serializer.loads(hash, salt='change_email', max_age=3600)
+            except:
+                flash("""Error confirming your credentials. Please try again later or contact
+                us if this problem continues to exist.""")
+                return redirect(url_for('settings'))
+
+            #if for some reason some other logged in user clicks the link
+            if decoded[0] != current_user.username:
+                flash("Username does not match. Email not changed.")
+                redirect(url_for('index'))
+
+            serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+            email_hash = serializer.dumps([current_user.username, decoded[1]], salt='change_email')
+
+            to = decoded[1]
+            subject = 'Email address change'
+            text = """What You've Read has received a request to change your email
+            address to this one. If this was you, please follow
+            <a href="http://www.whatyouveread.com/change_email?confirm={}">
+            this link</a> to confirm.
+            <br><br>
+            If this was not you, someone has access to your account. You should
+            <a href="http://www.whatyouveread.com/forgot_password">reset your
+            password</a> immediately.""".format(email_hash)
+
+            send_simple_message(to, subject, text)
+
+            flash("""Please check your email at your new email address and
+            follow the link provided to confirm it.""")
+            return redirect(url_for('settings'))
+
+        #if this is coming from the link sent to confirm the change, change it
+        if request.args.get('confirm'):
+            hash = request.args.get('confirm')
             serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
             try:
                 decoded = serializer.loads(hash, salt='change_email', max_age=3600)
@@ -732,6 +770,7 @@ def change_email():
             return redirect(url_for('settings'))
 
         new_email = request.form['new_email']
+        password = request.form['password']
 
         #minimum check that it's an email:
         if '@' not in new_email:
@@ -743,26 +782,33 @@ def change_email():
             flash('Sorry, that email address is already in use.')
             return redirect(url_for('change_email'))
 
-        serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-        email_hash = serializer.dumps([current_user.username, new_email], salt='change_email')
+        # verify password
+        myctx = CryptContext(schemes=['pbkdf2_sha256'])
+        if myctx.verify(password, current_user.password) == True:
 
-        to = current_user.email
-        subject = 'Email address change'
-        text = """What You've Read has received a request to change your email
-            address. If this was you, please follow
+            serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+            email_hash = serializer.dumps([current_user.username, new_email], salt='change_email')
+
+            to = current_user.email
+            subject = 'Email address change'
+            text = """What You've Read has received a request to change your email
+            address to {}. If this was you, please follow
             <a href="http://www.whatyouveread.com/change_email?code={}">
             this link</a> to confirm.
             <br><br>
             If this was not you, someone has access to your account. You should
             <a href="http://www.whatyouveread.com/forgot_password">reset your
-            password</a> immediately.""".format(email_hash)
+            password</a> immediately.""".format(new_email, email_hash)
 
-        send_simple_message(to, subject, text)
+            send_simple_message(to, subject, text)
 
-        flash("""Please check your email and follow the link provided to confirm
-            your new email address.""")
-        return redirect(url_for('settings'))
+            flash("""Please check your email at your current email address
+                and follow the link provided.""")
+            return redirect(url_for('settings'))
 
+        else:
+            flash('Password is incorrect.')
+            return redirect(url_for('change_email'))
     else:
         return abort(405)
 
