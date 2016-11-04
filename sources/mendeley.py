@@ -351,14 +351,14 @@ def update_mendeley():
                         #if there's only one name, author[1] will through index error,
                         #but must try to match both first_name and last_name first
                         try:
-                            if sublist['first_name'] == author[1] and sublist['last_name'] == author[0]:
+                            if sublist['first_name'] == author['first_name'] and sublist['last_name'] == author['last_name']:
                                 #get the author object and append to new_doc.authors
                                 existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
                                 new_doc.authors.append(existing_author)
                                 #now remove it, so we don't create a new author object below
                                 authors.remove(author)
                         except KeyError:
-                            if sublist['last_name'] == author[0]:
+                            if sublist['last_name'] == author['last_name']:
                                 #get the author object and append to new_doc.authors
                                 existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
                                 new_doc.authors.append(existing_author)
@@ -368,9 +368,9 @@ def update_mendeley():
                 #any author left in authors list will be a new one that needs to be created and appended to new_doc
                 for author in authors:
                     try:
-                        new_author = Authors(author[1], author[0])
+                        new_author = Authors(author['first_name'], author['last_name'])
                     except KeyError:
-                        new_author = Authors(first_name='', last_name=author[0])
+                        new_author = Authors(first_name='', last_name=author['last_name'])
 
                     new_doc.authors.append(new_author)
 

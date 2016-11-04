@@ -60,6 +60,7 @@ def get_user_authors():
     '''
     Use sql (can't figure out how to get SQLAlchemy to do this) to get user's
     authors - id, first_name, last_name
+    Returns a list of dictionaries
     '''
     sql = text('SELECT DISTINCT authors.id, authors.first_name, authors.last_name from authors \
             JOIN document_authors ON (document_authors.author_id = authors.id) \
