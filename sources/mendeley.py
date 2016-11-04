@@ -460,7 +460,7 @@ def update_mendeley():
 
                         for old_tag in old_tags[:]:
                             if old_tag not in tags:
-                                check_doc.tags.remove(tag)
+                                check_doc.tags.remove(old_tag)
 
                         #don't add tags if they were already in old_tags - would be a duplicate
                         for tag in tags[:]:
