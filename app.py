@@ -181,19 +181,20 @@ def bunch(name):
     bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==name).one()
 
     if bunch.selector == 'or':
-        docs = current_user.documents.filter(Documents.tags.any(Tags.name.in_([t.name for t in bunch.tags]))).order_by(desc(Documents.created)).all()
+        docs = current_user.documents.filter(Documents.tags.any(Tags.id.in_([t.id for t in bunch.tags]))).order_by(desc(Documents.created)).all()
 
     if bunch.selector == 'and':
         #couldn't figure out how to do this in one query, so this is probably inefficient, but...
         #first get the docs that have any of the tags chosen
-        docs = current_user.documents.filter(Documents.tags.any(Tags.name.in_([t.name for t in bunch.tags]))).order_by(desc(Documents.created)).all()
+        docs = current_user.documents.filter(Documents.tags.any(Tags.id.in_([t.id for t in bunch.tags]))).order_by(desc(Documents.created)).all()
 
         # now go through docs and eliminate them if they don't have every tag in tags
         for doc in docs[:]:
             for tag in bunch.tags:
-                if tag not in [each.name for each in doc.tags]:
+                if tag.id not in [each.id for each in doc.tags]:
                     docs.remove(doc)
                     break
+
     #in this view, I could just return bunch=bunch, but bunches uses bunch_tag_names and selector
     return render_template('read.html', docs=docs, bunch_tag_names=[tag.name for tag in bunch.tags], bunch_name=bunch.name, selector=bunch.selector)
 
@@ -228,7 +229,7 @@ def bunches():
             # now go through docs and eliminate them if they don't have every tag in tags
             for doc in docs[:]:
                 for tag in bunch_tags:
-                    if tag not in [each.id for each in doc.tags]:
+                    if int(tag) not in [each.id for each in doc.tags]:
                         docs.remove(doc)
                         break
 
@@ -246,10 +247,8 @@ def bunches():
             flash("Sorry, no items matched your tag choices.")
             return redirect(url_for('bunches'))
 
-
         #return docs as well as list of tags and how they were chosen
         return render_template('read.html', docs=docs, bunch_tag_names=bunch_tag_names, selector=selector)
-
 
 @app.route('/bunch/save', methods=['GET', 'POST'])
 @login_required
