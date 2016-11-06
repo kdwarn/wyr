@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask.ext.login import login_required, current_user
 from datetime import datetime
 from db_functions import get_user_tags, get_user_tag_names, get_user_authors, \
@@ -201,20 +201,13 @@ def edit():
         authors = request.form['authors']
         old_authors = request.form['old_authors']
         notes = request.form['notes'].replace('\n', '<br>')
-        tagpage = request.form['tagpage']
-        authorpage = request.form['authorpage']
-        first_name = request.form['first_name']
-        last_name = request.form['last_name']
         submit = request.form['submit']
 
         if submit == "Cancel":
             flash("Edit canceled.")
-            if tagpage != 'None':
-                return redirect(url_for('docs_by_tag', tag=tagpage))
-            elif authorpage != 'None':
-                return redirect(url_for('docs_by_author', first_name=first_name, last_name=last_name))
-            else:
-                return redirect(url_for('index'))
+            if 'return_to' in session:
+                return redirect(session['return_to'])
+            return redirect(url_for('index'))
 
         #validation
         if not title:
@@ -235,7 +228,6 @@ def edit():
         update_doc.year = year
         update_doc.note = notes
         update_doc.last_modified = datetime.now()
-
 
         # one scenario not caught by "if tags:" below: there were old tags, but no
         # new tags (user deleted one/all). Have to treat this separately.
@@ -270,13 +262,10 @@ def edit():
                             if tag.name == old_tag:
                                 update_doc.tags.remove(tag)
 
-
-
                 #don't add tags if they were already in old_tags - would be a duplicate
                 for tag in tags[:]:
                     if tag in old_tags:
                         tags.remove(tag)
-
 
             #get user's existing tags to check if tags for this doc already exist
             user_tags = get_user_tags()
@@ -296,7 +285,6 @@ def edit():
             for tag in tags:
                 new_tag = Tags(tag)
                 update_doc.tags.append(new_tag)
-
 
         # one scenario not caught by "if authors:" below: there were old authors, but no
         # new authors (user deleted one/all). Have to treat this separately.
@@ -375,10 +363,9 @@ def edit():
 
         db.session.commit()
         flash('Item edited.')
-        if tagpage != 'None':
-            return redirect(url_for('docs_by_tag', tag=tagpage))
-        if authorpage != 'None':
-            return redirect(url_for('docs_by_author', first_name=first_name, last_name=last_name))
+
+        if 'return_to' in session:
+            return redirect(session['return_to'])
         return redirect(url_for('index'))
 
     else:
@@ -398,6 +385,12 @@ def delete():
     elif request.method == 'POST':
         delete = request.form['delete']
         id = request.form['id']
+        if delete == 'Cancel':
+            flash("Item not deleted.")
+            if 'return_to' in session:
+                return redirect(session['return_to'])
+            return redirect(url_for('index'))
+
         if delete == 'Delete':
             #delete doc
             doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).one()
@@ -415,13 +408,16 @@ def delete():
 
             db.session.commit()
             flash("Item deleted.")
+            if 'return_to' in session:
+                return redirect(session['return_to'])
             return redirect(url_for('index'))
-        if delete == 'Cancel':
-            flash("Item not deleted.")
-            return redirect(url_for('index'))
+
     else:
         return redirect(url_for('index'))
 
+
+"""
+This is the beginning of a bulk edit process for tags
 @native_blueprint.route('/tags/edit', methods=['GET', 'POST'])
 @login_required
 def bulk_edit():
@@ -442,7 +438,7 @@ def bulk_edit():
 
     else:
         return render_template('contact.html')
-        """
+
         if request.form['submit'] == 'Cancel':
             return redirect(url_for('tags'))
 
@@ -453,7 +449,7 @@ def bulk_edit():
         #original dict is in input tag_list, has temp_ids and names, use to associate with rename.#/delete.#
 
         return render_template('test_bulk_edit.html', variables=form_variables)
-        """
+"""
 
 ################################################################################
 ################################################################################

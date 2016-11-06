@@ -3,7 +3,7 @@
 ###############
 
 from flask import Flask, render_template, request, session, redirect, url_for, \
-    abort, flash
+    abort, flash, g
 from flask.ext.login import LoginManager, login_user, logout_user, \
     login_required, current_user
 from flask.ext.sqlalchemy import SQLAlchemy
@@ -134,6 +134,9 @@ def index():
     '''
 
     if current_user.is_authenticated:
+        #set session variable in order to return user to proper page after editing or deleting native doc
+        session['return_to'] = url_for('index')
+
         # fetch and display read items from various sources
         then = datetime.now() - timedelta(days=7)
         if current_user.mendeley == 1 and current_user.mendeley_update < then:
@@ -166,16 +169,23 @@ def tags():
 @login_required
 def docs_by_tag(tag):
     ''' Return all user's documents tagged <tag>. '''
+
+    #set session variable in order to return user to proper page after editing or deleting native doc
+    session['return_to'] = url_for('docs_by_tag', tag=tag)
+
     #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
     docs = current_user.documents.filter(Documents.tags.any(name=tag)).order_by(desc(Documents.created)).all()
 
-    #tagpage is used for both header and to return user to list of docs by tag if user editing or deleting from there
-    return render_template('read.html', docs=docs, tagpage=tag)
+    return render_template('read.html', docs=docs, tagpage=tag) #tagpage is used for header
+
 
 @app.route('/bunch/<name>')
 @login_required
 def bunch(name):
     ''' Display docs from saved bunch '''
+
+    #set session variable in order to return user to proper page after editing or deleting native doc
+    session['return_to'] = url_for('bunch', name=name)
 
     #get the name, tags, and selector for this bunch
     bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==name).one()
@@ -377,6 +387,9 @@ def authors():
 def docs_by_author(first_name, last_name):
     ''' Return all documents by particular author. '''
 
+    #set session variable in order to return user to proper page after editing or deleting native doc
+    session['return_to'] = url_for('docs_by_author', first_name=first_name, last_name=last_name)
+
     #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
     docs = current_user.documents.filter(Documents.authors.any(first_name=first_name)).\
         filter(Documents.authors.any(last_name=last_name)).order_by(desc(Documents.created)).all()
@@ -388,6 +401,9 @@ def docs_by_author(first_name, last_name):
 @login_required
 def docs_by_author_last(last_name):
     ''' Same as above, but in the special case where there is only a last name (institional name) '''
+
+    #set session variable in order to return user to proper page after editing or deleting native doc
+    session['return_to'] = url_for('docs_by_author_last', last_name=last_name)
 
     #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
     docs = current_user.documents.filter(Documents.authors.any(last_name=last_name)).order_by(desc(Documents.created)).all()
