@@ -6,17 +6,14 @@ body {
     margin: 0px;
     font-family: Helvetica, Arial, Sans-Serif;
     background: white;
-    color: #070719;
-}
+    color: #070719;}
 
 h1 {font-size: 2rem;
     text-align:center;
-    margin-bottom:0;
-}
+    margin-bottom:0;}
 
 h2 {text-align:center;
-    font-size:medium;
-}
+    font-size:medium;}
 
 a:link, a:visited {
     color:blue;
@@ -36,37 +33,107 @@ nav {
     text-align: right;
     font-size: 1rem;
     padding: .2rem .5rem;
-    z-index: 100; /* does't seem to do anything */
-}
+    z-index: 100; /* does't seem to do anything */ }
 
-nav a:link, nav a:visited {
+/* Below adapted from http://medialoot.com/blog/how-to-create-a-responsive-navigation-menu-using-only-css/ */
+
+/* put menu items in list, flatten it */
+nav ul {
+    list-style-type: none;
+    margin: 0;
+    float: right;}
+
+nav li {
     color:white;
-    text-decoration: none;
-    padding: 5px 5px;
+    display: inline-block;
+    float: left;
     text-align: center;
-    display: inline-block;q
+    padding: 6px 6px;}
+
+nav li:hover {
+    color: #070719;
+    background: white;
+    text-decoration: none;
 }
 
-nav a:hover {
-    color:#070719;
-    background:white;
+/* Hide 'show menu' by default */
+.show-menu {display: none;}
+
+/*Hide checkbox */
+nav input[type=checkbox] {display: none;}
+
+/* Show menu when invisible checkbox is checked */
+nav input[type=checkbox]:checked ~ #menu {
+    display: block;
+    margin-right:-10px;
+    margin-top:-5px;
 }
+
+/*Responsive Styles*/
+
+@media screen and (max-width:680px) {
+	/* change width to % */
+	#main {width:90%;}
+
+    /* Display 'show menu' link */
+	.show-menu {
+	    display:block;
+	    padding:3px;
+	}
+
+    /* Make nav menu links dropdown */
+	nav ul {
+		display: none;
+		float:right;
+		margin-top: 0;
+	}
+	/*Create vertical spacing*/
+	nav li {
+		background: #0A0A2A;
+		display: block;
+	    padding: 10px 20px 10px 20px;
+	    clear: both;
+	    float: right;
+	    width:100%;
+	}
+	nav li:hover {
+	    background: white;
+	    color: #070719;
+	    text-decoration: none;
+	}
+}
+
+/* end adapated responsive design part */
+
 
 #messages {
     margin: auto;
     margin-top:2.5em;
     margin-bottom: 15px;
-    width: 550px;
-}
+    max-width: 550px;}
 
 #main {
     margin: auto;
-    width: 550px;
+    max-width: 550px;
     margin-top: 10px;
-    margin-bottom:50px;
+    margin-bottom: 50px;
+    overflow: hidden;
 }
 
+/* div for each document returned, logo and all info */
 .doc {margin-bottom: 2rem;}
+
+/* div for logo of each doc */
+.logo {
+    margin: 2 0 0 0;
+    width:15px;
+    float:left;
+    max-width: 15px;
+}
+
+/* div for actual doc */
+.item {margin-left:25px;}
+
 
 .center {text-align:center;}
 
@@ -78,24 +145,21 @@ nav a:hover {
 
 .bold {font-weight: bold;}
 
-.title {font-size:1.25rem;
-}
+.title {font-size:1.25rem;}
 
 .authors {font-size:1.10rem;}
 
-.info {font-size:0.75rem}
+.info {font-size:0.75rem;}
 
 .notes {font-size:0.90rem;
         color:#252322;
-        padding-top: 8px;
-}
+        padding-top: 8px;}
 
 .small {font-size:0.75rem}
 
 .block-center {
     text-align:center;
-    margin: auto;
-}
+    margin: auto;}
 
 .sr-only {
   position: absolute;
@@ -105,25 +169,16 @@ nav a:hover {
   margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
-  border: 0;
-}
+  border: 0;}
 
 /* this might better be described as just "form" */
 .login_form {
     margin-bottom:8px;
-    padding:2px;
-}
-
+    padding:2px;}
 
 .box {
     border: 1px solid #CECEF6;
-    padding: 5px 7px 5px 7px;
-}
-
-.logo {
-    float:left;
-    margin: 1 0 0 -25;
-}
+    padding: 5px 7px 5px 7px;}
 
 button[type=submit] {
     background-color: #0A0A2A;
@@ -133,42 +188,32 @@ button[type=submit] {
     text-align: center;
     font-size: .9rem;
     padding: 5px 11px 5px 11px;
-    border-radius: 3px;
-}
+    border-radius: 3px;}
 
 button[type=submit]:hover {
     background-color: #CECEF6;
     border:1px solid #0A0A2A;
-    color: #0A0A2A;
-}
+    color: #0A0A2A;}
 
 
 #multiple_tags ul {
     list-style: none;
-    padding-left:0;
-}
-
+    padding-left:0;}
 
 #multiple_tags li {
-    display: inline;
-}
+    display: inline;}
 
 #multiple_tags input[type=checkbox] {
-    display: none;
-}
-
+    display: none;}
 
 #multiple_tags input[type="checkbox"]:checked + label {
     background: #0A0A2A;
     color: white;
     padding: 1px 3px 1px 3px;
     border: 1px solid #0A0A2A;
-    border-radius: 3px;
-}
+    border-radius: 3px;}
 
-#multiple_tags input[type=radio] {
-    display: none;
-}
+#multiple_tags input[type=radio] {display: none;}
 
 
 #multiple_tags input[type="radio"]:checked + label {
@@ -176,8 +221,7 @@ button[type=submit]:hover {
     color: white;
     padding: 1px 3px 1px 3px;
     border: 1px solid #0A0A2A;
-    border-radius: 3px;
-}
+    border-radius: 3px;}
 
 /* Remove all decorations to make button look like simple text*/
 button.no_button, button.no_button:focus, button.no_button:active {
@@ -192,8 +236,7 @@ button.no_button, button.no_button:focus, button.no_button:active {
     /* Additional styles to look like a link */
     color: blue;
     font-size:0.75rem;
-    font-weight: normal;
-}
+    font-weight: normal;}
 
 button.no_button:hover {
     background: none;
@@ -209,5 +252,4 @@ button.no_button:hover {
     cursor: pointer;
     text-decoration: underline;
     font-size:0.75rem;
-    font-weight: normal;
-}
+    font-weight: normal;}

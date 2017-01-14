@@ -1,3 +1,4 @@
+<!doctype html>
 <html>
     <head>
         {% block head %}
@@ -14,12 +15,17 @@
         <header>
             <nav>
             {% if current_user.is_authenticated %}
-                <a href="/">Home</a>
-                <a href="/add">Add</a>
-                <a href="/settings">Settings</a>
-                <a href="/contact">Contact</a>
-                <a href="/donate">Donate</a>
-                <a href="/logout">Logout</a>
+                <label for="show-menu" class="show-menu">&#9776;</label>
+                <input type="checkbox" id="show-menu" role="button">
+                <ul id="menu">
+                <a href="/"><li>Home</li></a>
+                <a href="/add"><li>Add</li></a>
+                <a href="/settings"><li>Settings</li></a>
+                <a href="/contact"><li>Contact</li></a>
+                <a href="/donate"><li>Donate</li></a>
+                <a href="/logout"><li>Logout</li></a>
+                </ul>
+
             {% endif %}
             </nav>
             <div id="messages" class="center">

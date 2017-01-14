@@ -1083,6 +1083,11 @@ def charge():
 def paypal():
     return render_template('donate_paypal.html')
 
+#handle 404
+@app.errorhandler(404)
+def page_not_found(e):
+    flash("Sorry, that page wasn't found.")
+    return redirect(url_for('index'))
 
 
 

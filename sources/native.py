@@ -47,7 +47,7 @@ def add():
         #validation
         if not title:
             flash('Please enter a title. It is the only required field.')
-            return redirect(url_for('add'))
+            return redirect(url_for('native.add'))
 
         #check if link already exists, redirect user to edit if so
         if link:
@@ -137,7 +137,7 @@ def add():
         if submit == "Submit and Return Home":
             return redirect(url_for('index'))
         if submit == "Submit and Add Another":
-            return redirect(url_for('add'))
+            return redirect(url_for('native.add'))
         #if submitted from bookmarklet, just send to confirmation page, don't reload site (to mark it quicker)
         if submit == "Submit":
             return render_template('add.html', bookmarklet=1)

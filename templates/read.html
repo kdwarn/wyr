@@ -79,96 +79,100 @@
     {% if current_user.is_authenticated %}
         {% for doc in docs %}
             <div class="doc">
-            {% if doc.source_id == 1 %}
-                <img class="logo" src="/static/mendeley_logo.png">
-            {% elif doc.source_id == 2 %}
-                <img class="logo" src="/static/goodreads_logo.png">
-            {% elif doc.source_id == 3 %}
-                <img class="logo" src="/static/wyr_logo.png">
-            {% endif %}
-
-            <span class="title">
-            {% if doc.link %}
-                <a href="{{ doc.link }}" target="_blank">{{ doc.title }}</a>
-            {% else %}
-                {{ doc.title }}
-            {% endif %}
-
-            {% if doc.year %}
-                ({{ doc.year }})
-            {% endif %}
-            </span>
-
-            <span class="authors">
-            {% if doc.authors %}
-                <span style="font-size:1rem;">by</span>
-                {% for author in doc.authors %}
-                    {% if author != doc.authors[-1] %}
-                        <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
-                        {% if author.role == 1 %}
-                            {{ author.first_name }} {{ author.last_name }}</a> (editor),
-                        {% else %}
-                            {{ author.first_name }} {{ author.last_name }}</a>,
-                        {% endif %}
-                    {% else %}
-                        <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
-                            {{ author.first_name }} {{ author.last_name }}</a>
-                        {% if author.role == 1 %}
-                            (editor)
-                        {% endif %}
-                    {% endif %}
-                {% endfor %}
-            {% endif %}
-            </span>
-            <br>
-            <span class="info">
-            {% if doc.tags %}
-                Tagged:
-                {% for tag in doc.tags|sort(attribute='name') %}
-                    <span class="tags">
-                    {% if tag != doc.tags|sort(attribute='name')|last %}
-                        <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>,
-                    {% else %}
-                        <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>
-                    {% endif %}
-                    </span>
-                {% endfor %}
-            <br>
-            {% endif %}
-
-            Added/Read: {{ doc.created.strftime("%B %d, %Y") }}<br>
-
-            {% if doc.last_modified %}
-                Last modified: {{ doc.last_modified.strftime("%B %d, %Y") }}<br>
-            {% endif %}
-
-            {% if doc.file_links %}
-                {% for file_link in doc.file_links: %}
-                    {% if file_link.mime_type == 'application/pdf': %}
-                        File: <a href="https://www.mendeley.com/viewer/?fileId={{ file_link.file_link }}&documentId={{ doc.native_doc_id }}" target="_blank">View PDF at Mendeley</a><br>
-                    {% else %}
-                        File: <a href="https://www.mendeley.com/library/fileproxy?id={{ file_link.file_link }}">Download</a><br>
-                    {% endif %}
-                {% endfor %}
-            {% endif %}
-
-            {% if doc.source_id == 3 %}
-                {% if tagpage %}
-                    <a href="{{ url_for('native.edit', id=doc.id, tagpage=tagpage) }}">Edit</a> |
-                    <a href="{{ url_for('native.delete', id=doc.id, tagpage=tagpage) }}">Delete</a>
-                {% elif authorpage %}
-                    <a href="{{ url_for('native.edit', id=doc.id, authorpage=authorpage, first_name=first_name, last_name=last_name) }}">Edit</a> |
-                    <a href="{{ url_for('native.delete', id=doc.id, authorpage=authorpage, first_name=first_name, last_name=last_name) }}">Delete</a>
-                {% else %}
-                    <a href="{{ url_for('native.edit', id=doc.id) }}">Edit</a> | <a href="{{ url_for('native.delete', id=doc.id) }}">Delete</a>
+                <div class="logo">
+                {% if doc.source_id == 1 %}
+                    <img class="logo" src="/static/mendeley_logo.png">
+                {% elif doc.source_id == 2 %}
+                    <img class="logo" src="/static/goodreads_logo.png">
+                {% elif doc.source_id == 3 %}
+                    <img class="logo" src="/static/wyr_logo.png">
                 {% endif %}
-                <br>
-            {% endif %}
-            </span>
+                </div>
 
-            {% if doc.note %}
-                <div class="notes">{{ doc.note|safe }}</div>
-            {% endif %}
+                <div class="item">
+                <span class="title">
+                {% if doc.link %}
+                    <a href="{{ doc.link }}" target="_blank">{{ doc.title }}</a>
+                {% else %}
+                    {{ doc.title }}
+                {% endif %}
+
+                {% if doc.year %}
+                    ({{ doc.year }})
+                {% endif %}
+                </span>
+
+                <span class="authors">
+                {% if doc.authors %}
+                    <span style="font-size:1rem;">by</span>
+                    {% for author in doc.authors %}
+                        {% if author != doc.authors[-1] %}
+                            <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
+                            {% if author.role == 1 %}
+                                {{ author.first_name }} {{ author.last_name }}</a> (editor),
+                            {% else %}
+                                {{ author.first_name }} {{ author.last_name }}</a>,
+                            {% endif %}
+                        {% else %}
+                            <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
+                                {{ author.first_name }} {{ author.last_name }}</a>
+                            {% if author.role == 1 %}
+                                (editor)
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                </span>
+                <br>
+                <span class="info">
+                {% if doc.tags %}
+                    Tagged:
+                    {% for tag in doc.tags|sort(attribute='name') %}
+                        <span class="tags">
+                        {% if tag != doc.tags|sort(attribute='name')|last %}
+                            <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>,
+                        {% else %}
+                            <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>
+                        {% endif %}
+                        </span>
+                    {% endfor %}
+                <br>
+                {% endif %}
+
+                Added/Read: {{ doc.created.strftime("%B %d, %Y") }}<br>
+
+                {% if doc.last_modified %}
+                    Last modified: {{ doc.last_modified.strftime("%B %d, %Y") }}<br>
+                {% endif %}
+
+                {% if doc.file_links %}
+                    {% for file_link in doc.file_links: %}
+                        {% if file_link.mime_type == 'application/pdf': %}
+                            File: <a href="https://www.mendeley.com/viewer/?fileId={{ file_link.file_link }}&documentId={{ doc.native_doc_id }}" target="_blank">View PDF at Mendeley</a><br>
+                        {% else %}
+                            File: <a href="https://www.mendeley.com/library/fileproxy?id={{ file_link.file_link }}">Download</a><br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if doc.source_id == 3 %}
+                    {% if tagpage %}
+                        <a href="{{ url_for('native.edit', id=doc.id, tagpage=tagpage) }}">Edit</a> |
+                        <a href="{{ url_for('native.delete', id=doc.id, tagpage=tagpage) }}">Delete</a>
+                    {% elif authorpage %}
+                        <a href="{{ url_for('native.edit', id=doc.id, authorpage=authorpage, first_name=first_name, last_name=last_name) }}">Edit</a> |
+                        <a href="{{ url_for('native.delete', id=doc.id, authorpage=authorpage, first_name=first_name, last_name=last_name) }}">Delete</a>
+                    {% else %}
+                        <a href="{{ url_for('native.edit', id=doc.id) }}">Edit</a> | <a href="{{ url_for('native.delete', id=doc.id) }}">Delete</a>
+                    {% endif %}
+                    <br>
+                {% endif %}
+                </span>
+
+                {% if doc.note %}
+                    <div class="notes">{{ doc.note|safe }}</div>
+                {% endif %}
+                </div>
             </div>
         {% endfor %}
 
