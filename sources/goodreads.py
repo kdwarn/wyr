@@ -183,8 +183,7 @@ def store_goodreads():
                 for name in doc.findall('book/authors/author/name'):
                     #split one full name into first and last (jr's don't work right now #to do)
                     new_name = name.text.rsplit(' ', 1)
-                    authors.append([new_name[0], new_name[1]])
-
+                    authors.append([new_name[0], new_name[1]]) #first_name, last_name
 
                 #get user's existing authors to check if authors for this doc already exist
                 user_authors = get_user_authors()
@@ -192,17 +191,17 @@ def store_goodreads():
                 #append any of user's exsting authors to document, remove from list authors
                 for sublist in user_authors:
                     for author in authors[:]:
-                        #if there's only one name, author[1] will through index error,
+                        #if there's only one name, author[0] will through index error,
                         #but must try to match both first_name and last_name first
                         try:
-                            if sublist['first_name'] == author[1] and sublist['last_name'] == author[0]:
+                            if sublist['first_name'] == author[0] and sublist['last_name'] == author[1]:
                                 #get the author object and append to new_doc.authors
                                 existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
                                 new_doc.authors.append(existing_author)
                                 #now remove it, so we don't create a new author object below
                                 authors.remove(author)
                         except IndexError:
-                            if sublist['last_name'] == author[0]:
+                            if sublist['last_name'] == author[1]:
                                 #get the author object and append to new_doc.authors
                                 existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
                                 new_doc.authors.append(existing_author)
@@ -212,9 +211,9 @@ def store_goodreads():
                 #any author left in authors list will be a new one that needs to be created and appended to new_doc
                 for author in authors:
                     try:
-                        new_author = Authors(author[1], author[0])
+                        new_author = Authors(author[0], author[1]) #first name, #last name
                     except IndexError:
-                        new_author = Authors(first_name='', last_name=author[0])
+                        new_author = Authors(first_name='', last_name=author[1])
 
                     new_doc.authors.append(new_author)
 
