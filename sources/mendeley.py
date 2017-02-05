@@ -243,7 +243,10 @@ def update_mendeley():
     try:
         new_token = mendeley.refresh_token(m['refresh_url'], **extra)
     except InvalidGrantError:
-        flash("There is a problem with your Mendeley authorization. Please contact me for help.")
+        flash('''There is a problem with your Mendeley authorization. If you
+            changed your Mendeley password recently, try to de-authorize and then
+            re-authorize Mendeley in your settings. If you continue to get this
+            error, please contact me for help.''')
         return redirect(url_for('settings'))
 
     #resave
