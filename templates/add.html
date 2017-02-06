@@ -6,19 +6,27 @@
 <div id="main">
     <div class="block-center">
     {% if bookmarklet %}
-        <p>This window will automatically close in a moment.</p>
-        <form id="close_form">
-            <button type="submit" name ="close" id="close"
-            onclick="window.open('', '_self', ''); window.close();">Close</button>
-        </form>
+        {% if current_user.auto_close == 1 %}
+            <p>This window will automatically close in a moment.</p>
+            <form id="close_form">
+                <button type="submit" name ="close" id="close"
+                    onclick="window.open('', '_self', ''); window.close();">Close</button>
+            </form>
 
-        <script type="text/javascript" language="JavaScript">
-            document.forms['close_form'].elements['close'].focus();
-        </script>
+            <script type="text/javascript" language="JavaScript">
+                document.forms['close_form'].elements['close'].focus();
+            </script>
 
-        <script type="text/javascript" language="JavaScript">
-            setTimeout('window.close()', 3000)
-        </script>
+            <script type="text/javascript" language="JavaScript">
+                setTimeout('window.close()', 6000)
+            </script>
+        {% else %}
+            <form id="close_form">
+                <button type="submit" name ="close" id="close"
+                    onclick="window.open('', '_self', ''); window.close();">Close</button>
+            </form>
+        {% endif %}
+
     {% else %}
         {# autocomplete from http://jqueryui.com/autocomplete/#multiple #}
         <script src="http://code.jquery.com/jquery-1.10.2.js"></script>

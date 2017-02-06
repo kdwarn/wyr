@@ -11,6 +11,48 @@
     </div>
     <br>
     <div class="box">
+        <h2>Preferences</h2>
+        <form method="POST" name="edit" action="/set_pref">
+            <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+            Auto-close browser tab/window after adding a new doc from booklet?<br>
+            {% if current_user.auto_close == 1 %}
+                <input type="radio" name="home_page" id="home_page" value="Yes" CHECKED>Yes
+                <input type="radio" name="home_page" id="home_page" value="No">No
+            {% else %}
+                <input type="radio" name="home_page" id="home_page" value="Yes">Yes
+                <input type="radio" name="home_page" id="home_page" value="No" CHECKED>No
+            {% endif %}
+            <br><br>
+            Include unread items from Mendeley?<br>
+            {% if current_user.home_page == 1 %}
+                <input type="radio" name="include_m_unread" id="include_m_unread" value="1" CHECKED>Yes
+                <input type="radio" name="include_m_unread" id="include_m_unread" value="0">No
+            {% else %}
+                <input type="radio" name="include_m_unread" id="include_m_unread" value="1">Yes
+                <input type="radio" name="include_m_unread" id="include_m_unread" value="0" CHECKED>No
+            {% endif %}
+            <br><br>
+            Include to-read shelf from Goodreads?<br>
+            {% if current_user.home_page == 1 %}
+                <input type="radio" name="include_g_unread" id="include_m_unread" value="1" CHECKED>Yes
+                <input type="radio" name="include_g_unread" id="include_m_unread" value="0">No
+            {% else %}
+                <input type="radio" name="include_g_unread" id="include_m_unread" value="1">Yes
+                <input type="radio" name="include_g_unread" id="include_m_unread" value="0" CHECKED>No
+            {% endif %}
+            <br><br>
+            Set tag as homepage? (i.e. news)<br>
+            {% if current_user.home_page != None %}
+                <input type="text" name="home_page" value="{{current_user.home_page}}">
+            {% else %}
+                <input type="text" name="home_page" value="">
+            {% endif %}
+            <br><br>
+            <button type="submit" name="submit" value="Submit">Save</button>
+        </form>
+    </div>
+    <br>
+    <div class="box">
         <h2>Sources</h2>
         <p>Mendeley |
         {% if current_user.mendeley == 1 %}

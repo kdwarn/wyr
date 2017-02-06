@@ -1089,6 +1089,14 @@ def page_not_found(e):
     flash("Sorry, that page wasn't found.")
     return redirect(url_for('index'))
 
+################################
+### ADMIN/PREFERENCES ROUTES ###
+################################
+
+#auto-close after adding item?
+@app.route('/set_pref', methods=['GET', 'POST'])
+def set_pref():
+    print("hello")
 
 
 

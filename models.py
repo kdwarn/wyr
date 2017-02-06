@@ -30,6 +30,10 @@ class User(db.Model, UserMixin):
     goodreads = db.Column(db.Integer)
     goodreads_update = db.Column(db.DateTime)
     stripe_id = db.Column(db.String(50))
+    home_page = db.Column(db.Integer)
+    include_m_unread = db.Column(db.Integer)
+    include_g_unread = db.Column(db.Integer)
+    auto_close = db.Column(db.Integer)
 
     #relationships
     #this works, and the fastest way so far
