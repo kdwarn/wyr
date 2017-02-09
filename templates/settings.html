@@ -14,6 +14,20 @@
         <h2>Preferences</h2>
         <form method="POST" name="edit" action="/set_pref">
             <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+            Set a tag as your homepage?<br>
+            <select name="home_page">
+                <option value="">Choose a Tag</option>
+            {% for tag in tags %}
+                <option value="{{tag.name}}"
+                {% if current_user.home_page == tag.name %}
+                    SELECTED>
+                {% else %}
+                    >
+                {% endif %}
+                {{ tag.name }}</option>
+            {% endfor %}
+            </select>
+            <br><br>
             Auto-close browser tab/window after adding a new doc from booklet?<br>
             {% if current_user.auto_close == 1 %}
                 <input type="radio" name="home_page" id="home_page" value="Yes" CHECKED>Yes
@@ -22,30 +36,27 @@
                 <input type="radio" name="home_page" id="home_page" value="Yes">Yes
                 <input type="radio" name="home_page" id="home_page" value="No" CHECKED>No
             {% endif %}
-            <br><br>
-            Include unread items from Mendeley?<br>
-            {% if current_user.home_page == 1 %}
-                <input type="radio" name="include_m_unread" id="include_m_unread" value="1" CHECKED>Yes
-                <input type="radio" name="include_m_unread" id="include_m_unread" value="0">No
-            {% else %}
-                <input type="radio" name="include_m_unread" id="include_m_unread" value="1">Yes
-                <input type="radio" name="include_m_unread" id="include_m_unread" value="0" CHECKED>No
+            {% if current_user.mendeley == 1 %}
+                <br><br>
+                Include unread items from Mendeley?<br>
+                {% if current_user.home_page == 1 %}
+                    <input type="radio" name="include_m_unread" id="include_m_unread" value="1" CHECKED>Yes
+                    <input type="radio" name="include_m_unread" id="include_m_unread" value="0">No
+                {% else %}
+                    <input type="radio" name="include_m_unread" id="include_m_unread" value="1">Yes
+                    <input type="radio" name="include_m_unread" id="include_m_unread" value="0" CHECKED>No
+                {% endif %}
             {% endif %}
-            <br><br>
-            Include to-read shelf from Goodreads?<br>
-            {% if current_user.home_page == 1 %}
-                <input type="radio" name="include_g_unread" id="include_m_unread" value="1" CHECKED>Yes
-                <input type="radio" name="include_g_unread" id="include_m_unread" value="0">No
-            {% else %}
-                <input type="radio" name="include_g_unread" id="include_m_unread" value="1">Yes
-                <input type="radio" name="include_g_unread" id="include_m_unread" value="0" CHECKED>No
-            {% endif %}
-            <br><br>
-            Set tag as homepage? (i.e. news)<br>
-            {% if current_user.home_page != None %}
-                <input type="text" name="home_page" value="{{current_user.home_page}}">
-            {% else %}
-                <input type="text" name="home_page" value="">
+            {% if current_user.goodreads == 1 %}
+                <br><br>
+                Include to-read shelf from Goodreads?<br>
+                {% if current_user.home_page == 1 %}
+                    <input type="radio" name="include_g_unread" id="include_m_unread" value="1" CHECKED>Yes
+                    <input type="radio" name="include_g_unread" id="include_m_unread" value="0">No
+                {% else %}
+                    <input type="radio" name="include_g_unread" id="include_m_unread" value="1">Yes
+                    <input type="radio" name="include_g_unread" id="include_m_unread" value="0" CHECKED>No
+                {% endif %}
             {% endif %}
             <br><br>
             <button type="submit" name="submit" value="Submit">Save</button>

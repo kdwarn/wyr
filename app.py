@@ -573,7 +573,8 @@ def logout():
 @login_required
 def settings():
     ''' Settings page. '''
-    return render_template('settings.html')
+    tags = get_user_tags()
+    return render_template('settings.html', tags=tags)
 
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
@@ -1089,11 +1090,7 @@ def page_not_found(e):
     flash("Sorry, that page wasn't found.")
     return redirect(url_for('index'))
 
-################################
-### ADMIN/PREFERENCES ROUTES ###
-################################
-
-#auto-close after adding item?
+#set various preferences
 @app.route('/set_pref', methods=['GET', 'POST'])
 def set_pref():
     print("hello")
