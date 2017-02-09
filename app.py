@@ -1091,9 +1091,18 @@ def page_not_found(e):
     return redirect(url_for('index'))
 
 #set various preferences
-@app.route('/set_pref', methods=['GET', 'POST'])
+@app.route('/set_pref', methods=['POST'])
+@login_required
 def set_pref():
-    print("hello")
+    current_user.home_page = request.form['home_page']
+    current_user.auto_close = request.form['auto_close']
+    current_user.include_m_unread = request.form['include_m_unread']
+    current_user.include_g_unread = request.form['include_g_unread']
+    db.session.commit()
+    flash("Your preferences have been updated.")
+    return redirect(url_for('settings'))
+
+
 
 
 

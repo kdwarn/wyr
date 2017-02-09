@@ -28,18 +28,18 @@
             {% endfor %}
             </select>
             <br><br>
-            Auto-close browser tab/window after adding a new doc from booklet?<br>
+            Auto-close browser tab/window after adding a new item from bookmarklet?<br>
             {% if current_user.auto_close == 1 %}
-                <input type="radio" name="home_page" id="home_page" value="Yes" CHECKED>Yes
-                <input type="radio" name="home_page" id="home_page" value="No">No
+                <input type="radio" name="auto_close" id="auto_close" value="1" CHECKED>Yes
+                <input type="radio" name="auto_close" id="auto_close" value="0">No
             {% else %}
-                <input type="radio" name="home_page" id="home_page" value="Yes">Yes
-                <input type="radio" name="home_page" id="home_page" value="No" CHECKED>No
+                <input type="radio" name="auto_close" id="auto_close" value="1">Yes
+                <input type="radio" name="auto_close" id="auto_close" value="0" CHECKED>No
             {% endif %}
             {% if current_user.mendeley == 1 %}
                 <br><br>
                 Include unread items from Mendeley?<br>
-                {% if current_user.home_page == 1 %}
+                {% if current_user.include_m_unread == 1 %}
                     <input type="radio" name="include_m_unread" id="include_m_unread" value="1" CHECKED>Yes
                     <input type="radio" name="include_m_unread" id="include_m_unread" value="0">No
                 {% else %}
@@ -50,7 +50,7 @@
             {% if current_user.goodreads == 1 %}
                 <br><br>
                 Include to-read shelf from Goodreads?<br>
-                {% if current_user.home_page == 1 %}
+                {% if current_user.include_g_unread == 1 %}
                     <input type="radio" name="include_g_unread" id="include_m_unread" value="1" CHECKED>Yes
                     <input type="radio" name="include_g_unread" id="include_m_unread" value="0">No
                 {% else %}
