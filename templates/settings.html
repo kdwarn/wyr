@@ -14,20 +14,6 @@
         <h2>Preferences</h2>
         <form method="POST" name="edit" action="/set_pref">
             <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
-            Set a tag as your homepage?<br>
-            <select name="home_page">
-                <option value="">Choose a Tag</option>
-            {% for tag in tags %}
-                <option value="{{tag.name}}"
-                {% if current_user.home_page == tag.name %}
-                    SELECTED>
-                {% else %}
-                    >
-                {% endif %}
-                {{ tag.name }}</option>
-            {% endfor %}
-            </select>
-            <br><br>
             Auto-close browser tab/window after adding a new item from bookmarklet?<br>
             {% if current_user.auto_close == 1 %}
                 <input type="radio" name="auto_close" id="auto_close" value="1" CHECKED>Yes

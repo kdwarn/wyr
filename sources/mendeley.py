@@ -86,9 +86,10 @@ def store_mendeley():
 
     #keep only those things we want, store in db
     for doc in m_docs:
-        #skip items not read
-        if doc['read'] == 0:
-            continue
+        #skip items not read if user doesn't want them
+        if current_user.include_m_unread == 0:
+            if doc['read'] == 0:
+                continue
 
         new_doc = Documents(1, doc['title'])
         current_user.documents.append(new_doc)
@@ -117,6 +118,21 @@ def store_mendeley():
 
         db.session.commit()
 
+
+        # if unread, tag as "to-read" - and we might have to create this tag
+        if doc['read'] == 0:
+            #get user's existing tags to check if user already has a "to-read" tag
+            user_tags = get_user_tags()
+
+            for sublist in user_tags:
+                if sublist['name'] == 'to-read':
+                    existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
+                    new_doc.tags.append(existing_tag)
+                else:
+                    new_tag = Tags('to-read')
+                    new_doc.tags.append(new_tag)
+
+        # add tags to the document
         if 'tags' in doc:
             tags = doc['tags']
 
@@ -174,19 +190,6 @@ def store_mendeley():
 
                 new_doc.authors.append(new_author)
 
-        """
-        #old
-        if 'authors' in doc:
-            for author in doc['authors']:
-                try:
-                    new_author = Authors(author['first_name'], author['last_name'], 0)
-                except KeyError:
-                    try:
-                        new_author = Authors('', author['last_name'], 0)
-                    except KeyError:
-                        new_author = Authors(author['first_name'], '', 0)
-                db.session.add(new_author)
-        """
         """
         # skip editors for now - need to restructure database
         if 'editors' in doc:
@@ -285,9 +288,10 @@ def update_mendeley():
     for doc in m_docs:
         m_doc_ids.append(doc['id'])
 
-        #skip items not read
-        if doc['read'] == 0:
-            continue
+        #skip items not read if user doesn't want them
+        if current_user.include_m_unread == 0:
+            if doc['read'] == 0:
+                continue
 
         #see if it's in the db
         check_doc = Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).first()
@@ -318,6 +322,19 @@ def update_mendeley():
 
             db.session.add(new_doc)
             db.session.commit()
+
+            # if unread, tag as "to-read" - and we might have to create this tag
+            if doc['read'] == 0:
+                #get user's existing tags to check if user already has a "to-read" tag
+                user_tags = get_user_tags()
+
+                for sublist in user_tags:
+                    if sublist['name'] == 'to-read':
+                        existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
+                        new_doc.tags.append(existing_tag)
+                    else:
+                        new_tag = Tags('to-read')
+                        new_doc.tags.append(new_tag)
 
             #add tags
             if 'tags' in doc:

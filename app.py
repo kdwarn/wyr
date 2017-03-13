@@ -1094,7 +1094,6 @@ def page_not_found(e):
 @app.route('/set_pref', methods=['POST'])
 @login_required
 def set_pref():
-    current_user.home_page = request.form['home_page']
     current_user.auto_close = request.form['auto_close']
     current_user.include_m_unread = request.form['include_m_unread']
     current_user.include_g_unread = request.form['include_g_unread']
