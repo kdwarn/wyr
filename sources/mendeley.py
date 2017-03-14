@@ -118,19 +118,23 @@ def store_mendeley():
 
         db.session.commit()
 
-
         # if unread, tag as "to-read" - and we might have to create this tag
         if doc['read'] == 0:
             #get user's existing tags to check if user already has a "to-read" tag
             user_tags = get_user_tags()
 
-            for sublist in user_tags:
-                if sublist['name'] == 'to-read':
-                    existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
-                    new_doc.tags.append(existing_tag)
-                else:
-                    new_tag = Tags('to-read')
-                    new_doc.tags.append(new_tag)
+            if user_tags:
+                for user_tag in user_tags:
+                    # if the user has a to-read tag already, get object and use it
+                    if user_tag['name'] == 'to-read':
+                        existing_tag = Tags.query.filter(Tags.id==user_tag['id']).one()
+                        new_doc.tags.append(existing_tag)
+                    else:
+                        new_tag = Tags('to-read')
+                        new_doc.tags.append(new_tag)
+            else:
+                new_tag = Tags('to-read')
+                new_doc.tags.append(new_tag)
 
         # add tags to the document
         if 'tags' in doc:
@@ -139,15 +143,16 @@ def store_mendeley():
             #get user's existing tags to check if tags for this doc already exist
             user_tags = get_user_tags()
 
-            #append any user's existing tags to the document, remove from list tags
-            for sublist in user_tags:
-                for tag in tags[:]:
-                    if sublist['name'] == tag:
-                        #get the tag object and append to new_doc.tags
-                        existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
-                        new_doc.tags.append(existing_tag)
-                        #now remove it, so we don't create a new tag object below
-                        tags.remove(tag)
+            if user_tags:
+                #append any user's existing tags to the document, remove from list tags
+                for user_tag in user_tags:
+                    for tag in tags[:]:
+                        if user_tag['name'] == tag:
+                            #get the tag object and append to new_doc.tags
+                            existing_tag = Tags.query.filter(Tags.id==user_tag['id']).one()
+                            new_doc.tags.append(existing_tag)
+                            #now remove it, so we don't create a new tag object below
+                            tags.remove(tag)
 
             #any tag left in tags list will be a new one that needs to be created
             #create new tag objects for new tags, append to the doc
@@ -293,7 +298,7 @@ def update_mendeley():
             if doc['read'] == 0:
                 continue
 
-        #see if it's in the db
+        #see if the doc is already in the db
         check_doc = Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).first()
 
         #if not in db, insert it
@@ -323,18 +328,26 @@ def update_mendeley():
             db.session.add(new_doc)
             db.session.commit()
 
+            '''
             # if unread, tag as "to-read" - and we might have to create this tag
             if doc['read'] == 0:
+
                 #get user's existing tags to check if user already has a "to-read" tag
                 user_tags = get_user_tags()
 
-                for sublist in user_tags:
-                    if sublist['name'] == 'to-read':
-                        existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
-                        new_doc.tags.append(existing_tag)
-                    else:
-                        new_tag = Tags('to-read')
-                        new_doc.tags.append(new_tag)
+                if user_tags:
+                    for user_tag in user_tags:
+                        if user_tag['name'] == 'to-read' or user_tag['name'] == 'to read':
+                            existing_tag = Tags.query.filter(Tags.id==user_tag['id']).one()
+                            new_doc.tags.append(existing_tag)
+                        else:
+                            new_tag = Tags('to-read')
+                            new_doc.tags.append(new_tag)
+                else:
+                    new_tag = Tags('to-read')
+                    new_doc.tags.append(new_tag)
+
+            '''
 
             #add tags
             if 'tags' in doc:
@@ -343,15 +356,16 @@ def update_mendeley():
                 #get user's existing tags to check if tags for this doc already exist
                 user_tags = get_user_tags()
 
-                #append any user's existing tags to the document, remove from list tags
-                for sublist in user_tags:
-                    for tag in tags[:]:
-                        if sublist['name'] == tag:
-                            #get the tag object and append to new_doc.tags
-                            existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
-                            new_doc.tags.append(existing_tag)
-                            #now remove it, so we don't create a new tag object below
-                            tags.remove(tag)
+                if user_tags:
+                    #append any user's existing tags to the document, remove from list tags
+                    for user_tag in user_tags:
+                        for tag in tags[:]:
+                            if user_tag['name'] == tag:
+                                #get the tag object and append to new_doc.tags
+                                existing_tag = Tags.query.filter(Tags.id==user_tag['id']).one()
+                                new_doc.tags.append(existing_tag)
+                                #now remove it, so we don't create a new tag object below
+                                tags.remove(tag)
 
                 #any tag left in tags list will be a new one that needs to be created
                 #create new tag objects for new tags, append to the doc
@@ -457,6 +471,19 @@ def update_mendeley():
                     check_doc.note = annotations[0]['text']
 
                 db.session.commit()
+
+
+                # if unread, tag as "to-read" - and we might have to create this tag
+                if doc['read'] == 0:
+
+
+                    existing_tag = Tags.query.filter(Tags.name=='to-read').one()
+
+                    if existing_tag:
+                        check_doc.tags.append(existing_tag)
+                    else:
+                        new_tag = Tags('to-read')
+                        check_doc.tags.append(new_tag)
 
                 # update tags
                 # one scenario not caught by "if tags:" below: there were old tags, but no
