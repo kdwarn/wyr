@@ -1,11 +1,15 @@
 from app import db
 from sqlalchemy import text
 from flask.ext.login import current_user
+from models import User, Documents, Tags
 
 def get_user_tags():
     '''
     Use sql (can't figure out how to get SQLAlchemy to do this) to get user's
-    tags - id and name
+
+    Returns list of dictionaries of user tags
+
+    to-do: (possibly) - change to return list of Tag objects?
     '''
     sql = text('SELECT DISTINCT tags.name, tags.id from tags \
             JOIN document_tags ON (document_tags.tag_id = tags.id) \
@@ -19,10 +23,34 @@ def get_user_tags():
         tags.append({'id': row[1], 'name': row[0]})
     return tags
 
+#get one tag (name and id)
+def get_user_tag(tag_name):
+    '''
+    Use sql (can't figure out how to get SQLAlchemy to do this) to get user's
+    tags - id and name
+
+    Returns Tag object
+    '''
+    sql = text('SELECT tags.id from tags \
+            JOIN document_tags ON (document_tags.tag_id = tags.id) \
+            JOIN documents ON (documents.id = document_tags.document_id) \
+            JOIN user ON (user.id = documents.user_id) \
+            WHERE user.id = :x AND tags.name = :y');
+    result = db.engine.execute(sql, x=current_user.id, y=tag_name)
+    row = result.fetchone()
+
+    #row is a dict - now get the actual Tag object
+    if row != None:
+        to_read_tag = Tags.query.filter(Tags.id==row['id']).one()
+        return to_read_tag
+    else:
+        return None
+
 def get_user_tag_names():
     '''
     Use sql (can't figure out how to get SQLAlchemy to do this) to get user's
-    tag names only
+
+    Returns list of tag names
     '''
     sql = text('SELECT DISTINCT tags.name from tags \
             JOIN document_tags ON (document_tags.tag_id = tags.id) \

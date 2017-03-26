@@ -27,7 +27,7 @@ app.config.from_object('config')
 db = SQLAlchemy(app)
 
 # import things that depend upon db
-from db_functions import get_user_tags, get_user_authors
+from db_functions import get_user_tags, get_user_authors, get_user_tag
 from models import User, Tokens, Documents, Tags, Bunches
 from sources.native import native_blueprint
 from sources.mendeley import mendeley_blueprint
@@ -119,6 +119,17 @@ def get_stripe_info():
 ##############
 ### ROUTES ###
 ##############
+
+# testing
+@app.route('/testing')
+def testing():
+    to_read_tag = get_user_tag('to-read')
+
+    #existing_tag = Tags.query.filter(Tags.name=='to-read').one()
+
+    #return '{}'.format(existing_tag.id)
+    return '{}'.format(to_read_tag.id)
+
 
 ###########################
 ### MAIN DISPLAY ROUTES ###

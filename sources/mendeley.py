@@ -1,7 +1,7 @@
 from flask import Blueprint, request, redirect, url_for, flash, session
 from flask.ext.login import login_required, current_user
 from datetime import datetime
-from db_functions import get_user_tags, get_user_authors
+from db_functions import get_user_tags, get_user_authors, get_user_tag
 from app import db
 from models import Documents, Tags, Authors, Tokens, FileLinks
 from requests_oauthlib import OAuth2Session
@@ -229,6 +229,9 @@ def store_mendeley():
 
 #update doc info from Mendeley
 def update_mendeley():
+    # get user's "to-read" Tag object, if any, in order to later tag unread items
+    to_read_tag = get_user_tag('to-read')
+
     #get existing tokens from Tokens table
     tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=1).first()
 
@@ -328,28 +331,15 @@ def update_mendeley():
             db.session.add(new_doc)
             db.session.commit()
 
-            '''
             # if unread, tag as "to-read" - and we might have to create this tag
             if doc['read'] == 0:
-
-                #get user's existing tags to check if user already has a "to-read" tag
-                user_tags = get_user_tags()
-
-                if user_tags:
-                    for user_tag in user_tags:
-                        if user_tag['name'] == 'to-read' or user_tag['name'] == 'to read':
-                            existing_tag = Tags.query.filter(Tags.id==user_tag['id']).one()
-                            new_doc.tags.append(existing_tag)
-                        else:
-                            new_tag = Tags('to-read')
-                            new_doc.tags.append(new_tag)
+                if to_read_tag != None:
+                    new_doc.tags.append(to_read_tag)
                 else:
                     new_tag = Tags('to-read')
                     new_doc.tags.append(new_tag)
 
-            '''
-
-            #add tags
+            #add other tags
             if 'tags' in doc:
                 tags = doc['tags']
 
@@ -476,14 +466,12 @@ def update_mendeley():
                 # if unread, tag as "to-read" - and we might have to create this tag
                 if doc['read'] == 0:
 
-
-                    existing_tag = Tags.query.filter(Tags.name=='to-read').one()
-
-                    if existing_tag:
-                        check_doc.tags.append(existing_tag)
+                    if to_read_tag != None:
+                        check_doc.tags.append(to_read_tag)
                     else:
                         new_tag = Tags('to-read')
                         check_doc.tags.append(new_tag)
+
 
                 # update tags
                 # one scenario not caught by "if tags:" below: there were old tags, but no
