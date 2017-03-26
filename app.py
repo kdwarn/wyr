@@ -123,12 +123,12 @@ def get_stripe_info():
 # testing
 @app.route('/testing')
 def testing():
-    to_read_tag = get_user_tag('to-read')
+    iso = current_user.mendeley_update.isoformat()
+    print(iso)
 
-    #existing_tag = Tags.query.filter(Tags.name=='to-read').one()
-
-    #return '{}'.format(existing_tag.id)
-    return '{}'.format(to_read_tag.id)
+    a_day_ago = current_user.mendeley_update - timedelta(days=1)
+    print(a_day_ago.isoformat())
+    return '{}'.format(a_day_ago)
 
 
 ###########################
