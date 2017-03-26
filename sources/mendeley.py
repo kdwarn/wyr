@@ -8,6 +8,7 @@ from requests_oauthlib import OAuth2Session
 from config import m
 from time import time
 from oauthlib.oauth2 import InvalidGrantError
+from sqlalchemy import desc
 
 mendeley_blueprint = Blueprint('mendeley', __name__, template_folder='templates')
 
@@ -86,7 +87,8 @@ def store_mendeley():
 
     #keep only those things we want, store in db
     for doc in m_docs:
-        #skip items not read if user doesn't want them
+        # skip items not read if user doesn't want them - user can set this pref
+        # after Mendeley is authorized, and then get them with update function
         if current_user.include_m_unread == 0:
             if doc['read'] == 0:
                 continue
@@ -117,24 +119,6 @@ def store_mendeley():
         db.session.add(new_doc)
 
         db.session.commit()
-
-        # if unread, tag as "to-read" - and we might have to create this tag
-        if doc['read'] == 0:
-            #get user's existing tags to check if user already has a "to-read" tag
-            user_tags = get_user_tags()
-
-            if user_tags:
-                for user_tag in user_tags:
-                    # if the user has a to-read tag already, get object and use it
-                    if user_tag['name'] == 'to-read':
-                        existing_tag = Tags.query.filter(Tags.id==user_tag['id']).one()
-                        new_doc.tags.append(existing_tag)
-                    else:
-                        new_tag = Tags('to-read')
-                        new_doc.tags.append(new_tag)
-            else:
-                new_tag = Tags('to-read')
-                new_doc.tags.append(new_tag)
 
         # add tags to the document
         if 'tags' in doc:
@@ -425,11 +409,6 @@ def update_mendeley():
 
         #else, update it
         else:
-            # first get tags, authors, and files from doc in db to check against updated doc
-            old_tags = check_doc.tags
-            old_authors = check_doc.authors
-            old_file_links = check_doc.file_links
-
             # if it doesn't have 'last_modified' then it would have already been
             # caught by insert above, so skip rest of the loop
             if not doc['last_modified']:
@@ -447,6 +426,10 @@ def update_mendeley():
                 check_doc.starred=doc['starred']
                 check_doc.last_modified=doc['last_modified']
 
+                old_tags = check_doc.tags
+                old_authors = check_doc.authors
+                old_file_links = check_doc.file_links
+
                 if 'year' in doc:
                     check_doc.year = doc['year']
 
@@ -461,7 +444,6 @@ def update_mendeley():
                     check_doc.note = annotations[0]['text']
 
                 db.session.commit()
-
 
                 # if unread, tag as "to-read" - and we might have to create this tag
                 if doc['read'] == 0:
@@ -647,3 +629,17 @@ def update_mendeley():
 
     flash('Documents from Mendeley have been refreshed.')
     return
+
+# if user has changed pref from including to excluding unread items, delete them
+def remove_to_read_mendeley():
+    to_read_tag = get_user_tag('to-read')
+
+    if to_read_tag != None:
+        # delete all docs with to-read as tag
+        current_user.documents.filter(Documents.source_id==1, Documents.tags.any(name=to_read_tag.name)).delete(synchronize_session='fetch')
+
+        db.session.commit()
+    return
+
+
+
