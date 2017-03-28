@@ -251,22 +251,18 @@ def update_mendeley():
     #get new 0auth object with new token
     mendeley = OAuth2Session(m['client_id'], token=new_token)
 
-    # add one day to last update (to account for any timezone differences),
-    # then change format to ISO 8601
-
-    an_extra_day = current_user.mendeley_update - timedelta(days=1)
-    an_extra_day = an_extra_day.isoformat()
-
+    # covert last time mendeley was updated to iso format (8601)
+    modified_since = current_user.mendeley_update.isoformat()
 
     #parameters
-    payload = {'limit':'500', 'view':'all', 'modified_since':an_extra_day}
+    payload = {'limit':'500', 'view':'all', 'modified_since':modified_since}
 
     r = mendeley.get('https://api.mendeley.com/documents', params=payload)
     m_docs = r.json()
 
-    #if no docs found, return
+    #if no docs found, don't do anything
     if r.status_code != 200:
-        flash("Mendeley refreshed; no updates made.")
+        pass
 
     else:
 
@@ -623,14 +619,14 @@ def update_mendeley():
     # now, get all documents deleted from Mendeley since last update & delete
 
     # parameters
-    payload = {'limit':'500', 'view':'all', 'deleted_since':an_extra_day}
+    payload = {'limit':'500', 'deleted_since':modified_since, 'include_trashed':'true'}
 
     r = mendeley.get('https://api.mendeley.com/documents', params=payload)
     m_docs = r.json()
 
-    #if no docs found, return
+    #if no docs found, don't do anything
     if r.status_code != 200:
-        flash("Mendeley refreshed; no updates made2.")
+        pass
 
     else:
         #Mendeley will not get all results, so have to go through pages. If there
@@ -646,10 +642,11 @@ def update_mendeley():
 
         # delete each doc
         for doc in m_docs:
-            Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc.id).delete()
+            Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).delete()
 
-        current_user.mendeley_update = datetime.now()
         db.session.commit()
+
+    current_user.mendeley_update = datetime.now()
 
     flash('Documents from Mendeley have been refreshed.')
     return
