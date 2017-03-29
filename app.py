@@ -1095,11 +1095,11 @@ def charge():
 def paypal():
     return render_template('donate_paypal.html')
 
-#handle 404
-@app.errorhandler(404)
-def page_not_found(e):
-    flash("Sorry, that page wasn't found.")
-    return redirect(url_for('index'))
+#handle 404 - this was throwing errors where it shouldn't, so disabled
+#@app.errorhandler(404)
+#def page_not_found(e):
+#    flash("Sorry, that page wasn't found.")
+#    return redirect(url_for('index'))
 
 #set various preferences
 @app.route('/set_pref', methods=['POST'])
