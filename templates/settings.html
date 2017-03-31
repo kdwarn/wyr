@@ -22,6 +22,16 @@
                 <input type="radio" name="auto_close" id="auto_close" value="1">Yes
                 <input type="radio" name="auto_close" id="auto_close" value="0" CHECKED>No
             {% endif %}
+
+            <br><br>Enable markdown* for notes on WYR native items?<br>
+            {% if current_user.markdown == 1 %}
+                <input type="radio" name="markdown" id="markdown" value="1" CHECKED>Yes
+                <input type="radio" name="markdown" id="markdown" value="0">No
+            {% else %}
+                <input type="radio" name="markdown" id="markdown" value="1">Yes
+                <input type="radio" name="markdown" id="markdown" value="0" CHECKED>No
+            {% endif %}
+
             {% if current_user.mendeley == 1 %}
                 <br><br>
                 Include unread items from Mendeley?<br>
@@ -46,6 +56,10 @@
             {% endif %}
             <br><br>
             <button type="submit" name="submit" value="Submit">Save</button>
+            <br>
+            <p class="info left">*Markdown allows simple formatting. See
+            <a href="https://en.wikipedia.org/wiki/Markdown" target="_blank">this</a> for
+            additional information.</p>
         </form>
     </div>
     <br>

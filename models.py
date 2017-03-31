@@ -34,6 +34,7 @@ class User(db.Model, UserMixin):
     include_m_unread = db.Column(db.Integer)
     include_g_unread = db.Column(db.Integer)
     auto_close = db.Column(db.Integer)
+    markdown = db.Column(db.Integer)
 
     #relationships
     #this works, and the fastest way so far

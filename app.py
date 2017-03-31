@@ -16,24 +16,29 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired, URLSafeSerial
 from random import random
 import stripe
 import requests
+from flask.ext.misaka import Misaka
+import re
+from jinja2 import evalcontextfilter, Markup, escape
+
 
 ###############
 ### CONFIG ####
 ###############
 
 stripe.api_key = stripe_keys['secret_key']
+md = Misaka(autolink='true', underline='true', strikethrough='true', \
+    html='false', no_html='true', highlight='true', hardwrap='true', wrap='true')
 app = Flask(__name__)
 app.config.from_object('config')
 db = SQLAlchemy(app)
+md.init_app(app)
 
 # import things that depend upon db
-from db_functions import get_user_tags, get_user_authors, get_user_tag
+from db_functions import get_user_tags, get_user_authors
 from models import User, Tokens, Documents, Tags, Bunches
 from sources.native import native_blueprint
 from sources.mendeley import mendeley_blueprint, remove_to_read_mendeley, update_mendeley
-#from sources.mendeley import update_mendeley
-from sources.goodreads import goodreads_blueprint
-from sources.goodreads import update_goodreads
+from sources.goodreads import goodreads_blueprint, update_goodreads
 
 #register blueprints
 app.register_blueprint(native_blueprint)
@@ -76,6 +81,20 @@ def datetimeformat(value, format='%B %d, %Y'):
     return value.strftime(format)
 #now make it a filter
 app.jinja_env.filters['datetime'] = datetimeformat
+
+# new lines to breaks
+# http://jinja.pocoo.org/docs/2.9/api/#custom-filters
+_paragraph_re = re.compile(r'(?:\r\n|\r|\n){2,}')
+
+@evalcontextfilter
+def nl2br(eval_ctx, value):
+    result = u'\n\n'.join(u'<p>%s</p>' % p.replace('\n', Markup('<br>\n'))
+                          for p in _paragraph_re.split(escape(value)))
+    if eval_ctx.autoescape:
+        result = Markup(result)
+    return result
+#now make it a filter
+app.jinja_env.filters['nl2br'] = nl2br
 
 @login_manager.user_loader
 def user_loader(user_id):
@@ -1106,6 +1125,7 @@ def paypal():
 @login_required
 def set_pref():
     current_user.auto_close = request.form['auto_close']
+    current_user.markdown = request.form['markdown']
     current_user.include_m_unread = request.form['include_m_unread']
     current_user.include_g_unread = request.form['include_g_unread']
     db.session.commit()

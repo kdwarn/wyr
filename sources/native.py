@@ -41,7 +41,7 @@ def add():
         year = request.form['year']
         tags = request.form['tags']
         authors = request.form['authors']
-        notes = request.form['notes'].replace('\n', '<br>')
+        notes = request.form['notes']
         submit = request.form['submit']
 
         #validation
@@ -200,7 +200,7 @@ def edit():
         old_tags = request.form['old_tags']
         authors = request.form['authors']
         old_authors = request.form['old_authors']
-        notes = request.form['notes'].replace('\n', '<br>')
+        notes = request.form['notes']
         submit = request.form['submit']
 
         if submit == "Cancel":

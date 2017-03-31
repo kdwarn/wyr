@@ -164,12 +164,26 @@
                     {% else %}
                         <a href="{{ url_for('native.edit', id=doc.id) }}">Edit</a> | <a href="{{ url_for('native.delete', id=doc.id) }}">Delete</a>
                     {% endif %}
-                    <br>
                 {% endif %}
                 </span>
 
                 {% if doc.note %}
-                    <div class="notes">{{ doc.note|safe }}</div>
+                    <div class="notes">
+                    {% if doc.source_id == 3 and current_user.markdown == 1 %}
+                        {# adjust for p wrap that Misaka throws in #}
+                        <div style="margin-top:-1em">
+                        {{ doc.note|markdown }}
+                        </div>
+                    {% elif doc.source_id == 1 or doc.source_id == 2 %}
+                        {# let notes from Mendeley and Goodreads use html #}
+                        {{ doc.note|safe }}
+                    {% else %}
+                        {# if user disabled markdown, at least allow <br> #}
+                        <div style="margin-top:-1em">
+                        {{ doc.note|nl2br }}
+                        </div>
+                    {% endif %}
+                    </div>
                 {% endif %}
                 </div>
             </div>
