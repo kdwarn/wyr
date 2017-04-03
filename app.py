@@ -75,6 +75,14 @@ app.jinja_env.globals['csrf_token'] = generate_csrf_token
 ### HELPER FUNCTIONS ###
 ########################
 
+# redirect http to https
+@app.before_request
+def before_request():
+    if request.url.startswith('http://'):
+        url = request.url.replace('http://', 'https://', 1)
+        code = 301
+        return redirect(url, code=code)
+
 #function for displaying datetime in jinja, defaulting to date like May 1, 1886
 def datetimeformat(value, format='%B %d, %Y'):
     value = datetime.fromtimestamp(value)
