@@ -647,6 +647,7 @@ def update_mendeley():
         db.session.commit()
 
     current_user.mendeley_update = datetime.now()
+    db.session.commit()
 
     flash('Documents from Mendeley have been refreshed.')
     return
