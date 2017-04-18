@@ -130,11 +130,10 @@
                 <button type="submit" name="submit" value="Submit and Add Another">Submit and Add Another</button>
             {% endif %}
             <br><br>
-            <span class="small">*tags should be separated by commas<br>
-            **authors should be in the format: Austin, Jane; Douglass, Frederick<br><br>
-
+            <span class="small">
+            {% include 'formatting.html' %}
+            <br><br>
             {% include 'markdown.html' %}
-
             </span><br>
         </form>
         <p class="small">If you haven't done so already, you can drag this link (<a href="javascript:(function(){window.open('http://www.whatyouveread.com/add?link='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)); })();">wyr</a>)

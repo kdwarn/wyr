@@ -20,7 +20,6 @@ from flask.ext.misaka import Misaka
 import re
 from jinja2 import evalcontextfilter, Markup, escape
 
-
 ###############
 ### CONFIG ####
 ###############
@@ -34,7 +33,7 @@ db = SQLAlchemy(app)
 md.init_app(app)
 
 # import things that depend upon db
-from db_functions import get_user_tags, get_user_authors
+from db_functions import get_user_tags, get_user_authors, str_tags_to_list
 from models import User, Tokens, Documents, Tags, Bunches
 from sources.native import native_blueprint
 from sources.mendeley import mendeley_blueprint, remove_to_read_mendeley, update_mendeley
@@ -150,12 +149,15 @@ def get_stripe_info():
 # testing
 @app.route('/testing')
 def testing():
-    iso = current_user.mendeley_update.isoformat()
-    print(iso)
 
-    a_day_ago = current_user.mendeley_update - timedelta(days=1)
-    print(a_day_ago.isoformat())
-    return '{}'.format(a_day_ago)
+    # can i try to remove old tags if no new tags?
+    old_tags = 'this, that, the other'
+    tags = ''
+
+    tags = str_tags_to_list(tags)
+
+    print(tags)
+    return 'check log'
 
 
 ###########################

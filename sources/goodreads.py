@@ -1,20 +1,19 @@
 from flask import Blueprint, request, redirect, url_for, flash, session
 from flask.ext.login import login_required, current_user
 from datetime import datetime
-from db_functions import get_user_tags, get_user_authors
+from db_functions import add_tags_to_doc, add_authors_to_doc
 from requests_oauthlib import OAuth1Session
 from xml.etree import ElementTree
 from math import ceil
 from config import g
 from app import db
-from models import Documents, Tags, Authors, Tokens
+from models import Documents, Tokens
 
+#goodreads uses Oauth1, returns xml
+#source_id 2
 
 goodreads_blueprint = Blueprint('goodreads', __name__, template_folder='templates')
 
-### Goodreads ##################################################################
-#goodreads uses Oauth1, returns xml
-#source_id 2
 
 @goodreads_blueprint.route('/goodreads')
 @login_required
@@ -129,94 +128,28 @@ def store_goodreads():
             db.session.add(new_doc)
             db.session.commit()
 
-            """
-            old
             if doc.find('shelves/shelf') is not None:
+                #make list of tags out of shelves this book is on
+                tags = []
                 for shelf in doc.findall('shelves/shelf'):
                     #these are all in 'read' shelf, don't add that as a tag
                     if shelf.get('name') == 'read':
                         continue
-                    new_tag = Tags(current_user.id, new_doc.id, shelf.get('name'))
-                    db.session.add(new_tag)
-
-            if doc.find('book/authors/author/name') is not None:
-                for name in doc.findall('book/authors/author/name'):
-                    #split one full name into first and last (jr's don't work right now #bug)
-                    new_name = name.text.rsplit(' ', 1)
-                    new_author = Authors(current_user.id, new_doc.id, new_name[0], new_name[1], 0)
-                    db.session.add(new_author)
-            """
-            if doc.find('shelves/shelf') is not None:
-                #make list of tags from shelves, to make adding new or existing tags easier
-                tags = []
-                for shelf in doc.findall('shelves/shelf'):
-                #these are all in 'read' shelf, don't add that as a tag
-                    if shelf.get('name') == 'read':
-                        continue
                     tags.append(shelf.get('name'))
 
-                #get user's existing tags to check if tags for this doc already exist
-                user_tags = get_user_tags()
-
-                #append any user's existing tags to the document, remove from list tags
-                for sublist in user_tags:
-                    # loop through all book's shelves and add
-                    for tag in tags:
-                        #if already a tag, don't add new one,
-                        if sublist['name'] == tag:
-                            #get the tag object and append to new_doc.tags
-                            existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
-                            new_doc.tags.append(existing_tag)
-                            #now remove it, so we don't create a new tag object below
-                            tags.remove(tag)
-
-                #any tag left in tags list will be a new one that needs to be created
-                #create new tag objects for new tags, append to the doc
-                for tag in tags:
-                    new_tag = Tags(tag)
-                    new_doc.tags.append(new_tag)
-
+                # add tags to the document
+                new_doc = add_tags_to_doc(tags, new_doc)
 
             if doc.find('book/authors/author/name') is not None:
-                #create list of authors
+                #create list of dict of authors
                 authors = []
                 for name in doc.findall('book/authors/author/name'):
                     #split one full name into first and last (jr's don't work right now #to do)
                     new_name = name.text.rsplit(' ', 1)
-                    authors.append([new_name[0], new_name[1]]) #first_name, last_name
+                    authors.append({'first_name':new_name[0], 'last_name':new_name[1]})
 
-                #get user's existing authors to check if authors for this doc already exist
-                user_authors = get_user_authors()
-
-                #append any of user's exsting authors to document, remove from list authors
-                for sublist in user_authors:
-                    for author in authors[:]:
-                        #if there's only one name, author[0] will through index error,
-                        #but must try to match both first_name and last_name first
-                        try:
-                            if sublist['first_name'] == author[0] and sublist['last_name'] == author[1]:
-                                #get the author object and append to new_doc.authors
-                                existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
-                                new_doc.authors.append(existing_author)
-                                #now remove it, so we don't create a new author object below
-                                authors.remove(author)
-                        except IndexError:
-                            if sublist['last_name'] == author[1]:
-                                #get the author object and append to new_doc.authors
-                                existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
-                                new_doc.authors.append(existing_author)
-                                #now remove it, so we don't create a new author object below
-                                authors.remove(author)
-
-                #any author left in authors list will be a new one that needs to be created and appended to new_doc
-                for author in authors:
-                    try:
-                        new_author = Authors(author[0], author[1]) #first name, #last name
-                    except IndexError:
-                        new_author = Authors(first_name='', last_name=author[1])
-
-                    new_doc.authors.append(new_author)
-
+                # add authors to doc
+                new_doc = add_authors_to_doc(authors, new_doc)
 
         db.session.commit()
 
@@ -238,5 +171,4 @@ def update_goodreads():
     store_goodreads()
 
     flash('Documents from Goodreads have been refreshed.')
-
     return

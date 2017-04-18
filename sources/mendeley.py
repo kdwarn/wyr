@@ -1,22 +1,23 @@
 from flask import Blueprint, request, redirect, url_for, flash, session
 from flask.ext.login import login_required, current_user
-from datetime import datetime, timedelta
-from db_functions import get_user_tags, get_user_authors, get_user_tag
+from datetime import datetime
+from db_functions import get_user_tag, add_tags_to_doc, add_authors_to_doc, \
+    remove_old_tags, remove_old_authors
 from app import db
-from models import Documents, Tags, Authors, Tokens, FileLinks
+from models import Documents, Tags, Tokens, FileLinks
 from requests_oauthlib import OAuth2Session
 from config import m
 from time import time
 from oauthlib.oauth2 import InvalidGrantError
 
-mendeley_blueprint = Blueprint('mendeley', __name__, template_folder='templates')
-
-### MENDELEY ###################################################################
-# uses Oauth 2, returns json
-# uses requests-oauthlib: https://requests-oauthlib.readthedocs.io/en/latest/oauth2_workflow.html#web-application-flow
-# mendely documentation: http://dev.mendeley.com/reference/topics/authorization_overview.html
+# Mendeley uses Oauth 2, returns json
 # source_id = 1
-# to do: turn much of this code into functions
+# this uses requests-oauthlib:
+# https://requests-oauthlib.readthedocs.io/en/latest/oauth2_workflow.html#web-application-flow
+# mendely documentation:
+# http://dev.mendeley.com/reference/topics/authorization_overview.html
+
+mendeley_blueprint = Blueprint('mendeley', __name__, template_folder='templates')
 
 @mendeley_blueprint.route('/mendeley')
 @login_required
@@ -116,67 +117,15 @@ def store_mendeley():
             new_doc.note = annotations[0]['text']
 
         db.session.add(new_doc)
-
         db.session.commit()
 
         # add tags to the document
         if 'tags' in doc:
-            tags = doc['tags']
+            new_doc = add_tags_to_doc(doc['tags'], new_doc)
 
-            #get user's existing tags to check if tags for this doc already exist
-            user_tags = get_user_tags()
-
-            if user_tags:
-                #append any user's existing tags to the document, remove from list tags
-                for user_tag in user_tags:
-                    for tag in tags[:]:
-                        if user_tag['name'] == tag:
-                            #get the tag object and append to new_doc.tags
-                            existing_tag = Tags.query.filter(Tags.id==user_tag['id']).one()
-                            new_doc.tags.append(existing_tag)
-                            #now remove it, so we don't create a new tag object below
-                            tags.remove(tag)
-
-            #any tag left in tags list will be a new one that needs to be created
-            #create new tag objects for new tags, append to the doc
-            for tag in tags:
-                new_tag = Tags(tag)
-                new_doc.tags.append(new_tag)
-
+        # add authors to the document
         if 'authors' in doc:
-            authors = doc['authors']
-
-            #get user's existing authors to check if authors for this doc already exist
-            user_authors = get_user_authors()
-
-            #append any of user's exsting authors to document, remove from list authors
-            for sublist in user_authors:
-                for author in authors[:]:
-                    #if there's only one name, author[1] will through index error,
-                    #but must try to match both first_name and last_name first
-                    try:
-                        if sublist['first_name'] == author['first_name'] and sublist['last_name'] == author['last_name']:
-                            #get the author object and append to new_doc.authors
-                            existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
-                            new_doc.authors.append(existing_author)
-                            #now remove it, so we don't create a new author object below
-                            authors.remove(author)
-                    except KeyError:
-                        if sublist['last_name'] == author['last_name']:
-                            #get the author object and append to new_doc.authors
-                            existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
-                            new_doc.authors.append(existing_author)
-                            #now remove it, so we don't create a new author object below
-                            authors.remove(author)
-
-            #any author left in authors list will be a new one that needs to be created and appended to new_doc
-            for author in authors:
-                try:
-                    new_author = Authors(author['first_name'], author['last_name'])
-                except KeyError:
-                    new_author = Authors(first_name='', last_name=author['last_name'])
-
-                new_doc.authors.append(new_author)
+            new_doc = add_authors_to_doc(doc['authors'], new_doc)
 
         """
         # skip editors for now - need to restructure database
@@ -265,7 +214,6 @@ def update_mendeley():
         pass
 
     else:
-
         #Mendeley will not get all results, so have to go through pages. If there
         #are more results after first page, Mendeley provides a "next" link - this
         #pulls that out of the .headers['link'], strips out non-link characters,
@@ -281,9 +229,8 @@ def update_mendeley():
         for doc in m_docs:
 
             #skip items not read if user doesn't want them
-            if current_user.include_m_unread == 0:
-                if doc['read'] == 0:
-                    continue
+            if current_user.include_m_unread == 0 and doc['read'] == 0:
+                continue
 
             #see if the doc is already in the db
             check_doc = Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).first()
@@ -323,78 +270,27 @@ def update_mendeley():
                         new_tag = Tags('to-read')
                         new_doc.tags.append(new_tag)
 
-                #add other tags
+                # add normal tags to the document
                 if 'tags' in doc:
-                    tags = doc['tags']
+                    new_doc = add_tags_to_doc(doc['tags'], new_doc)
 
-                    #get user's existing tags to check if tags for this doc already exist
-                    user_tags = get_user_tags()
-
-                    if user_tags:
-                        #append any user's existing tags to the document, remove from list tags
-                        for user_tag in user_tags:
-                            for tag in tags[:]:
-                                if user_tag['name'] == tag:
-                                    #get the tag object and append to new_doc.tags
-                                    existing_tag = Tags.query.filter(Tags.id==user_tag['id']).one()
-                                    new_doc.tags.append(existing_tag)
-                                    #now remove it, so we don't create a new tag object below
-                                    tags.remove(tag)
-
-                    #any tag left in tags list will be a new one that needs to be created
-                    #create new tag objects for new tags, append to the doc
-                    for tag in tags:
-                        new_tag = Tags(tag)
-                        new_doc.tags.append(new_tag)
-
+                # add authors to the document
                 if 'authors' in doc:
-                    authors = doc['authors']
+                    new_doc = add_authors_to_doc(doc['authors'], new_doc)
 
-                    #get user's existing authors to check if authors for this doc already exist
-                    user_authors = get_user_authors()
-
-                    #append any of user's exsting authors to document, remove from list authors
-                    for sublist in user_authors:
-                        for author in authors[:]:
-                            #if there's only one name, author[1] will through index error,
-                            #but must try to match both first_name and last_name first
-                            try:
-                                if sublist['first_name'] == author['first_name'] and sublist['last_name'] == author['last_name']:
-                                    #get the author object and append to new_doc.authors
-                                    existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
-                                    new_doc.authors.append(existing_author)
-                                    #now remove it, so we don't create a new author object below
-                                    authors.remove(author)
-                            except KeyError:
-                                if sublist['last_name'] == author['last_name']:
-                                    #get the author object and append to new_doc.authors
-                                    existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
-                                    new_doc.authors.append(existing_author)
-                                    #now remove it, so we don't create a new author object below
-                                    authors.remove(author)
-
-                    #any author left in authors list will be a new one that needs to be created and appended to new_doc
-                    for author in authors:
+                """
+                #skip editors for now
+                if 'editors' in doc:
+                    for editor in doc['editors']:
                         try:
-                            new_author = Authors(author['first_name'], author['last_name'])
+                            new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], editor['last_name'], 1)
                         except KeyError:
-                            new_author = Authors(first_name='', last_name=author['last_name'])
-
-                        new_doc.authors.append(new_author)
-
-                    """
-                    #skip editors for now
-                    if 'editors' in doc:
-                        for editor in doc['editors']:
                             try:
-                                new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], editor['last_name'], 1)
+                                new_editor = Authors(current_user.id, new_doc.id, '', editor['last_name'], 1)
                             except KeyError:
-                                try:
-                                    new_editor = Authors(current_user.id, new_doc.id, '', editor['last_name'], 1)
-                                except KeyError:
-                                    new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], '', 1)
-                            db.session.add(new_editor)
-                    """
+                                new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], '', 1)
+                        db.session.add(new_editor)
+                """
 
                 #get file id to link to
                 file_params = {'document_id':doc['id']}
@@ -409,27 +305,16 @@ def update_mendeley():
 
             #else, update it
             else:
-                # is this check necessary?
-                # if it doesn't have 'last_modified' then it would have already been
-                # caught by insert above, so skip rest of the loop
-                if not doc['last_modified']:
-                    continue
-
-                # if it does have last_modified, convert it to datetime object and check if newer than one in db
-                # (no need to update if not)
+                # convert last_modified to datetime object and check if newer
+                # than one in db (no need to update if not)
                 check_date = datetime.strptime(doc['last_modified'], "%Y-%m-%dT%H:%M:%S.%fZ")
 
                 if check_date > check_doc.last_modified:
-
                     check_doc.title = doc['title']
                     check_doc.created=doc['created']
                     check_doc.read=doc['read']
                     check_doc.starred=doc['starred']
                     check_doc.last_modified=doc['last_modified']
-
-                    old_tags = check_doc.tags
-                    old_authors = check_doc.authors
-                    old_file_links = check_doc.file_links
 
                     if 'year' in doc:
                         check_doc.year = doc['year']
@@ -446,9 +331,8 @@ def update_mendeley():
 
                     db.session.commit()
 
-                    # if unread, tag as "to-read" - and we might have to create this tag
+                    # if unread, tag as "to-read"
                     if doc['read'] == 0:
-
                         if to_read_tag != None:
                             check_doc.tags.append(to_read_tag)
                         else:
@@ -457,133 +341,54 @@ def update_mendeley():
 
 
                     # update tags
-                    # one scenario not caught by "if tags:" below: there were old tags, but no
-                    # new tags (user deleted one/all). Have to treat this separately.
-                    if old_tags and not 'tags' in doc:
-                        for old_tag in old_tags:
-                            check_doc.tags.remove(old_tag)
-
-                    if 'tags' in doc:
+                    #set tags variable so it can be used below, even if empty
+                    try:
                         tags = doc['tags']
+                    except KeyError:
+                        tags = ''
+                    # remove old tags, update tags
+                    # remove_old_tags takes list of names, not tag objects, so:
+                    old_tags = [tag.name for tag in check_doc.tags]
+                    if old_tags:
+                        check_doc, tags = remove_old_tags(old_tags, tags, check_doc)
+                    # add any new tags to doc
+                    if tags:
+                        check_doc = add_tags_to_doc(tags, check_doc)
 
-                        # check old tag list against tags submitted after edit, remove any no longer there
-                        if old_tags:
 
-                            # remove it from doc's tags if necessary
-                            ################################################################
-                            # to do
-                            # one issue with this: doesn't delete an orphaned tag from tags table
-                            # I'm not sure if I need to do this manually or better configure relationships
-                            ###############################################################
-
-                            for old_tag in old_tags[:]:
-                                if old_tag not in tags:
-                                    check_doc.tags.remove(old_tag)
-
-                            #don't add tags if they were already in old_tags - would be a duplicate
-                            for tag in tags[:]:
-                                if tag in old_tags:
-                                    tags.remove(tag)
-
-                        #get user's existing tags to check if tags for this doc already exist
-                        user_tags = get_user_tags()
-
-                        #append any user's existing tags to the document, remove from list tags
-                        for sublist in user_tags:
-                            for tag in tags[:]:
-                                if sublist['name'] == tag:
-                                    #get the tag object and append to new_doc.tags
-                                    existing_tag = Tags.query.filter(Tags.id==sublist['id']).one()
-                                    check_doc.tags.append(existing_tag)
-                                    #now remove it, so we don't create a new tag object below
-                                    tags.remove(tag)
-
-                        #any tag left in tags list will be a new one that needs to be created
-                        #create new tag objects for new tags, append to the doc
-                        for tag in tags:
-                            new_tag = Tags(tag)
-                            check_doc.tags.append(new_tag)
-
-                    # update authors
-                    # one scenario not caught by "if authors:" below: there were old authors, but no
-                    # new authors (user deleted one/all). Have to treat this separately.
-                    if old_authors and not 'authors' in doc:
-                        for old_author in old_authors[:]:
-                            check_doc.authors.remove(old_author)
-
-                    if 'authors' in doc:
+                    # update authors, same pattern as for tags
+                    try:
                         authors = doc['authors']
+                    except KeyError:
+                        authors = ''
+                    old_authors = [{'first_name':author.first_name,
+                                    'last_name':author.last_name}
+                                   for author in check_doc.authors]
+                    if old_authors:
+                        check_doc, authors = remove_old_authors(old_authors,
+                            authors, check_doc)
+                    if authors:
+                        check_doc = add_authors_to_doc(authors, check_doc)
 
-                        # check old author list of lists against authors submitted after edit, remove any no longer there
-                        if old_authors:
-
-                        # remove it from doc's authors if necessary
-                        ################################################################
-                        # to do
-                        # one issue with this: doesn't delete an orphaned author
-                        # I'm not sure if I need to do this manually or better configure relationships
-                        ################################################################
-
-                            for old_author in old_authors[:]:
-                                if old_author not in authors:
-                                    check_doc.authors.remove(old_author)
-
-                            #don't add authors if they were already in old_authors - would be a duplicate
-                            for author in authors[:]:
-                                if author in old_authors:
-                                    authors.remove(author)
-
-                        #get user's existing authors to check if authors for this doc already exist
-                        user_authors = get_user_authors()
-
-                        #append any of user's exsting authors to document, remove from list authors
-                        for sublist in user_authors:
-                            for author in authors[:]:
-                                #if there's only one name, author[1] will through index error,
-                                #but must try to match both first_name and last_name first
-                                try:
-                                    if sublist['first_name'] == author['first_name'] and sublist['last_name'] == author['last_name']:
-                                        #get the author object and append to new_doc.authors
-                                        existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
-                                        check_doc.authors.append(existing_author)
-                                        #now remove it, so we don't create a new author object below
-                                        authors.remove(author)
-                                except KeyError:
-                                    if sublist['last_name'] == author['last_name']:
-                                        #get the author object and append to new_doc.authors
-                                        existing_author = Authors.query.filter(Authors.id==sublist['id']).one()
-                                        check_doc.authors.append(existing_author)
-                                        #now remove it, so we don't create a new author object below
-                                        authors.remove(author)
-
-                        #any author left in authors list will be a new one that needs to be created and appended to new_doc
-                        for author in authors:
+                    """do editors later - need to restructure database
+                    if 'editors' in doc:
+                        for editor in doc['editors']:
                             try:
-                                new_author = Authors(author['first_name'], author['last_name'])
+                                new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], editor['last_name'], 1)
                             except KeyError:
-                                new_author = Authors(first_name='', last_name=author['last_name'])
-
-                            check_doc.authors.append(new_author)
-
-                        """do editors later - need to restructure database
-                        if 'editors' in doc:
-                            for editor in doc['editors']:
                                 try:
-                                    new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], editor['last_name'], 1)
+                                    new_editor = Authors(current_user.id, check_doc.id, '', editor['last_name'], 1)
                                 except KeyError:
-                                    try:
-                                        new_editor = Authors(current_user.id, check_doc.id, '', editor['last_name'], 1)
-                                    except KeyError:
-                                        new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], '', 1)
-                                db.session.add(new_editor)
+                                    new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], '', 1)
+                            db.session.add(new_editor)
                             db.session.commit()
-                        """
+                    """
 
                     # update file_links
+                    old_file_links = check_doc.file_links
                     # get file id to link to
                     file_params = {'document_id':doc['id']}
                     files = mendeley.get('https://api.mendeley.com/files', params=file_params).json()
-
 
                     # one scenario not caught by "if files:" below: there were old files, but no
                     # new files (user deleted one/all). Have to treat this separately.
@@ -592,7 +397,6 @@ def update_mendeley():
                             check_doc.file_links.remove(old_file_link)
 
                     if files:
-
                         #create list of file_ids to check against
                         file_ids = [file['id'] for file in files]
 
@@ -615,19 +419,15 @@ def update_mendeley():
 
                     db.session.commit()
 
-
     # now, get all documents deleted from Mendeley since last update & delete
-
     # parameters
     payload = {'limit':'500', 'deleted_since':modified_since, 'include_trashed':'true'}
-
     r = mendeley.get('https://api.mendeley.com/documents', params=payload)
     m_docs = r.json()
 
     #if no docs found, don't do anything
     if r.status_code != 200:
         pass
-
     else:
         #Mendeley will not get all results, so have to go through pages. If there
         #are more results after first page, Mendeley provides a "next" link - this
@@ -662,6 +462,3 @@ def remove_to_read_mendeley():
 
         db.session.commit()
     return
-
-
-

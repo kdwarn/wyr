@@ -104,13 +104,10 @@
             <button type="submit" name="submit" value="Submit">Submit</button>&nbsp;
             <button type="submit" name="submit" value="Cancel">Cancel</button>
             <br><br>
-            <span class="small">tags should be separated by commas
-            <br>
-            authors should be in the format: Austin, Jane; Douglass, Frederick<br>
-            <br>
-
+            <span class="small">
+            {% include 'formatting.html' %}
+            <br><br>
             {% include 'markdown.html' %}
-
             </span><br>
         </form>
     </div>
