@@ -33,7 +33,8 @@ db = SQLAlchemy(app)
 md.init_app(app)
 
 # import things that depend upon db
-from db_functions import get_user_tags, get_user_authors, str_tags_to_list
+from db_functions import get_user_tags, get_user_authors, str_tags_to_list, \
+    remove_to_read
 from models import User, Tokens, Documents, Tags, Bunches
 from sources.native import native_blueprint
 from sources.mendeley import mendeley_blueprint, update_mendeley, remove_to_read_mendeley
@@ -1143,12 +1144,12 @@ def set_pref():
     # if user is changing pref to exclude to-read items in Mendely, delete any
     # existing Mendeley docs tagged as to-read
     if request.form['include_m_unread'] == '0':
-        remove_to_read_mendeley()
+        remove_to_read(1)
 
     # if user is changing pref to exclude to-read items in Goodreads, delete any
     # existing Goodreads books tagged as to-read
     if request.form['include_g_unread'] == '0':
-        remove_to_read_goodreads()
+        remove_to_read(2)
 
     flash("Your preferences have been updated.")
     return redirect(url_for('settings'))

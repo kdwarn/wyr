@@ -451,14 +451,3 @@ def update_mendeley():
 
     flash('Documents from Mendeley have been refreshed.')
     return
-
-# if user has changed pref from including to excluding unread items, delete them
-def remove_to_read_mendeley():
-    to_read_tag = get_user_tag('to-read')
-
-    if to_read_tag != None:
-        # delete all docs with to-read as tag
-        current_user.documents.filter(Documents.source_id==1, Documents.tags.any(name=to_read_tag.name)).delete(synchronize_session='fetch')
-
-        db.session.commit()
-    return

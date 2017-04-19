@@ -1,7 +1,7 @@
 from app import db
 from sqlalchemy import text
 from flask.ext.login import current_user
-from models import Tags, Authors
+from models import Tags, Authors, Documents
 
 def get_user_tags():
     '''
@@ -297,3 +297,14 @@ def remove_old_authors(old_authors, authors, doc):
     # to do: delete orphaned authors from db
 
     return doc, authors
+
+# if user has changed pref from including to excluding to-read docs, del them
+def remove_to_read(source):
+    to_read_tag = get_user_tag('to-read')
+
+    if to_read_tag != None:
+        # delete all docs with to-read as tag
+        current_user.documents.filter(Documents.source_id==source, Documents.tags.any(name=to_read_tag.name)).delete(synchronize_session='fetch')
+
+        db.session.commit()
+    return
