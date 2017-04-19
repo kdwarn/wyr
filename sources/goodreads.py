@@ -63,7 +63,7 @@ def goodreads_authorize():
         flash('Authorization failed.')
         return redirect(url_for('settings'))
 
-#gets books info from goodreads and stores in database (only once, after initial authorization of source)
+#gets books info from goodreads and stores in database
 def store_goodreads():
 
     #get tokens from Tokens table
@@ -71,34 +71,34 @@ def store_goodreads():
 
     #get protected resource
     goodreads = OAuth1Session(g['client_id'],
-              client_secret=g['client_secret'],
-              resource_owner_key=tokens.access_token,
-              resource_owner_secret=tokens.access_token_secret)
+                client_secret=g['client_secret'],
+                resource_owner_key=tokens.access_token,
+                resource_owner_secret=tokens.access_token_secret)
 
-    #first need to figure out how many pages, because limited to 200 total in one call
-    payload = {'v':'2', 'key':g['client_id'], } #just the required parameters parameters, no need for all
+    #first need to figure out how many pages, b/c limited to 200 items per call
+    payload = {'v':'2', 'key':g['client_id'], 'shelf':'read'}
 
     r = goodreads.get('https://www.goodreads.com/review/list.xml', params=payload)
 
-
     #if no docs found, return
     if r.status_code != 200:
-        flash('You don\'t appear to have any read books at Goodreads.')
+        flash("You don't appear to have any read books at Goodreads.")
         return redirect(url_for('settings'))
 
     g_docs = ElementTree.fromstring(r.content)
 
-    #the reviews element has total count, figure out how many pages
+    #figure out how many pages of results
     total = g_docs[1].get('total')
     pages = ceil(int(total)/200)
-    i = 1
 
-    #go through each page
-    while i <= pages:
-        payload = {'v':'2', 'key':g['client_id'], 'shelf':'read', 'per_page':'200', 'page':'{}'.format(i)}
-        r = goodreads.get('https://www.goodreads.com/review/list.xml', params=payload)
+    #go through each page (have to add one since page count doesn't start at 0)
+    for i in range(1, pages+1):
+        payload = {'v':'2', 'key':g['client_id'], 'shelf':'read',
+                   'per_page':'200', 'page':'{}'.format(i)}
+        r = goodreads.get('https://www.goodreads.com/review/list.xml',
+                          params=payload)
 
-        #Goodreads returns xml, not json, response
+        #Goodreads returns xml response
         g_docs = ElementTree.fromstring(r.content)
 
         #keep only those things we want, store in db
@@ -109,7 +109,7 @@ def store_goodreads():
             new_doc.read = 1 #only requested books from read shelf
 
             #convert string to datetime object, prefer read_at but use date_added if not
-            if doc.find('read_at').text is not None: # and doc.find('read_at').text != '':
+            if doc.find('read_at').text is not None:
                 new_doc.created = datetime.strptime(doc.find('read_at').text, '%a %b %d %H:%M:%S %z %Y')
             else:
                 new_doc.created = datetime.strptime(doc.find('date_added').text, '%a %b %d %H:%M:%S %z %Y')
@@ -128,6 +128,7 @@ def store_goodreads():
             db.session.add(new_doc)
             db.session.commit()
 
+            # add shelves as tags to the document
             if doc.find('shelves/shelf') is not None:
                 #make list of tags out of shelves this book is on
                 tags = []
@@ -137,9 +138,9 @@ def store_goodreads():
                         continue
                     tags.append(shelf.get('name'))
 
-                # add tags to the document
                 new_doc = add_tags_to_doc(tags, new_doc)
 
+            # add authors to the document
             if doc.find('book/authors/author/name') is not None:
                 #create list of dict of authors
                 authors = []
@@ -148,12 +149,9 @@ def store_goodreads():
                     new_name = name.text.rsplit(' ', 1)
                     authors.append({'first_name':new_name[0], 'last_name':new_name[1]})
 
-                # add authors to doc
                 new_doc = add_authors_to_doc(authors, new_doc)
 
-        db.session.commit()
-
-        i += 1
+            db.session.commit()
 
     current_user.goodreads_update = datetime.now()
     db.session.commit()
