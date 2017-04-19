@@ -1,7 +1,7 @@
 from flask import Blueprint, request, redirect, url_for, flash, session
 from flask.ext.login import login_required, current_user
 from datetime import datetime
-from db_functions import add_tags_to_doc, add_authors_to_doc
+from db_functions import add_tags_to_doc, add_authors_to_doc, get_user_tag
 from requests_oauthlib import OAuth1Session
 from xml.etree import ElementTree
 from math import ceil
@@ -75,83 +75,99 @@ def store_goodreads():
                 resource_owner_key=tokens.access_token,
                 resource_owner_secret=tokens.access_token_secret)
 
+    # always save books in the 'read' shelf
+    save_bookshelf(goodreads, 'read')
+
+    # possibly save books in the 'to-read' shelf as well
+    if current_user.include_g_unread == 1:
+        save_bookshelf(goodreads, 'to-read')
+
+    return
+
+def save_bookshelf(goodreads, shelf_name):
     #first need to figure out how many pages, b/c limited to 200 items per call
-    payload = {'v':'2', 'key':g['client_id'], 'shelf':'read'}
+    payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf_name}
 
     r = goodreads.get('https://www.goodreads.com/review/list.xml', params=payload)
 
     #if no docs found, return
     if r.status_code != 200:
-        flash("You don't appear to have any read books at Goodreads.")
-        return redirect(url_for('settings'))
-
-    g_docs = ElementTree.fromstring(r.content)
-
-    #figure out how many pages of results
-    total = g_docs[1].get('total')
-    pages = ceil(int(total)/200)
-
-    #go through each page (have to add one since page count doesn't start at 0)
-    for i in range(1, pages+1):
-        payload = {'v':'2', 'key':g['client_id'], 'shelf':'read',
-                   'per_page':'200', 'page':'{}'.format(i)}
-        r = goodreads.get('https://www.goodreads.com/review/list.xml',
-                          params=payload)
-
-        #Goodreads returns xml response
+        flash("You don't appear to have books on your Goodreads {} shelf.".format(shelf_name))
+    else:
         g_docs = ElementTree.fromstring(r.content)
 
-        #keep only those things we want, store in db
-        for doc in g_docs[1]:
-            new_doc = Documents(2, doc.find('book/title').text)
-            current_user.documents.append(new_doc)
-            new_doc.native_doc_id = doc.find('id').text
-            new_doc.read = 1 #only requested books from read shelf
+        #figure out how many pages of results
+        total = g_docs[1].get('total')
+        pages = ceil(int(total)/200)
 
-            #convert string to datetime object, prefer read_at but use date_added if not
-            if doc.find('read_at').text is not None:
-                new_doc.created = datetime.strptime(doc.find('read_at').text, '%a %b %d %H:%M:%S %z %Y')
-            else:
-                new_doc.created = datetime.strptime(doc.find('date_added').text, '%a %b %d %H:%M:%S %z %Y')
+        #go through each page (have to add one since page count doesn't start at 0)
+        for i in range(1, pages+1):
+            payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf_name,
+                    'per_page':'200', 'page':'{}'.format(i)}
+            r = goodreads.get('https://www.goodreads.com/review/list.xml',
+                            params=payload)
 
-            if doc.find('book/published').text is not None:
-                new_doc.year = doc.find('book/published').text
+            #Goodreads returns xml response
+            g_docs = ElementTree.fromstring(r.content)
 
-            new_doc.link = doc.find('book/link').text
+            #keep only those things we want, store in db
+            for doc in g_docs[1]:
+                new_doc = Documents(2, doc.find('book/title').text)
+                current_user.documents.append(new_doc)
+                new_doc.native_doc_id = doc.find('id').text
+                if shelf_name == 'read':
+                    new_doc.read = 1
+                else:
+                    new_doc.read = 0
 
-            if doc.find('date_updated').text is not None:
-                new_doc.last_modified = datetime.strptime(doc.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
+                # add date when created, convert from string to datetime object
+                if doc.find('read_at').text is not None:
+                    new_doc.created = datetime.strptime(doc.find('read_at').text, '%a %b %d %H:%M:%S %z %Y')
+                else:
+                    new_doc.created = datetime.strptime(doc.find('date_added').text, '%a %b %d %H:%M:%S %z %Y')
 
-            if doc.find('body').text is not None:
-                new_doc.note = doc.find('body').text
+                if doc.find('book/published').text is not None:
+                    new_doc.year = doc.find('book/published').text
 
-            db.session.add(new_doc)
-            db.session.commit()
+                new_doc.link = doc.find('book/link').text
 
-            # add shelves as tags to the document
-            if doc.find('shelves/shelf') is not None:
-                #make list of tags out of shelves this book is on
-                tags = []
-                for shelf in doc.findall('shelves/shelf'):
-                    #these are all in 'read' shelf, don't add that as a tag
-                    if shelf.get('name') == 'read':
-                        continue
-                    tags.append(shelf.get('name'))
+                if doc.find('date_updated').text is not None:
+                    new_doc.last_modified = datetime.strptime(doc.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
 
-                new_doc = add_tags_to_doc(tags, new_doc)
+                if doc.find('body').text is not None:
+                    new_doc.note = doc.find('body').text
 
-            # add authors to the document
-            if doc.find('book/authors/author/name') is not None:
-                #create list of dict of authors
-                authors = []
-                for name in doc.findall('book/authors/author/name'):
-                    #split one full name into first and last (jr's don't work right now #to do)
-                    new_name = name.text.rsplit(' ', 1)
-                    authors.append({'first_name':new_name[0], 'last_name':new_name[1]})
+                db.session.add(new_doc)
+                db.session.commit()
 
-                new_doc = add_authors_to_doc(authors, new_doc)
+                # add shelves as tags to the document
+                if doc.find('shelves/shelf') is not None:
+                    #make list of tags out of shelves this book is on
+                    tags = []
+                    for shelf in doc.findall('shelves/shelf'):
+                        # don't add the 'read' shelf (but do add 'to-read')
+                        if shelf.get('name') == 'read':
+                            continue
+                        tags.append(shelf.get('name'))
 
-            db.session.commit()
+                    new_doc = add_tags_to_doc(tags, new_doc)
+
+                # add authors to the document
+                if doc.find('book/authors/author/name') is not None:
+                    #create list of dict of authors
+                    authors = []
+                    for name in doc.findall('book/authors/author/name'):
+                        #split one full name into first and last (jr's don't work right now #to do)
+                        new_name = name.text.rsplit(' ', 1)
+                        try:
+                            authors.append({'first_name':new_name[0], 'last_name':new_name[1]})
+                        except IndexError:
+                            authors.append({'first_name':'', 'last_name':new_name[0]})
+
+                    new_doc = add_authors_to_doc(authors, new_doc)
+
+                db.session.commit()
+        flash("Books on your Goodreads {} shelf have been updated.".format(shelf_name))
 
     current_user.goodreads_update = datetime.now()
     db.session.commit()
@@ -168,5 +184,15 @@ def update_goodreads():
     #store
     store_goodreads()
 
-    flash('Documents from Goodreads have been refreshed.')
+    return
+
+# if user has changed pref from including to excluding to-read shelf, delete books
+def remove_to_read_goodreads():
+    to_read_tag = get_user_tag('to-read')
+
+    if to_read_tag != None:
+        # delete all docs with to-read as tag
+        current_user.documents.filter(Documents.source_id==2, Documents.tags.any(name=to_read_tag.name)).delete(synchronize_session='fetch')
+
+        db.session.commit()
     return
