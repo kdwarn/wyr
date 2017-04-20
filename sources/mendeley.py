@@ -51,6 +51,11 @@ def mendeley_authorize():
 
     return store_mendeley()
 
+
+def refresh_token():
+    pass
+
+
 #gets doc info from mendeley and stores in database (only once, after initial authorization of source)
 def store_mendeley():
     #get tokens from Tokens table
@@ -159,24 +164,41 @@ def store_mendeley():
 
     return redirect(url_for('index'))
 
+
+
 #update doc info from Mendeley
 def update_mendeley():
+    def save_new_access_token(token):
+        tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=1).first()
+        tokens.access_token = token['access_token']
+        tokens.refresh_token = token['refresh_token']
+        tokens.access_token_secret = 'blah'
+        db.session.commit()
+
     # get user's "to-read" Tag object, if any, in order to later tag unread items
     to_read_tag = get_user_tag('to-read')
 
     #get existing tokens from Tokens table
     tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=1).first()
 
-    #0Auth2Session requires that its token parameter is in a dict
+    #put token info into dict
     token = {'access_token':tokens.access_token,
-             'refresh_token':tokens.refresh_token}
+             'refresh_token':tokens.refresh_token,
+             'expires_in': time() - 10}
 
-    token['expires_in'] = time() - 10
+    # token['expires_in'] = time() - 10 #revamp
 
     extra = {'client_id': m['client_id'],
-             'client_secret': m['client_secret'],
-             'refresh_token': tokens.refresh_token}
+             'client_secret': m['client_secret']}
+             # 'refresh_token': tokens.refresh_token} #revamp
 
+    # trying the third, recommended route to get refresh tokens from requests-oauthlib
+
+    mendeley = OAuth2Session(m['client_id'], token=token, auto_refresh_url=m['refresh_url'],
+        auto_refresh_kwargs=extra, token_updater=save_new_access_token)
+
+
+    """ old
     #these next 20 lines or so are not what requests_oauthlib suggested, but they work
 
     #get 0auth object
@@ -193,12 +215,15 @@ def update_mendeley():
         return redirect(url_for('settings'))
 
     #resave
-    tokens.access_token = new_token['access_token']
-    tokens.refresh_token = new_token['refresh_token']
-    db.session.commit()
+    #tokens.access_token = new_token['access_token']
+    #tokens.refresh_token = new_token['refresh_token']
+    #db.session.commit()
+    save_new_access_token(new_token) #revamp - turned this into function
 
     #get new 0auth object with new token
     mendeley = OAuth2Session(m['client_id'], token=new_token)
+    """
+
 
     # covert last time mendeley was updated to iso format (8601)
     modified_since = current_user.mendeley_update.isoformat()
