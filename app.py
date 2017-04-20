@@ -37,8 +37,8 @@ from db_functions import get_user_tags, get_user_authors, str_tags_to_list, \
     remove_to_read
 from models import User, Tokens, Documents, Tags, Bunches
 from sources.native import native_blueprint
-from sources.mendeley import mendeley_blueprint, update_mendeley, remove_to_read_mendeley
-from sources.goodreads import goodreads_blueprint, update_goodreads, remove_to_read_goodreads
+from sources.mendeley import mendeley_blueprint, update_mendeley
+from sources.goodreads import goodreads_blueprint, update_goodreads
 
 #register blueprints
 app.register_blueprint(native_blueprint)
@@ -1150,6 +1150,9 @@ def set_pref():
     # existing Goodreads books tagged as to-read
     if request.form['include_g_unread'] == '0':
         remove_to_read(2)
+
+    # add reverse logic (for Mendeley, not necessary for Goodreads yet)
+
 
     flash("Your preferences have been updated.")
     return redirect(url_for('settings'))
