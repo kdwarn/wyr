@@ -1154,7 +1154,7 @@ def set_pref():
     # if user is change pref to include to-read items in Mendeley, set var
     # do a full update (not limit to recent items)
     if current_user.include_m_unread == 1 and request.form['old_include_m_unread'] == '0':
-        update_mendeley('full_update')
+        update_mendeley('unread_update')
 
     # will also need to do this for Goodreads once I create update functionality
 

@@ -103,7 +103,7 @@ def refresh_token():
 def get_docs(auth_object, type=''):
 
     # set parameters
-    if type == 'initial' or type == 'full_update':
+    if type == 'initial' or type == 'unread_update':
         payload = {'limit':'500', 'order':'desc', 'sort':'created', 'view':'all'}
 
     if type == 'normal_update':
@@ -332,26 +332,43 @@ def update_mendeley(update_type='normal_update'):
         else:
             flash("{} items had been deleted in Mendeley and were removed.".format(len(delete_docs)))
 
-    docs = get_docs(mendeley, update_type) #will be 'normal_update' or 'full_update'
-    # full_update comes from settings() - when user switch unread pref
+    docs = get_docs(mendeley, update_type) #will be 'normal_update' or 'unread_update'
+    # unread_update comes from settings() - when user switch unread pref
+
+    # set a count var to let user know how many items updated if "unread_update"
+    if update_type == 'unread_update':
+        count = 0
 
     if docs:
         # go through each doc, and see if we need to insert or update it
         for doc in docs:
 
-            #skip items not read if user doesn't want them
+            #skip unread items if user doesn't want them
             if current_user.include_m_unread == 0 and doc['read'] == 0:
                 continue
+
+            #skip read items if this is an "unread_update"
+            if update_type == 'unread_update' and doc['read'] == 1:
+                continue
+            if update_type == 'unread_update' and doc['read'] == 0:
+                count += 1
+
 
             #see if the doc is already in the db
             check_doc = Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).first()
 
             save_doc(doc, mendeley, check_doc)
 
-        if len(docs) == 1:
-            flash("1 item updated from Mendeley.")
+        if update_type == 'unread_update':
+            if count > 1:
+                flash("{} unread items from Mendeley added.".format(count))
+            else:
+                flash("1 unread item from Mendeley added.")
         else:
-            flash("{} items updated from Mendeley.".format(len(docs)))
+            if len(docs) == 1:
+                flash("1 item updated from Mendeley.")
+            else:
+                flash("{} items updated from Mendeley.".format(len(docs)))
     else:
         flash("No updated items were found in Mendeley.")
 

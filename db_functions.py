@@ -1,3 +1,4 @@
+from flask import flash
 from app import db
 from sqlalchemy import text
 from flask.ext.login import current_user
@@ -305,6 +306,11 @@ def remove_to_read(source):
     if to_read_tag != None:
         # delete all docs with to-read as tag
         current_user.documents.filter(Documents.source_id==source, Documents.tags.any(name=to_read_tag.name)).delete(synchronize_session='fetch')
-
         db.session.commit()
+
+        if source == 1:
+            flash("Any unread items from Mendeley have been removed.")
+        if source == 2:
+            flash("Any unread books from Goodreads have been removed.")
+
     return
