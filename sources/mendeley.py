@@ -100,34 +100,35 @@ def refresh_token():
 
     return auth_object
 
-def get_docs(auth_object, type):
+def get_docs(auth_object, type=''):
 
     # set parameters
-    if type == 'update':
+    if type == 'initial' or type == 'full_update':
+        payload = {'limit':'500', 'order':'desc', 'sort':'created', 'view':'all'}
+
+    if type == 'normal_update':
         # if this is an update, only get docs modified since last update
         # covert last time mendeley was updated to iso format (8601)
         modified_since = current_user.mendeley_update.isoformat()
         payload = {'limit':'500', 'view':'all', 'modified_since':modified_since}
 
-    elif type == 'delete':
+    if type == 'delete':
+        # get docs to delete
         modified_since = current_user.mendeley_update.isoformat()
         payload = {'limit':'500', 'deleted_since':modified_since, 'include_trashed':'true'}
-
-    else:
-        payload = {'limit':'500', 'order':'desc', 'sort':'created', 'view':'all'}
 
     r = auth_object.get('https://api.mendeley.com/documents', params=payload)
 
     docs = r.json()
 
-    #if no docs found, return empty m_docs object to then determine what to do
+    #if no docs found, return empty docs variable
     if r.status_code != 200:
         docs = ''
 
     # get the docs
     else:
         #If multiple pages of docs, Mendeley provides a "next" link - this code
-        #pulls that out of the .headers['link'], strips out non-link characters,
+        #pulls that out of .headers['link'], strips out non-link characters,
         #and calls it
         if 'link' in r.headers:
             while 'rel="next"' in r.headers['link']:
@@ -140,184 +141,156 @@ def get_docs(auth_object, type):
 
     return docs
 
-def insert_doc(doc, auth_object):
-    new_doc = Documents(1, doc['title'])
-    current_user.documents.append(new_doc)
-    new_doc.created=doc['created']
-    new_doc.read=doc['read']
-    new_doc.starred=doc['starred']
-    new_doc.native_doc_id=doc['id']
+def save_doc(m_doc, auth_object, existing_doc=""):
+    '''
+    *m_doc* is the doc object from mendeley
+    *existing_doc* is doc object from WYR Document object
+    *auth_object* is auth object from Mendeley
+    '''
 
-    if 'year' in doc:
-        new_doc.year = doc['year']
-    if 'last_modified' in doc:
-        new_doc.last_modified=doc['last_modified']
+    #if not an update (existing_doc not passed), need to create Document object
+    if not existing_doc:
+        doc = Documents(1, m_doc['title'])
+        current_user.documents.append(doc)
+    else:
+        doc = existing_doc
+
+    doc.created=m_doc['created']
+    doc.read=m_doc['read']
+    doc.starred=m_doc['starred']
+    doc.native_doc_id=m_doc['id']
+
+    if 'year' in m_doc:
+        doc.year = m_doc['year']
+    if 'last_modified' in m_doc:
+        doc.last_modified=m_doc['last_modified']
 
     #Mendeley allows multiple links, but only include first one
-    if 'websites' in doc:
-        new_doc.link = doc['websites'][0]
+    if 'websites' in m_doc:
+        doc.link = m_doc['websites'][0]
 
     #get notes
-    an_params = {'document_id':doc['id'], 'type':'note'}
+    an_params = {'document_id':m_doc['id'], 'type':'note'}
     annotations = auth_object.get('https://api.mendeley.com/annotations', params=an_params).json()
     if annotations:
-        new_doc.note = annotations[0]['text']
+        doc.note = annotations[0]['text']
 
-
-    # do I need to do this? why not just at end?
-    db.session.add(new_doc)
+    db.session.add(doc)
     db.session.commit()
 
     # if unread, tag as "to-read" - and we might have to create this tag
-    if doc['read'] == 0:
+    if m_doc['read'] == 0:
         to_read_tag = get_user_tag('to-read')
         if to_read_tag != None:
-            new_doc.tags.append(to_read_tag)
+            doc.tags.append(to_read_tag)
         else:
             new_tag = Tags('to-read')
-            new_doc.tags.append(new_tag)
-        # add normal tags to the document
-    if 'tags' in doc:
-        new_doc = add_tags_to_doc(doc['tags'], new_doc)
-        # add authors to the document
-    if 'authors' in doc:
-        new_doc = add_authors_to_doc(doc['authors'], new_doc)
-        """
-    #skip editors for now
-    if 'editors' in doc:
-        for editor in doc['editors']:
+            doc.tags.append(new_tag)
+
+    # add/update tags
+    # add
+    if not existing_doc:
+        if 'tags' in m_doc:
+            doc = add_tags_to_doc(m_doc['tags'], doc)
+
+    # update
+    else:
+        #set tags variable so it can be used below, even if empty
+        try:
+            tags = m_doc['tags']
+        except KeyError:
+            tags = ''
+
+        # remove_old_tags takes list of names, not tag objects, so:
+        old_tags = [tag.name for tag in doc.tags]
+
+        if old_tags:
+            doc, tags = remove_old_tags(old_tags, tags, doc)
+
+        # add any new tags to doc
+        if tags:
+            doc = add_tags_to_doc(tags, doc)
+
+    # add/update authors
+    # add
+    if not existing_doc:
+        if 'authors' in m_doc:
+            doc = add_authors_to_doc(m_doc['authors'], doc)
+
+    # update
+    else:
+        try:
+            authors = m_doc['authors']
+        except KeyError:
+            authors = ''
+
+        old_authors = [{'first_name':author.first_name,
+                        'last_name':author.last_name}
+                        for author in doc.authors]
+
+        if old_authors:
+            doc, authors = remove_old_authors(old_authors, authors, doc)
+
+        if authors:
+            doc = add_authors_to_doc(authors, doc)
+
+    """
+    # skip editors for now
+    if 'editors' in m_doc:
+        for editor in m_doc['editors']:
             try:
-                new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], editor['last_name'], 1)
+                new_editor = Authors(current_user.id, doc.id, editor['first_name'], editor['last_name'], 1)
             except KeyError:
                 try:
-                    new_editor = Authors(current_user.id, new_doc.id, '', editor['last_name'], 1)
+                    new_editor = Authors(current_user.id, doc.id, '', editor['last_name'], 1)
                 except KeyError:
-                    new_editor = Authors(current_user.id, new_doc.id, editor['first_name'], '', 1)
+                    new_editor = Authors(current_user.id, doc.id, editor['first_name'], '', 1)
             db.session.add(new_editor)
     """
 
-    #get file id to link to
-    file_params = {'document_id':doc['id']}
-    files = auth_object.get('https://api.mendeley.com/files', params=file_params).json()
-    if files:
-        for file in files:
-            new_filelink = FileLinks(new_doc.id, file['id'])
-            new_filelink.mime_type = file['mime_type']
-            db.session.add(new_filelink)
-
-    db.session.commit()
-
-def update_doc(doc, check_doc, auth_object):
-    check_doc.title = doc['title']
-    check_doc.created=doc['created']
-    check_doc.read=doc['read']
-    check_doc.starred=doc['starred']
-    check_doc.last_modified=doc['last_modified']
-
-    if 'year' in doc:
-        check_doc.year = doc['year']
-
-    #Mendeley allows multiple links, but only include first one
-    if 'websites' in doc:
-        check_doc.link = doc['websites'][0]
-
-    #get notes
-    an_params = {'document_id':doc['id'], 'type':'note'}
-    annotations = auth_object.get('https://api.mendeley.com/annotations', params=an_params).json()
-    if annotations:
-        check_doc.note = annotations[0]['text']
-
-    db.session.commit()
-
-    # if unread, tag as "to-read"
-    if doc['read'] == 0:
-        to_read_tag = get_user_tag('to-read')
-        if to_read_tag != None:
-            check_doc.tags.append(to_read_tag)
-        else:
-            new_tag = Tags('to-read')
-            check_doc.tags.append(new_tag)
-
-    # update tags
-
-    #set tags variable so it can be used below, even if empty
-    try:
-        tags = doc['tags']
-    except KeyError:
-        tags = ''
-
-    # remove_old_tags takes list of names, not tag objects, so:
-    old_tags = [tag.name for tag in check_doc.tags]
-
-    if old_tags:
-        check_doc, tags = remove_old_tags(old_tags, tags, check_doc)
-
-    # add any new tags to doc
-    if tags:
-        check_doc = add_tags_to_doc(tags, check_doc)
-
-    # update authors, same pattern as for tags
-    try:
-        authors = doc['authors']
-    except KeyError:
-        authors = ''
-
-    old_authors = [{'first_name':author.first_name,
-                    'last_name':author.last_name}
-                    for author in check_doc.authors]
-
-    if old_authors:
-        check_doc, authors = remove_old_authors(old_authors, authors, check_doc)
-
-    if authors:
-        check_doc = add_authors_to_doc(authors, check_doc)
-
-    """do editors later - need to restructure database
-    if 'editors' in doc:
-        for editor in doc['editors']:
-            try:
-                new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], editor['last_name'], 1)
-            except KeyError:
-                try:
-                    new_editor = Authors(current_user.id, check_doc.id, '', editor['last_name'], 1)
-                except KeyError:
-                    new_editor = Authors(current_user.id, check_doc.id, editor['first_name'], '', 1)
-            db.session.add(new_editor)
-            db.session.commit()
-    """
-
-    # update file_links
-    old_file_links = check_doc.file_links
+    # add/update files
     # get file id to link to
-    file_params = {'document_id':doc['id']}
+    file_params = {'document_id':m_doc['id']}
     files = auth_object.get('https://api.mendeley.com/files', params=file_params).json()
 
-    # one scenario not caught by "if files:" below: there were old files, but no
-    # new files (user deleted one/all). Have to treat this separately.
-    if old_file_links and not files:
-        for old_file_link in old_file_links:
-            check_doc.file_links.remove(old_file_link)
+    # add
+    if not existing_doc:
+        if files:
+            for file in files:
+                new_filelink = FileLinks(doc.id, file['id'])
+                new_filelink.mime_type = file['mime_type']
+                db.session.add(new_filelink)
 
-    if files:
-        #create list of file_ids to check against
-        file_ids = [file['id'] for file in files]
+    # update
+    else:
+        old_file_links = doc.file_links
 
-        # check old file list against files submitted after edit, remove any no longer there
-        if old_file_links:
+        # one scenario not caught by "if files:" below: there were old files, but no
+        # new files (user deleted one/all). Have to treat this separately.
+        if old_file_links and not files:
             for old_file_link in old_file_links:
-                if old_file_link.file_link not in file_ids:
-                    check_doc.file_links.remove(old_file_link)
+                doc.file_links.remove(old_file_link)
 
-            #don't add files if they were already in old_files - would be a duplicate
-            for file in files[:]:
-                if file['id'] in file_ids:
-                    files.remove(file)
+        if files:
+            #create list of file_ids to check against
+            file_ids = [file['id'] for file in files]
 
-        #add new files
-        for file in files:
-            new_filelink = FileLinks(check_doc.id, file['id'])
-            new_filelink.mime_type = file['mime_type']
-            db.session.add(new_filelink)
+            # check old file list against files submitted after edit, remove any no longer there
+            if old_file_links:
+                for old_file_link in old_file_links:
+                    if old_file_link.file_link not in file_ids:
+                        doc.file_links.remove(old_file_link)
+
+                #don't add files if they were already in old_files - would be a duplicate
+                for file in files[:]:
+                    if file['id'] in file_ids:
+                        files.remove(file)
+
+            #add new files
+            for file in files:
+                new_filelink = FileLinks(doc.id, file['id'])
+                new_filelink.mime_type = file['mime_type']
+                db.session.add(new_filelink)
 
     db.session.commit()
 
@@ -326,23 +299,24 @@ def store_mendeley(auth_object):
 
     docs = get_docs(auth_object, 'initial')
 
-    # if m_docs isn't empty, go through and add each doc to db
+    # if docs isn't empty, go through and add each doc to db
     if docs:
         for doc in docs:
             # skip items not read
             if current_user.include_m_unread == 0:
                 if doc['read'] == 0:
                     continue
-            insert_doc(doc)
+            save_doc(doc, auth_object)
         current_user.mendeley_update = datetime.now()
         db.session.commit()
+        flash("Documents from Mendeley have been added.")
     else:
         flash("You don't appear to have any read items at Mendeley.")
 
     return redirect(url_for('index'))
 
 #update doc info from Mendeley
-def update_mendeley():
+def update_mendeley(update_type='normal_update'):
     # refresh token and get 0auth object
     mendeley = refresh_token()
 
@@ -353,10 +327,13 @@ def update_mendeley():
         for doc in delete_docs:
             Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).delete()
         db.session.commit()
-        flash("{} items had been deleted in Mendeley and were removed.".format(len(delete_docs)))
+        if len(delete_docs) == 1:
+            flash("1 item had been deleted in Mendeley and was removed.")
+        else:
+            flash("{} items had been deleted in Mendeley and were removed.".format(len(delete_docs)))
 
-    # now update others
-    docs = get_docs(mendeley, 'update')
+    docs = get_docs(mendeley, update_type) #will be 'normal_update' or 'full_update'
+    # full_update comes from settings() - when user switch unread pref
 
     if docs:
         # go through each doc, and see if we need to insert or update it
@@ -369,19 +346,12 @@ def update_mendeley():
             #see if the doc is already in the db
             check_doc = Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).first()
 
-            #if not in db, insert it
-            if not check_doc:
-                insert_doc(doc)
+            save_doc(doc, mendeley, check_doc)
 
-            #else, update it
-            else:
-                # convert last_modified to datetime object and check if newer
-                # than one in db (no need to update if not)
-                check_date = datetime.strptime(doc['last_modified'], "%Y-%m-%dT%H:%M:%S.%fZ")
-                if check_date > check_doc.last_modified:
-                    update_doc(doc, check_doc, mendeley)
-
-        flash("{} items updated from Mendeley.".format(len(docs)))
+        if len(docs) == 1:
+            flash("1 item updated from Mendeley.")
+        else:
+            flash("{} items updated from Mendeley.".format(len(docs)))
     else:
         flash("No updated items were found in Mendeley.")
 

@@ -1143,16 +1143,20 @@ def set_pref():
 
     # if user is changing pref to exclude to-read items in Mendely, delete any
     # existing Mendeley docs tagged as to-read
-    if request.form['include_m_unread'] == '0':
+    if current_user.include_m_unread == 0 and request.form['old_include_m_unread'] == '1':
         remove_to_read(1)
 
     # if user is changing pref to exclude to-read items in Goodreads, delete any
     # existing Goodreads books tagged as to-read
-    if request.form['include_g_unread'] == '0':
+    if current_user.include_g_unread == 0 and request.form['old_include_g_unread'] == '1':
         remove_to_read(2)
 
-    # add reverse logic (for Mendeley, not necessary for Goodreads yet)
+    # if user is change pref to include to-read items in Mendeley, set var
+    # do a full update (not limit to recent items)
+    if current_user.include_m_unread == 1 and request.form['old_include_m_unread'] == '0':
+        update_mendeley('full_update')
 
+    # will also need to do this for Goodreads once I create update functionality
 
     flash("Your preferences have been updated.")
     return redirect(url_for('settings'))

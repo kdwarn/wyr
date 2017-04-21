@@ -38,9 +38,11 @@
                 {% if current_user.include_m_unread == 1 %}
                     <input type="radio" name="include_m_unread" id="include_m_unread" value="1" CHECKED>Yes
                     <input type="radio" name="include_m_unread" id="include_m_unread" value="0">No
+                    <input type="hidden" name="old_include_m_unread" value="1">
                 {% else %}
                     <input type="radio" name="include_m_unread" id="include_m_unread" value="1">Yes
                     <input type="radio" name="include_m_unread" id="include_m_unread" value="0" CHECKED>No
+                    <input type="hidden" name="old_include_m_unread" value="0">
                 {% endif %}
             {% endif %}
             {% if current_user.goodreads == 1 %}
@@ -49,9 +51,11 @@
                 {% if current_user.include_g_unread == 1 %}
                     <input type="radio" name="include_g_unread" id="include_m_unread" value="1" CHECKED>Yes
                     <input type="radio" name="include_g_unread" id="include_m_unread" value="0">No
+                    <input type="hidden" name="old_include_g_unread" value="1">
                 {% else %}
                     <input type="radio" name="include_g_unread" id="include_m_unread" value="1">Yes
                     <input type="radio" name="include_g_unread" id="include_m_unread" value="0" CHECKED>No
+                    <input type="hidden" name="old_include_g_unread" value="0">
                 {% endif %}
             {% endif %}
             <br><br>
