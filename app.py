@@ -33,8 +33,7 @@ db = SQLAlchemy(app)
 md.init_app(app)
 
 # import things that depend upon db
-from db_functions import get_user_tags, get_user_authors, str_tags_to_list, \
-    remove_to_read
+from db_functions import get_user_tags, get_user_authors, remove_to_read
 from models import User, Tokens, Documents, Tags, Bunches
 from sources.native import native_blueprint
 from sources.mendeley import mendeley_blueprint, update_mendeley
@@ -45,6 +44,8 @@ app.register_blueprint(native_blueprint)
 app.register_blueprint(mendeley_blueprint)
 app.register_blueprint(goodreads_blueprint)
 
+
+USE_SESSION_FOR_NEXT = True
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -151,13 +152,9 @@ def get_stripe_info():
 @app.route('/testing')
 def testing():
 
-    # can i try to remove old tags if no new tags?
-    old_tags = 'this, that, the other'
-    tags = ''
-
-    tags = str_tags_to_list(tags)
-
-    print(tags)
+    for rule in app.url_map.iter_rules():
+        if rule == '/settings':
+            print(rule.endpoint)
     return 'check log'
 
 
@@ -570,10 +567,16 @@ def login():
     ''' Let users log in. '''
     if request.method == 'GET':
         return render_template('index.html', next=request.args.get('next'))
-    elif request.method == 'POST':
+    else:
         username = request.form['wyr_username']
         password = request.form['wyr_password']
         remember = request.form.getlist('remember')
+
+        # get/set value of 'next' if it exists, in order to redirect user back
+        # to a page dec'd @login_required they may have tried to log in from
+        next = 'index'
+        if 'next' in session:
+            next = session['next']
 
         #first see if username exists
         if User.query.filter_by(username=username).count() == 1:
@@ -589,19 +592,13 @@ def login():
 
                 flash('Welcome back, {}.'.format(username))
 
-                try:
-                    next = request.form['next']
-                    return redirect(next)
-                except:
-                    return redirect(url_for('index'))
             else:
                 flash('Sorry, the password is incorrect.')
-                return redirect(url_for('index'))
+
         else:
             flash('Username does not exist.')
-            return redirect(url_for('index'))
-    else:
-        return abort(405)
+
+        return redirect(url_for(next))
 
 @app.route('/logout')
 def logout():
