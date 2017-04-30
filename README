@@ -1,10 +1,7 @@
 README
 
-What You've Read, v0.15.
+[What You've Read](http://www.whatyouveread.com), v0.15.
 
-See http://www.whatyouveread.com
+See [Milestones](https://github.com/kdwarn/wyr/milestones?with_issues=no) for
+development plans.
 
-Future Plans:
- * More complex tag bunches (mixture of AND and OR)
- * Incorporate other sources in addition to Mendeley and Goodreads
- * Share all or part of collections publicly

@@ -5,8 +5,10 @@
 <div id="main">
     <div class="center">
         <h2>Contact</h2>
-        <p class="left">I welcome any comments or questions. Please let me know if you have any problems or
-        if you have suggestions for improvement!</p>
+        <p class="left">I welcome any comments or questions. If you have any
+        problems or want to suggest improvements, you can do so via the form below
+        or <a href="https://github.com/kdwarn/wyr/issues">open an issue on
+        Github</a>.</p>
         <form name="contact" action="{{ url_for('contact') }}" method="post">
             <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
             {% if not current_user.is_authenticated %}
