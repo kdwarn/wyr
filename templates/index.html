@@ -31,10 +31,6 @@
         <input class="login_form" type="password" size="20" id="wyr_password" name="wyr_password" placeholder="Password"/><br>
         <input class="login_form" type="checkbox" name="remember" id="remember" value="1">
         <label class="login_form small" for="remember">Stay logged in</label><br>
-
-        {% if next %}
-            <input type="hidden" name="next" value="{{ next }}">
-        {% endif %}
         <button type="submit">Login</button><br>
         <p class="small"><a href="{{ url_for('forgot_password')}}">Forget your password?</a></p>
         </form>
