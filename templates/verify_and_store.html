@@ -1,0 +1,32 @@
+{% extends 'header.html' %}
+{% block title %} - Authorization Successful {% endblock %}
+{% block content %}
+<div id="main">
+    <div class="block-center">
+        <h2>Authorization Successful</h2>
+        <p class="center">You may now import your items from {{source}}.</p>
+
+
+        <form name="verify_authorization" action="{{ url_for('verify_authorization', source=source) }}" method="post">
+            <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"/>
+            <label for="include_m_unread">Would you like to include unread items? (If so, they
+            will be tagged "to-read".) You can change this setting later.</label><br><br>
+
+            {% if source == 'Mendeley': %}
+                <input type="radio" name="include_m_unread" id="include_m_unread" value="1">Yes
+                <input type="radio" name="include_m_unread" id="include_m_unread" value="0" CHECKED>No
+            {% endif %}
+            {% if source == 'Goodreads': %}
+                <input type="radio" name="include_g_unread" id="include_g_unread" value="1">Yes
+                <input type="radio" name="include_g_unread" id="include_g_unread" value="0" CHECKED>No
+            {% endif %}
+            <br><br>
+            <button type="submit" name="submit" value="Submit">Import</button>
+        </form>
+
+        <p class="info left">Note: The first import may take some time. For
+        instance, it takes about 2 minutes to collect ~500 documents from
+        Mendeley. However, after the initial import, updates will be quick.</p>
+    </div>
+</div>
+{% endblock %}
