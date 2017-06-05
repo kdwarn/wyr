@@ -36,8 +36,9 @@ md.init_app(app)
 from db_functions import get_user_tags, get_user_authors, remove_to_read
 from models import User, Tokens, Documents, Tags, Bunches
 from sources.native import native_blueprint
-from sources.mendeley import mendeley_blueprint, update_mendeley
-from sources.goodreads import goodreads_blueprint, update_goodreads
+from sources.mendeley import mendeley_blueprint, import_mendeley
+from sources.goodreads import goodreads_blueprint, store_goodreads, \
+    update_goodreads
 
 #register blueprints
 app.register_blueprint(native_blueprint)
@@ -148,14 +149,30 @@ def get_stripe_info():
 ### ROUTES ###
 ##############
 
+'''
+from flask import Response
+from time import sleep
+
+def test_function():
+    sleep(10)
+    return 'hi'
+
+from flask import stream_with_context
+
+@app.route('/stream')
+def streamed_response():
+    def generate():
+        yield 'Hello '
+        sleep(5)
+        yield '!'
+    return Response(stream_with_context(generate()))
+
 # testing
 @app.route('/testing')
 def testing():
 
-    for rule in app.url_map.iter_rules():
-        if rule == '/settings':
-            print(rule.endpoint)
-    return 'check log'
+    return render_template('testing.html', test_function=test_function)
+'''
 
 
 ###########################
@@ -172,13 +189,20 @@ def index():
     '''
 
     if current_user.is_authenticated:
-        #set session variable in order to return user to proper page after editing or deleting native doc
+        # set var for returning to proper page after edit or delete native doc
         session['return_to'] = url_for('index')
 
-        # fetch and display read items from various sources
+        # create datetime object for one week ago to see if we need to update
         then = datetime.now() - timedelta(days=7)
-        if current_user.mendeley == 1 and current_user.mendeley_update < then:
-            update_mendeley()
+
+        # it's possible the user didn't immediately import source items after
+        # authorizing, check for that
+        if current_user.mendeley == 1 and not current_user.mendeley_update:
+            import_mendeley('initial')
+        elif current_user.mendeley == 1 and current_user.mendeley_update < then:
+            import_mendeley('normal')
+        else:
+            pass
         """ disabling for now
         if current_user.goodreads == 1 and current_user.goodreads_update < then:
             update_goodreads()
@@ -187,7 +211,7 @@ def index():
         docs = current_user.documents.order_by(desc(Documents.created))
 
         if not docs:
-            flash("""You don't appear to have any read documents yet. See below
+            flash("""You don't appear to have any documents yet. See below
             to authorize sources or import bookmarks. You can also add items
             individually.""")
             return redirect(url_for('settings'))
@@ -208,7 +232,7 @@ def tags():
 def docs_by_tag(tag):
     ''' Return all user's documents tagged <tag>. '''
 
-    #set session variable in order to return user to proper page after editing or deleting native doc
+    # set var for returning to proper page after edit or delete native doc
     session['return_to'] = url_for('docs_by_tag', tag=tag)
 
     #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
@@ -216,13 +240,12 @@ def docs_by_tag(tag):
 
     return render_template('read.html', docs=docs, tagpage=tag) #tagpage is used for header
 
-
 @app.route('/bunch/<name>')
 @login_required
 def bunch(name):
     ''' Display docs from saved bunch '''
 
-    #set session variable in order to return user to proper page after editing or deleting native doc
+    # set var for returning to proper page after edit or delete native doc
     session['return_to'] = url_for('bunch', name=name)
 
     #get the name, tags, and selector for this bunch
@@ -425,8 +448,10 @@ def authors():
 def docs_by_author(first_name, last_name):
     ''' Return all documents by particular author. '''
 
-    #set session variable in order to return user to proper page after editing or deleting native doc
-    session['return_to'] = url_for('docs_by_author', first_name=first_name, last_name=last_name)
+    # set var for returning to proper page after edit or delete native doc
+    session['return_to'] = url_for('docs_by_author',
+                                   first_name=first_name,
+                                   last_name=last_name)
 
     #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
     docs = current_user.documents.filter(Documents.authors.any(first_name=first_name)).\
@@ -440,7 +465,7 @@ def docs_by_author(first_name, last_name):
 def docs_by_author_last(last_name):
     ''' Same as above, but in the special case where there is only a last name (institional name) '''
 
-    #set session variable in order to return user to proper page after editing or deleting native doc
+    # set var for returning to proper page after edit or delete native doc
     session['return_to'] = url_for('docs_by_author_last', last_name=last_name)
 
     #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
@@ -607,12 +632,40 @@ def logout():
     flash('You\'ve been logged out.')
     return redirect(url_for('index'))
 
-@app.route('/settings')
+@app.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
     ''' Settings page. '''
-    tags = get_user_tags()
-    return render_template('settings.html', tags=tags)
+    if request.method == 'GET':
+        return render_template('settings.html')
+    elif request.method == 'POST':
+        current_user.auto_close = request.form['auto_close']
+        current_user.markdown = request.form['markdown']
+        current_user.include_m_unread = request.form['include_m_unread']
+        current_user.include_g_unread = request.form['include_g_unread']
+        db.session.commit()
+
+        # if user is changing pref to exclude to-read items in Mendely, delete any
+        # existing Mendeley docs tagged as to-read
+        if current_user.include_m_unread == 0 and request.form['old_include_m_unread'] == '1':
+            remove_to_read(1)
+
+        # if user is changing pref to exclude to-read items in Goodreads, delete any
+        # existing Goodreads books tagged as to-read
+        if current_user.include_g_unread == 0 and request.form['old_include_g_unread'] == '1':
+            remove_to_read(2)
+
+        # if user is change pref to include to-read items in Mendeley, set var
+        # do a full update (not limit to recent items)
+        if current_user.include_m_unread == 1 and request.form['old_include_m_unread'] == '0':
+            import_mendeley('unread_update')
+
+        # will also need to do this for Goodreads once I create update functionality
+
+        flash("Your preferences have been updated.")
+        return redirect(url_for('settings'))
+    else:
+        return redirect(url_for('index'))
 
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
@@ -936,56 +989,6 @@ def contact():
 
     return redirect(url_for('index'))
 
-@app.route('/deauthorize', methods=['GET', 'POST'])
-@login_required
-def deauthorize():
-    ''' Deauthorize a source and remove all docs from user's WYR account. '''
-    if request.method == 'GET':
-        return render_template('deauthorize.html', name=request.args.get('name'))
-    elif request.method == 'POST':
-        #what are they trying to deauthorize?
-        source = request.form['name']
-        confirm = request.form['deauthorize']
-        if confirm == 'Yes':
-            if source == 'Mendeley':
-                #delete documents
-                Documents.query.filter_by(user_id=current_user.id, source_id=1).delete()
-                #delete tokens
-                Tokens.query.filter_by(user_id=current_user.id, source_id=1).delete()
-                #unset my flags for this
-                current_user.mendeley = 0
-                current_user.mendeley_update = 'NULL'
-            if source == 'Goodreads':
-                #delete documents
-                Documents.query.filter_by(user_id=current_user.id, source_id=2).delete()
-                #delete tokens
-                Tokens.query.filter_by(user_id=current_user.id, source_id=2).delete()
-                #unset my flags for this
-                current_user.goodreads = 0
-                current_user.goodreads_update = 'NULL'
-            message = '{} has been deauthorized.'.format(source)
-            db.session.commit()
-        else:
-            message = 'Deauthorization cancelled.'
-
-        flash(message)
-        return redirect(url_for('settings'))
-    else:
-        return redirect(url_for('index'))
-
-@app.route('/refresh')
-@login_required
-def refresh():
-    ''' Manually refresh docs from a source. '''
-    if request.args.get('name') == 'Mendeley':
-        if current_user.mendeley == 1:
-            update_mendeley()
-            return render_template('settings.html')
-    if request.args.get('name') == 'Goodreads':
-        if current_user.goodreads == 1:
-            update_goodreads()
-            return render_template('settings.html')
-
 @app.route('/delete_account', methods=['GET', 'POST'])
 @login_required
 def delete_account():
@@ -1128,42 +1131,89 @@ def paypal():
 #    flash("Sorry, that page wasn't found.")
 #    return redirect(url_for('index'))
 
-#set various preferences
-@app.route('/set_pref', methods=['POST'])
+############################
+### COMMON SOURCE ROUTES ###
+############################
+
+# verification from authorizing a source, storing of initial data
+@app.route('/authorized/<source>', methods=['GET', 'POST'])
 @login_required
-def set_pref():
-    current_user.auto_close = request.form['auto_close']
-    current_user.markdown = request.form['markdown']
-    current_user.include_m_unread = request.form['include_m_unread']
-    current_user.include_g_unread = request.form['include_g_unread']
-    db.session.commit()
+def verify_authorization(source):
+    if request.method == 'GET':
+        return render_template('verify_and_store.html', source=source)
+    elif request.method == 'POST':
+        if source == 'Mendeley':
+            current_user.include_m_unread = request.form['include_m_unread']
+            db.session.commit()
+            import_mendeley('initial')
 
-    # if user is changing pref to exclude to-read items in Mendely, delete any
-    # existing Mendeley docs tagged as to-read
-    if current_user.include_m_unread == 0 and request.form['old_include_m_unread'] == '1':
-        remove_to_read(1)
+        if source == 'Goodreads':
+            current_user.include_g_unread = request.form['include_g_unread']
+            db.session.commit()
+            store_goodreads()
 
-    # if user is changing pref to exclude to-read items in Goodreads, delete any
-    # existing Goodreads books tagged as to-read
-    if current_user.include_g_unread == 0 and request.form['old_include_g_unread'] == '1':
-        remove_to_read(2)
+        return redirect(url_for('index'))
 
-    # if user is change pref to include to-read items in Mendeley, set var
-    # do a full update (not limit to recent items)
-    if current_user.include_m_unread == 1 and request.form['old_include_m_unread'] == '0':
-        update_mendeley('unread_update')
+    else:
+        return redirect(url_for('index'))
 
-    # will also need to do this for Goodreads once I create update functionality
+@app.route('/deauthorize', methods=['GET', 'POST'])
+@login_required
+def deauthorize():
+    ''' Deauthorize a source and remove all docs from user's WYR account. '''
+    if request.method == 'GET':
+        return render_template('deauthorize.html', name=request.args.get('name'))
+    elif request.method == 'POST':
+        #what are they trying to deauthorize?
+        source = request.form['name']
+        confirm = request.form['deauthorize']
+        if confirm == 'Yes':
+            if source == 'Mendeley':
+                #delete documents
+                Documents.query.filter_by(user_id=current_user.id, source_id=1).delete()
+                #delete tokens
+                Tokens.query.filter_by(user_id=current_user.id, source_id=1).delete()
+                #unset flags
+                current_user.mendeley = 0
+                current_user.mendeley_update = ''
+                current_user.include_m_unread = 0
+            if source == 'Goodreads':
+                #delete documents
+                Documents.query.filter_by(user_id=current_user.id, source_id=2).delete()
+                #delete tokens
+                Tokens.query.filter_by(user_id=current_user.id, source_id=2).delete()
+                #unset my flags for this
+                current_user.goodreads = 0
+                current_user.goodreads_update = 'NULL'
+                current_user.include_g_unread = 0
 
-    flash("Your preferences have been updated.")
-    return redirect(url_for('settings'))
+            message = '{} has been deauthorized.'.format(source)
+            db.session.commit()
+        else:
+            message = 'Deauthorization cancelled.'
 
+        flash(message)
+        return redirect(url_for('settings'))
+    else:
+        return redirect(url_for('index'))
 
-
-
-
-
-
-
+@app.route('/refresh')
+@login_required
+def refresh():
+    ''' Manually refresh docs from a source.
+        A user could skip doing the import of items immediately after
+        authorizing by going to home page, so there's a check in for that.
+    '''
+    if request.args.get('name') == 'Mendeley':
+        if current_user.mendeley == 1:
+            if current_user.mendeley_update:
+                import_mendeley('normal')
+            else:
+                import_mendeley('initial')
+            return render_template('settings.html')
+    if request.args.get('name') == 'Goodreads':
+        if current_user.goodreads == 1:
+            update_goodreads()
+            return render_template('settings.html')
 
 

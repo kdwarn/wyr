@@ -12,7 +12,7 @@
     <br>
     <div class="box">
         <h2>Preferences</h2>
-        <form method="POST" name="edit" action="/set_pref">
+        <form method="POST" name="edit" action="/settings">
             <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
             Auto-close browser tab/window after adding a new item from bookmarklet?<br>
             {% if current_user.auto_close == 1 %}
@@ -88,13 +88,7 @@
         {% endif %}
         </p>
         <p>Others coming!</p>
-        <p class="info left">Note: When you first authorize a source, it may take
-        some time to complete the authorization, particularly if you have a lot
-        of items at the source. (For instance, it takes about 2 minutes to collect
-        about 500 documents from Mendeley). However, after this
-        - when viewing what you've read - load time is quick.
-        </p>
-        <p class="info left">Also note: What You've Read will only check for changes
+        <p class="info left">Note: What You've Read will only check for changes
         1 week since the last time it did so. So, if you load the site, make a change
         on one of these sources,
         and then immediately re-load to see the change, it won't be there unless

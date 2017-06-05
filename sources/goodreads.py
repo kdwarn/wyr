@@ -1,7 +1,7 @@
 from flask import Blueprint, request, redirect, url_for, flash, session
 from flask.ext.login import login_required, current_user
 from datetime import datetime
-from db_functions import add_tags_to_doc, add_authors_to_doc, get_user_tag
+from db_functions import add_tags_to_doc, add_authors_to_doc
 from requests_oauthlib import OAuth1Session
 from xml.etree import ElementTree
 from math import ceil
@@ -13,7 +13,6 @@ from models import Documents, Tokens
 #source_id 2
 
 goodreads_blueprint = Blueprint('goodreads', __name__, template_folder='templates')
-
 
 @goodreads_blueprint.route('/goodreads')
 @login_required
@@ -36,13 +35,15 @@ def goodreads_authorize():
     if authorize == '1':
         #get access token
         goodreads = OAuth1Session(g['client_id'],
-                          client_secret=g['client_secret'],
-                          resource_owner_key=session['resource_owner_key'],
-                          resource_owner_secret=session['resource_owner_secret'])
+                        client_secret=g['client_secret'],
+                        resource_owner_key=session['resource_owner_key'],
+                        resource_owner_secret=session['resource_owner_secret'])
 
-        #Goodreads doesn't (but is supposed to) send back a "verifier" value
-        #the verifier='unused' hack I found at https://github.com/requests/requests-oauthlib/issues/115
-        tokens = goodreads.fetch_access_token(g['access_token_url'], verifier='unused')
+        # Goodreads doesn't (but is supposed to) send back a "verifier" value
+        # the verifier='unused' hack I found at
+        # https://github.com/requests/requests-oauthlib/issues/115
+        tokens = goodreads.fetch_access_token(g['access_token_url'],
+                                              verifier='unused')
 
         #access token and access token secret
         access_token = tokens.get('oauth_token')
@@ -52,13 +53,17 @@ def goodreads_authorize():
         current_user.goodreads = 1
 
         #save token in Tokens table
-        tokens = Tokens(user_id=current_user.id, source_id=2, access_token=access_token, access_token_secret=access_token_secret)
+        tokens = Tokens(user_id=current_user.id,
+                        source_id=2,
+                        access_token=access_token,
+                        access_token_secret=access_token_secret)
+
         db.session.add(tokens)
         db.session.commit()
 
-        store_goodreads()
+        flash("Authorization successful.")
+        return redirect(url_for('verify_authorization', source='Goodreads'))
 
-        return redirect(url_for('index'))
     else:
         flash('Authorization failed.')
         return redirect(url_for('settings'))

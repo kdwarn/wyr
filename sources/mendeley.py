@@ -1,4 +1,5 @@
-from flask import Blueprint, request, redirect, url_for, flash, session
+from flask import Blueprint, request, redirect, url_for, flash, session, \
+    render_template
 from flask.ext.login import login_required, current_user
 from datetime import datetime
 from db_functions import get_user_tag, add_tags_to_doc, add_authors_to_doc, \
@@ -7,14 +8,10 @@ from app import db
 from models import Documents, Tags, Tokens, FileLinks
 from requests_oauthlib import OAuth2Session
 from config import m
-from oauthlib.oauth2 import InvalidGrantError
+#from oauthlib.oauth2 import InvalidGrantError
 
 # Mendeley uses Oauth 2, returns json
 # source_id = 1
-# this uses requests-oauthlib:
-# https://requests-oauthlib.readthedocs.io/en/latest/oauth2_workflow.html#web-application-flow
-# mendely documentation:
-# http://dev.mendeley.com/reference/topics/authorization_overview.html
 
 mendeley_blueprint = Blueprint('mendeley', __name__, template_folder='templates')
 
@@ -22,25 +19,31 @@ mendeley_blueprint = Blueprint('mendeley', __name__, template_folder='templates'
 @login_required
 def mendeley_login():
 
-    mendeley = OAuth2Session(client_id=m['client_id'], redirect_uri=m['redirect_uri'], scope=m['scope'])
+    mendeley = OAuth2Session(client_id=m['client_id'],
+                             redirect_uri=m['redirect_uri'],
+                             scope=m['scope'])
+
     authorization_url, state = mendeley.authorization_url(m['authorize_url'])
 
-    # State is used to prevent CSRF, keep this for later.
+    # *state* is used to prevent CSRF, keep this for later.
     session['oauth_state'] = state
     return redirect(authorization_url)
 
-
-####################### NEED TO ADD AN ERROR CHECK IN THIS####################################
 @mendeley_blueprint.route('/mendeley/authorization')
 @login_required
 def mendeley_authorize():
+    if request.args.get('error'):
+        flash('Sorry, there has been an error (' + request.args.get('error_description') + ').')
+        return redirect(url_for('settings'))
+
     # get vars from redirect
     code = request.args.get('code')
     state = request.args.get('state')
 
     # check against CSRF attacks
     if state != session['oauth_state']:
-        return "Sorry, there has been an error."
+        flash("Sorry, there has been an error.")
+        return redirect(url_for('settings'))
 
     mendeley = OAuth2Session(m['client_id'],
                              state=session['oauth_state'],
@@ -52,6 +55,10 @@ def mendeley_authorize():
                                  username=m['client_id'],
                                  password=m['client_secret'])
 
+    if request.args.get('error'):
+        flash('Sorry, there has been an error (' + request.args.get('error_description') + ').')
+        return redirect(url_for('settings'))
+
     # save token in db
     db_token = Tokens(user_id=current_user.id,
                    source_id=1,
@@ -62,11 +69,8 @@ def mendeley_authorize():
     current_user.mendeley = 1
     db.session.commit()
 
-    # get 0auth object
-    mendeley = OAuth2Session(m['client_id'], token=token)
-
-    # use 0auth object to get (read) docs at Mendeley
-    return store_mendeley(mendeley)
+    flash("Authorization successful.")
+    return redirect(url_for('verify_authorization', source='Mendeley'))
 
 def update_token(new_token):
     token = Tokens.query.filter_by(user_id=current_user.id, source_id=1).first()
@@ -106,7 +110,7 @@ def get_docs(auth_object, type=''):
     if type == 'initial' or type == 'unread_update':
         payload = {'limit':'500', 'order':'desc', 'sort':'created', 'view':'all'}
 
-    if type == 'normal_update':
+    if type == 'normal':
         # if this is an update, only get docs modified since last update
         # covert last time mendeley was updated to iso format (8601)
         modified_since = current_user.mendeley_update.isoformat()
@@ -294,46 +298,34 @@ def save_doc(m_doc, auth_object, existing_doc=""):
 
     db.session.commit()
 
-# initial save of documents from Mendeley
-def store_mendeley(auth_object):
+# main function to import items from Mendeley
+def import_mendeley(update_type):
+    '''
+        *update_type* could be 'initial', 'normal', or 'unread'
+        initial = first time importing
+        normal = normal importing on regular basis
+        unread = special case where user has just switched pref to include
+                 or exclude unread items
+    '''
 
-    docs = get_docs(auth_object, 'initial')
-
-    # if docs isn't empty, go through and add each doc to db
-    if docs:
-        for doc in docs:
-            # skip items not read
-            if current_user.include_m_unread == 0:
-                if doc['read'] == 0:
-                    continue
-            save_doc(doc, auth_object)
-        current_user.mendeley_update = datetime.now()
-        db.session.commit()
-        flash("Documents from Mendeley have been added.")
-    else:
-        flash("You don't appear to have any read items at Mendeley.")
-
-    return redirect(url_for('index'))
-
-#update doc info from Mendeley
-def update_mendeley(update_type='normal_update'):
     # refresh token and get 0auth object
     mendeley = refresh_token()
 
-    # first, delete any documents that were deleted (and trashed) in Mendeley
-    delete_docs = get_docs(mendeley, 'delete')
+    # remove any items from db that were deleted in Mendeley
+    if update_type != 'initial':
+        delete_docs = get_docs(mendeley, 'delete')
 
-    if delete_docs:
-        for doc in delete_docs:
-            Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).delete()
-        db.session.commit()
-        if len(delete_docs) == 1:
-            flash("1 item had been deleted in Mendeley and was removed.")
-        else:
-            flash("{} items had been deleted in Mendeley and were removed.".format(len(delete_docs)))
+        if delete_docs:
+            for doc in delete_docs:
+                Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).delete()
+            db.session.commit()
+            if len(delete_docs) == 1:
+                flash("1 item had been deleted in Mendeley and was removed.")
+            else:
+                flash("{} items had been deleted in Mendeley and were removed.".format(len(delete_docs)))
 
-    docs = get_docs(mendeley, update_type) #will be 'normal_update' or 'unread_update'
-    # unread_update comes from settings() - when user switch unread pref
+    #now get current docs
+    docs = get_docs(mendeley, update_type)
 
     # set a count var to let user know how many items updated if "unread_update"
     if update_type == 'unread_update':
@@ -353,11 +345,12 @@ def update_mendeley(update_type='normal_update'):
             if update_type == 'unread_update' and doc['read'] == 0:
                 count += 1
 
-
-            #see if the doc is already in the db
-            check_doc = Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).first()
-
-            save_doc(doc, mendeley, check_doc)
+            if update_type != 'initial':
+                #see if the doc is already in the db
+                check_doc = Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).first()
+                save_doc(doc, mendeley, check_doc)
+            else:
+                save_doc(doc, mendeley)
 
         if update_type == 'unread_update':
             if count > 1:
