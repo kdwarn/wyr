@@ -150,28 +150,11 @@ def get_stripe_info():
 ##############
 
 '''
-from flask import Response
-from time import sleep
-
-def test_function():
-    sleep(10)
-    return 'hi'
-
-from flask import stream_with_context
-
-@app.route('/stream')
-def streamed_response():
-    def generate():
-        yield 'Hello '
-        sleep(5)
-        yield '!'
-    return Response(stream_with_context(generate()))
-
 # testing
 @app.route('/testing')
 def testing():
 
-    return render_template('testing.html', test_function=test_function)
+    return render_template('testing.html')
 '''
 
 
