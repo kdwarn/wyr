@@ -9,8 +9,12 @@ from config import g
 from app import db
 from models import Documents, Tokens
 
-#goodreads uses Oauth1, returns xml
-#source_id 2
+# goodreads uses Oauth1, returns xml
+# source_id 2
+
+### one issue with Goodreads: the API doesn't provide any way of determining
+### books a user may have deleted from their shelves. That's probably not a big
+### problem, but nonetheless I should see if this ever gets added.
 
 goodreads_blueprint = Blueprint('goodreads', __name__, template_folder='templates')
 
@@ -81,11 +85,11 @@ def store_goodreads():
                   resource_owner_secret=tokens.access_token_secret)
 
     # always get books in the 'read' shelf
-    get_books_from_bookshelf(auth_object, 'read')
+    get_books_from_shelf(auth_object, 'read')
 
     # possibly get books in the 'to-read' shelf as well
     if current_user.include_g_unread == 1:
-        get_books_from_bookshelf(auth_object, 'to-read')
+        get_books_from_shelf(auth_object, 'to-read')
 
     return
 
@@ -102,16 +106,36 @@ def update_goodreads():
 
     return
 
-def get_books_from_bookshelf(auth_object, shelf_name):
+# this is the replacement for store_goodreads() and update_goodreads()
+def import_goodreads(update_type):
+    # get tokens from Tokens table
+    tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=2).first()
+
+    # get Oauth object
+    auth_object = OAuth1Session(g['client_id'],
+                  client_secret=g['client_secret'],
+                  resource_owner_key=tokens.access_token,
+                  resource_owner_secret=tokens.access_token_secret)
+
+    # always get books in the 'read' shelf
+    get_books_from_shelf(auth_object, 'read')
+
+    # possibly get books in the 'to-read' shelf as well
+    if current_user.include_g_unread == 1:
+        get_books_from_shelf(auth_object, 'to-read')
+
+    return
+
+def get_books_from_shelf(auth_object, shelf):
     #first need to figure out how many pages, b/c limited to 200 items per call
-    payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf_name,
+    payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf,
                'sort':'date_updated'}
 
     r = auth_object.get('https://www.goodreads.com/review/list.xml', params=payload)
 
     #if no docs found, return
     if r.status_code != 200:
-        flash("You don't appear to have books on your Goodreads {} shelf.".format(shelf_name))
+        flash("You don't appear to have books on your Goodreads {} shelf.".format(shelf))
     else:
         docs = ElementTree.fromstring(r.content)
 
@@ -121,79 +145,78 @@ def get_books_from_bookshelf(auth_object, shelf_name):
 
         #go through each page (have to add one since page count doesn't start at 0)
         for i in range(1, pages+1):
-            payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf_name,
+            payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf,
                     'per_page':'200', 'page':'{}'.format(i)}
             r = auth_object.get('https://www.goodreads.com/review/list.xml',
                             params=payload)
 
             #Goodreads returns xml response
-            docs = ElementTree.fromstring(r.content)
+            books = ElementTree.fromstring(r.content)
 
             # go through each doc, and see if we need to insert or update it
-            for doc in docs[1]:
+            for book in books[1]:
+                save_doc(book, shelf)
 
-                new_doc = Documents(2, doc.find('book/title').text)
-                current_user.documents.append(new_doc)
-                new_doc.native_doc_id = doc.find('id').text
-                if shelf_name == 'read':
-                    new_doc.read = 1
-                else:
-                    new_doc.read = 0
-
-                # add date when created, convert from string to datetime object
-                if doc.find('read_at').text is not None:
-                    new_doc.created = datetime.strptime(doc.find('read_at').text, '%a %b %d %H:%M:%S %z %Y')
-                else:
-                    new_doc.created = datetime.strptime(doc.find('date_added').text, '%a %b %d %H:%M:%S %z %Y')
-
-                if doc.find('book/published').text is not None:
-                    new_doc.year = doc.find('book/published').text
-
-                new_doc.link = doc.find('book/link').text
-
-                if doc.find('date_updated').text is not None:
-                    new_doc.last_modified = datetime.strptime(doc.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
-
-                if doc.find('body').text is not None:
-                    new_doc.note = doc.find('body').text
-
-                db.session.add(new_doc)
-                db.session.commit()
-
-                # add shelves as tags to the document
-                if doc.find('shelves/shelf') is not None:
-                    #make list of tags out of shelves this book is on
-                    tags = []
-                    for shelf in doc.findall('shelves/shelf'):
-                        # don't add the 'read' shelf (but do add 'to-read')
-                        if shelf.get('name') == 'read':
-                            continue
-                        tags.append(shelf.get('name'))
-
-                    new_doc = add_tags_to_doc(tags, new_doc)
-
-                # add authors to the document
-                if doc.find('book/authors/author/name') is not None:
-                    #create list of dict of authors
-                    authors = []
-                    for name in doc.findall('book/authors/author/name'):
-                        #split one full name into first and last (jr's don't work right now #to do)
-                        new_name = name.text.rsplit(' ', 1)
-                        try:
-                            authors.append({'first_name':new_name[0], 'last_name':new_name[1]})
-                        except IndexError:
-                            authors.append({'first_name':'', 'last_name':new_name[0]})
-
-                    new_doc = add_authors_to_doc(authors, new_doc)
-
-                db.session.commit()
-        flash("Books on your Goodreads {} shelf have been updated.".format(shelf_name))
+        flash("Books on your Goodreads {} shelf have been updated.".format(shelf))
 
     current_user.goodreads_update = datetime.now()
     db.session.commit()
     return
 
 # save book information
-def save_book():
-    pass
+def save_doc(book, shelf):
+    new_doc = Documents(2, book.find('book/title').text)
+    current_user.documents.append(new_doc)
+    new_doc.native_doc_id = book.find('id').text
+    if shelf == 'read':
+        new_doc.read = 1
+    else:
+        new_doc.read = 0
+
+    # add date when created, convert from string to datetime object
+    if book.find('read_at').text is not None:
+        new_doc.created = datetime.strptime(book.find('read_at').text, '%a %b %d %H:%M:%S %z %Y')
+    else:
+        new_doc.created = datetime.strptime(book.find('date_added').text, '%a %b %d %H:%M:%S %z %Y')
+
+    if book.find('book/published').text is not None:
+        new_doc.year = book.find('book/published').text
+
+    new_doc.link = book.find('book/link').text
+
+    if book.find('date_updated').text is not None:
+        new_doc.last_modified = datetime.strptime(book.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
+
+    if book.find('body').text is not None:
+        new_doc.note = book.find('body').text
+
+    db.session.add(new_doc)
+    db.session.commit()
+
+    # add shelves as tags to the document
+    if book.find('shelves/shelf') is not None:
+        #make list of tags out of shelves this book is on
+        tags = []
+        for shelf in book.findall('shelves/shelf'):
+            # don't add the 'read' shelf as a tag
+            if shelf.get('name') == 'read':
+                continue
+            tags.append(shelf.get('name'))
+            new_doc = add_tags_to_doc(tags, new_doc)
+
+    # add authors to the document
+    if book.find('book/authors/author/name') is not None:
+        #create list of dict of authors
+        authors = []
+        for name in book.findall('book/authors/author/name'):
+            #split one full name into first and last (jr's don't work right now #to do)
+            new_name = name.text.rsplit(' ', 1)
+            try:
+                authors.append({'first_name':new_name[0], 'last_name':new_name[1]})
+            except IndexError:
+                authors.append({'first_name':'', 'last_name':new_name[0]})
+
+        new_doc = add_authors_to_doc(authors, new_doc)
+
+    db.session.commit()
 
