@@ -34,7 +34,7 @@ def goodreads_authorize():
 
     if authorize == '1':
         #get access token
-        goodreads = OAuth1Session(g['client_id'],
+        auth_object = OAuth1Session(g['client_id'],
                         client_secret=g['client_secret'],
                         resource_owner_key=session['resource_owner_key'],
                         resource_owner_secret=session['resource_owner_secret'])
@@ -42,7 +42,7 @@ def goodreads_authorize():
         # Goodreads doesn't (but is supposed to) send back a "verifier" value
         # the verifier='unused' hack I found at
         # https://github.com/requests/requests-oauthlib/issues/115
-        tokens = goodreads.fetch_access_token(g['access_token_url'],
+        tokens = auth_object.fetch_access_token(g['access_token_url'],
                                               verifier='unused')
 
         #access token and access token secret
@@ -74,49 +74,64 @@ def store_goodreads():
     #get tokens from Tokens table
     tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=2).first()
 
-    #get protected resource
-    goodreads = OAuth1Session(g['client_id'],
-                client_secret=g['client_secret'],
-                resource_owner_key=tokens.access_token,
-                resource_owner_secret=tokens.access_token_secret)
+    #get Oauth object
+    auth_object = OAuth1Session(g['client_id'],
+                  client_secret=g['client_secret'],
+                  resource_owner_key=tokens.access_token,
+                  resource_owner_secret=tokens.access_token_secret)
 
-    # always save books in the 'read' shelf
-    save_bookshelf(goodreads, 'read')
+    # always get books in the 'read' shelf
+    get_books_from_bookshelf(auth_object, 'read')
 
-    # possibly save books in the 'to-read' shelf as well
+    # possibly get books in the 'to-read' shelf as well
     if current_user.include_g_unread == 1:
-        save_bookshelf(goodreads, 'to-read')
+        get_books_from_bookshelf(auth_object, 'to-read')
 
     return
 
-def save_bookshelf(goodreads, shelf_name):
-    #first need to figure out how many pages, b/c limited to 200 items per call
-    payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf_name}
+# update book info from Goodreads
+def update_goodreads():
+    #unlike Mendeley, there doesn't appear to be a way to get books updated since X in goodreads,
+    #so just have to delete and re-store all
 
-    r = goodreads.get('https://www.goodreads.com/review/list.xml', params=payload)
+    #delete
+    Documents.query.filter_by(user_id=current_user.id, source_id=2).delete()
+
+    #store
+    store_goodreads()
+
+    return
+
+def get_books_from_bookshelf(auth_object, shelf_name):
+    #first need to figure out how many pages, b/c limited to 200 items per call
+    payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf_name,
+               'sort':'date_updated'}
+
+    r = auth_object.get('https://www.goodreads.com/review/list.xml', params=payload)
 
     #if no docs found, return
     if r.status_code != 200:
         flash("You don't appear to have books on your Goodreads {} shelf.".format(shelf_name))
     else:
-        g_docs = ElementTree.fromstring(r.content)
+        docs = ElementTree.fromstring(r.content)
 
         #figure out how many pages of results
-        total = g_docs[1].get('total')
+        total = docs[1].get('total')
         pages = ceil(int(total)/200)
 
         #go through each page (have to add one since page count doesn't start at 0)
         for i in range(1, pages+1):
             payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf_name,
                     'per_page':'200', 'page':'{}'.format(i)}
-            r = goodreads.get('https://www.goodreads.com/review/list.xml',
+            r = auth_object.get('https://www.goodreads.com/review/list.xml',
                             params=payload)
 
             #Goodreads returns xml response
-            g_docs = ElementTree.fromstring(r.content)
+            docs = ElementTree.fromstring(r.content)
 
-            #keep only those things we want, store in db
-            for doc in g_docs[1]:
+            # go through each doc, and see if we need to insert or update it
+            for doc in docs[1]:
+
                 new_doc = Documents(2, doc.find('book/title').text)
                 current_user.documents.append(new_doc)
                 new_doc.native_doc_id = doc.find('id').text
@@ -178,15 +193,7 @@ def save_bookshelf(goodreads, shelf_name):
     db.session.commit()
     return
 
-#update doc info from Goodreads
-def update_goodreads():
-    #unlike Mendeley, there doesn't appear to be a way to get books updated since X in goodreads,
-    #so just have to delete and re-store all
+# save book information
+def save_book():
+    pass
 
-    #delete
-    Documents.query.filter_by(user_id=current_user.id, source_id=2).delete()
-
-    #store
-    store_goodreads()
-
-    return
