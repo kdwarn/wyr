@@ -256,14 +256,7 @@ def save_doc(m_doc, auth_object, existing_doc=""):
     db.session.add(doc)
     db.session.commit()
 
-    # if unread, tag as "to-read" - and we might have to create this tag
-    if m_doc['read'] == 0:
-        to_read_tag = get_user_tag('to-read')
-        if to_read_tag != None:
-            doc.tags.append(to_read_tag)
-        else:
-            new_tag = Tags('to-read')
-            doc.tags.append(new_tag)
+
 
     # add/update tags
     # add
@@ -288,6 +281,17 @@ def save_doc(m_doc, auth_object, existing_doc=""):
         # add any new tags to doc
         if tags:
             doc = add_tags_to_doc(tags, doc)
+
+
+    # if unread, tag as "to-read" - and we might have to create this tag
+    # this follows insert/update of normal tags, so that it doesn't get dropped
+    if not m_doc['read']:
+        to_read_tag = get_user_tag('to-read')
+        if to_read_tag != None:
+            doc.tags.append(to_read_tag)
+        else:
+            new_tag = Tags('to-read')
+            doc.tags.append(new_tag)
 
     # add/update authors
     # add
@@ -369,5 +373,8 @@ def save_doc(m_doc, auth_object, existing_doc=""):
                 new_filelink = FileLinks(doc.id, file['id'])
                 new_filelink.mime_type = file['mime_type']
                 db.session.add(new_filelink)
+
+
+
 
     db.session.commit()
