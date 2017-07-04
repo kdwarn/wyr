@@ -104,7 +104,79 @@ def refresh_token():
 
     return auth_object
 
+def import_mendeley(update_type):
+    '''
+    Import items from Mendeley, determine what to do with them.
+
+    update_type -- 'initial', 'normal', or 'unread'
+    initial = first time importing
+    normal = normal importing on regular basis
+    unread = special case where user has just switched pref to include
+             or exclude unread items
+    '''
+
+    # refresh token and get 0auth object
+    mendeley = refresh_token()
+
+    # remove any items from db that were deleted in Mendeley
+    if update_type != 'initial':
+        delete_docs = get_docs(mendeley, 'delete')
+
+        if delete_docs:
+            for doc in delete_docs:
+                Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).delete()
+            db.session.commit()
+            if len(delete_docs) == 1:
+                flash("1 item had been deleted in Mendeley and was removed.")
+            else:
+                flash("{} items had been deleted in Mendeley and were removed.".format(len(delete_docs)))
+
+    #now get current docs
+    docs = get_docs(mendeley, update_type)
+
+    # set a count var to let user know how many items updated if "unread_update"
+    if update_type == 'unread_update':
+        count = 0
+
+    if docs:
+        # go through each doc, and see if we need to insert or update it
+        for doc in docs:
+
+            #skip unread items if user doesn't want them
+            if current_user.include_m_unread == 0 and doc['read'] == 0:
+                continue
+
+            #skip read items if this is an "unread_update"
+            if update_type == 'unread_update' and doc['read'] == 1:
+                continue
+            if update_type == 'unread_update' and doc['read'] == 0:
+                count += 1
+
+            if update_type != 'initial':
+                #see if the doc is already in the db
+                check_doc = Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).first()
+                save_doc(doc, mendeley, check_doc)
+            else:
+                save_doc(doc, mendeley)
+
+        if update_type == 'unread_update':
+            if count > 1:
+                flash("{} unread items from Mendeley added.".format(count))
+            else:
+                flash("1 unread item from Mendeley added.")
+        else:
+            if len(docs) == 1:
+                flash("1 item updated from Mendeley.")
+            else:
+                flash("{} items updated from Mendeley.".format(len(docs)))
+    else:
+        flash("No updated items were found in Mendeley.")
+
+    current_user.mendeley_update = datetime.now()
+    db.session.commit()
+
 def get_docs(auth_object, type=''):
+    '''Get docs from Mendeley.'''
 
     # set parameters
     if type == 'initial' or type == 'unread_update':
@@ -147,9 +219,11 @@ def get_docs(auth_object, type=''):
 
 def save_doc(m_doc, auth_object, existing_doc=""):
     '''
-    *m_doc* is the doc object from mendeley
-    *existing_doc* is doc object from WYR Document object
-    *auth_object* is auth object from Mendeley
+    Save doc (insert or update in db).
+
+    m_doc -- the doc object from mendeley
+    auth_object -- auth object from Mendeley
+    existing_doc -- doc object from WYR Document object
     '''
 
     #if not an update (existing_doc not passed), need to create Document object
@@ -296,74 +370,4 @@ def save_doc(m_doc, auth_object, existing_doc=""):
                 new_filelink.mime_type = file['mime_type']
                 db.session.add(new_filelink)
 
-    db.session.commit()
-
-# main function to import items from Mendeley
-def import_mendeley(update_type):
-    '''
-        *update_type* could be 'initial', 'normal', or 'unread'
-        initial = first time importing
-        normal = normal importing on regular basis
-        unread = special case where user has just switched pref to include
-                 or exclude unread items
-    '''
-
-    # refresh token and get 0auth object
-    mendeley = refresh_token()
-
-    # remove any items from db that were deleted in Mendeley
-    if update_type != 'initial':
-        delete_docs = get_docs(mendeley, 'delete')
-
-        if delete_docs:
-            for doc in delete_docs:
-                Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).delete()
-            db.session.commit()
-            if len(delete_docs) == 1:
-                flash("1 item had been deleted in Mendeley and was removed.")
-            else:
-                flash("{} items had been deleted in Mendeley and were removed.".format(len(delete_docs)))
-
-    #now get current docs
-    docs = get_docs(mendeley, update_type)
-
-    # set a count var to let user know how many items updated if "unread_update"
-    if update_type == 'unread_update':
-        count = 0
-
-    if docs:
-        # go through each doc, and see if we need to insert or update it
-        for doc in docs:
-
-            #skip unread items if user doesn't want them
-            if current_user.include_m_unread == 0 and doc['read'] == 0:
-                continue
-
-            #skip read items if this is an "unread_update"
-            if update_type == 'unread_update' and doc['read'] == 1:
-                continue
-            if update_type == 'unread_update' and doc['read'] == 0:
-                count += 1
-
-            if update_type != 'initial':
-                #see if the doc is already in the db
-                check_doc = Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).first()
-                save_doc(doc, mendeley, check_doc)
-            else:
-                save_doc(doc, mendeley)
-
-        if update_type == 'unread_update':
-            if count > 1:
-                flash("{} unread items from Mendeley added.".format(count))
-            else:
-                flash("1 unread item from Mendeley added.")
-        else:
-            if len(docs) == 1:
-                flash("1 item updated from Mendeley.")
-            else:
-                flash("{} items updated from Mendeley.".format(len(docs)))
-    else:
-        flash("No updated items were found in Mendeley.")
-
-    current_user.mendeley_update = datetime.now()
     db.session.commit()
