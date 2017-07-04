@@ -1,7 +1,9 @@
 from flask import Blueprint, request, redirect, url_for, flash, session
 from flask.ext.login import login_required, current_user
 from datetime import datetime
-from db_functions import add_tags_to_doc, add_authors_to_doc
+import pytz
+from db_functions import add_tags_to_doc, add_authors_to_doc, remove_old_tags, \
+    remove_old_authors
 from requests_oauthlib import OAuth1Session
 from xml.etree import ElementTree
 from math import ceil
@@ -11,10 +13,6 @@ from models import Documents, Tokens
 
 # goodreads uses Oauth1, returns xml
 # source_id 2
-
-### one issue with Goodreads: the API doesn't provide any way of determining
-### books a user may have deleted from their shelves. That's probably not a big
-### problem, but nonetheless I should see if this ever gets added.
 
 goodreads_blueprint = Blueprint('goodreads', __name__, template_folder='templates')
 
@@ -28,6 +26,7 @@ def goodreads_login():
     session['resource_owner_key'] = fetch_response.get('oauth_token')
     session['resource_owner_secret'] = fetch_response.get('oauth_token_secret')
     authorization_url = goodreads.authorization_url(g['authorize_url'])
+
     return redirect(authorization_url)
 
 @goodreads_blueprint.route('/goodreads/authorization')
@@ -39,9 +38,9 @@ def goodreads_authorize():
     if authorize == '1':
         #get access token
         auth_object = OAuth1Session(g['client_id'],
-                        client_secret=g['client_secret'],
-                        resource_owner_key=session['resource_owner_key'],
-                        resource_owner_secret=session['resource_owner_secret'])
+                      client_secret=g['client_secret'],
+                      resource_owner_key=session['resource_owner_key'],
+                      resource_owner_secret=session['resource_owner_secret'])
 
         # Goodreads doesn't (but is supposed to) send back a "verifier" value
         # the verifier='unused' hack I found at
@@ -72,41 +71,7 @@ def goodreads_authorize():
         flash('Authorization failed.')
         return redirect(url_for('settings'))
 
-#gets books info from goodreads and stores in database
-def store_goodreads():
-
-    #get tokens from Tokens table
-    tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=2).first()
-
-    #get Oauth object
-    auth_object = OAuth1Session(g['client_id'],
-                  client_secret=g['client_secret'],
-                  resource_owner_key=tokens.access_token,
-                  resource_owner_secret=tokens.access_token_secret)
-
-    # always get books in the 'read' shelf
-    get_books_from_shelf(auth_object, 'read')
-
-    # possibly get books in the 'to-read' shelf as well
-    if current_user.include_g_unread == 1:
-        get_books_from_shelf(auth_object, 'to-read')
-
-    return
-
-# update book info from Goodreads
-def update_goodreads():
-    #unlike Mendeley, there doesn't appear to be a way to get books updated since X in goodreads,
-    #so just have to delete and re-store all
-
-    #delete
-    Documents.query.filter_by(user_id=current_user.id, source_id=2).delete()
-
-    #store
-    store_goodreads()
-
-    return
-
-# this is the replacement for store_goodreads() and update_goodreads()
+# connect to Goodreads and initiate process of collecting info
 def import_goodreads(update_type):
     # get tokens from Tokens table
     tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=2).first()
@@ -117,23 +82,25 @@ def import_goodreads(update_type):
                   resource_owner_key=tokens.access_token,
                   resource_owner_secret=tokens.access_token_secret)
 
-    # always get books in the 'read' shelf
-    get_books_from_shelf(auth_object, 'read')
+    # get books in the 'read' shelf unless this is an unread_update
+    if update_type != 'unread_update':
+        get_books_from_shelf(auth_object, 'read', update_type)
 
-    # possibly get books in the 'to-read' shelf as well
+    # get books in the 'to-read' shelf if user wants them
     if current_user.include_g_unread == 1:
-        get_books_from_shelf(auth_object, 'to-read')
+        get_books_from_shelf(auth_object, 'to-read', update_type)
 
     return
 
-def get_books_from_shelf(auth_object, shelf):
+# collect books from shelf, determine what to do with them
+def get_books_from_shelf(auth_object, shelf, update_type):
     #first need to figure out how many pages, b/c limited to 200 items per call
     payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf,
                'sort':'date_updated'}
 
     r = auth_object.get('https://www.goodreads.com/review/list.xml', params=payload)
 
-    #if no docs found, return
+    #if no books found, return
     if r.status_code != 200:
         flash("You don't appear to have books on your Goodreads {} shelf.".format(shelf))
     else:
@@ -143,8 +110,16 @@ def get_books_from_shelf(auth_object, shelf):
         total = docs[1].get('total')
         pages = ceil(int(total)/200)
 
+        exit_loop = 0 # iniate var that determinds when to stop an update
+
+        book_ids = [] # list to determine if any books were deleted
+
         #go through each page (have to add one since page count doesn't start at 0)
         for i in range(1, pages+1):
+
+            if exit_loop == 1: # set in nested for loop, for an update
+                break
+
             payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf,
                     'per_page':'200', 'page':'{}'.format(i)}
             r = auth_object.get('https://www.goodreads.com/review/list.xml',
@@ -153,70 +128,160 @@ def get_books_from_shelf(auth_object, shelf):
             #Goodreads returns xml response
             books = ElementTree.fromstring(r.content)
 
-            # go through each doc, and see if we need to insert or update it
+            # go through each book, and see if we need to insert/update it
             for book in books[1]:
-                save_doc(book, shelf)
+                if update_type == 'initial':
+                    save_doc(book, shelf)
+
+                else:
+                    #add the book's native id to a list (to check for deleted)
+                    book_ids.append(book.find('id').text)
+
+                    # if normal update, break out of loop if book updated before last refresh
+                    if update_type == 'normal':
+                        print("hello, in for loop, update_type = normal:"+ book.find('id').text)
+                        date_updated = datetime.strptime(book.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
+
+                        # *date_updated* is in local time, convert to UTC, remove timezone
+                        date_updated = date_updated.astimezone(pytz.utc).replace(tzinfo=None)
+
+                        if date_updated < current_user.goodreads_update:
+                            # we are beyond last update, exit
+                            #exit_loop = 1
+                            #break
+                            continue
+
+                    # pass along any existing doc to save function
+                    check_doc = Documents.query.filter_by(user_id=current_user.id,
+                        source_id=2, native_doc_id=book.find('id').text).first()
+
+                    save_doc(book, shelf, check_doc)
+
+        delete_books(book_ids)
 
         flash("Books on your Goodreads {} shelf have been updated.".format(shelf))
 
-    current_user.goodreads_update = datetime.now()
+    current_user.goodreads_update = datetime.now(pytz.utc)
     db.session.commit()
     return
 
 # save book information
-def save_doc(book, shelf):
-    new_doc = Documents(2, book.find('book/title').text)
-    current_user.documents.append(new_doc)
-    new_doc.native_doc_id = book.find('id').text
-    if shelf == 'read':
-        new_doc.read = 1
-    else:
-        new_doc.read = 0
+def save_doc(book, shelf, existing_doc=""):
+    '''
+    Insert a book & info into the db, or update existing records.
+    *book* is the book object from goodreads
+    *shelf* is the Goodreads shelf ('to-read' or 'read')
+    *existing_doc* is doc object from WYR Document object (implying an update)
+    '''
+
+    if not existing_doc: # inserting, create Document object
+        doc = Documents(2, book.find('book/title').text)
+        current_user.documents.append(doc)
+        doc.native_doc_id = book.find('id').text # this is actually review id
+    else: # updating, Document object already exists
+        doc = existing_doc
+
+    # until the db.session.commit, code is the same whether insert or update
+    doc.read = 1 if shelf == 'read' else 0
 
     # add date when created, convert from string to datetime object
     if book.find('read_at').text is not None:
-        new_doc.created = datetime.strptime(book.find('read_at').text, '%a %b %d %H:%M:%S %z %Y')
+        doc.created = datetime.strptime(book.find('read_at').text, '%a %b %d %H:%M:%S %z %Y')
     else:
-        new_doc.created = datetime.strptime(book.find('date_added').text, '%a %b %d %H:%M:%S %z %Y')
+        doc.created = datetime.strptime(book.find('date_added').text, '%a %b %d %H:%M:%S %z %Y')
 
     if book.find('book/published').text is not None:
-        new_doc.year = book.find('book/published').text
+        doc.year = book.find('book/published').text
 
-    new_doc.link = book.find('book/link').text
+    doc.link = book.find('book/link').text
 
     if book.find('date_updated').text is not None:
-        new_doc.last_modified = datetime.strptime(book.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
+        doc.last_modified = datetime.strptime(book.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
 
     if book.find('body').text is not None:
-        new_doc.note = book.find('body').text
+        doc.note = book.find('body').text
 
-    db.session.add(new_doc)
+    db.session.add(doc)
     db.session.commit()
 
-    # add shelves as tags to the document
-    if book.find('shelves/shelf') is not None:
-        #make list of tags out of shelves this book is on
+    # inserting
+    if not existing_doc:
+        # add shelves as tags to the document
+        if book.find('shelves/shelf') is not None:
+            #make list of tags out of shelves this book is on
+            tags = []
+            for shelf in book.findall('shelves/shelf'):
+                # don't add the 'read' shelf as a tag
+                if shelf.get('name') == 'read':
+                    continue
+                tags.append(shelf.get('name'))
+                doc = add_tags_to_doc(tags, doc)
+
+        # add authors to the document
+        if book.find('book/authors/author/name') is not None:
+            #create list of dict of authors
+            authors = []
+            for name in book.findall('book/authors/author/name'):
+                #split one full name into first and last (jr's don't work right now #to do)
+                new_name = name.text.rsplit(' ', 1)
+                try:
+                    authors.append({'first_name':new_name[0], 'last_name':new_name[1]})
+                except IndexError:
+                    authors.append({'first_name':'', 'last_name':new_name[0]})
+
+            doc = add_authors_to_doc(authors, doc)
+
+    # updating
+    else:
         tags = []
         for shelf in book.findall('shelves/shelf'):
             # don't add the 'read' shelf as a tag
             if shelf.get('name') == 'read':
                 continue
             tags.append(shelf.get('name'))
-            new_doc = add_tags_to_doc(tags, new_doc)
 
-    # add authors to the document
-    if book.find('book/authors/author/name') is not None:
-        #create list of dict of authors
-        authors = []
-        for name in book.findall('book/authors/author/name'):
-            #split one full name into first and last (jr's don't work right now #to do)
-            new_name = name.text.rsplit(' ', 1)
-            try:
-                authors.append({'first_name':new_name[0], 'last_name':new_name[1]})
-            except IndexError:
-                authors.append({'first_name':'', 'last_name':new_name[0]})
+        # remove_old_tags takes list of names, not tag objects, so:
+        old_tags = [tag.name for tag in doc.tags]
+        if old_tags:
+            doc, tags = remove_old_tags(old_tags, tags, doc)
 
-        new_doc = add_authors_to_doc(authors, new_doc)
+        # add any new tags to doc
+        if tags:
+            doc = add_tags_to_doc(tags, doc)
+
+        # authors
+        if book.find('book/authors/author/name') is not None:
+            #create list of dict of authors
+            authors = []
+            for name in book.findall('book/authors/author/name'):
+                #split one full name into first and last (jr's don't work right now #to do)
+                new_name = name.text.rsplit(' ', 1)
+                try:
+                    authors.append({'first_name':new_name[0], 'last_name':new_name[1]})
+                except IndexError:
+                    authors.append({'first_name':'', 'last_name':new_name[0]})
+        else:
+            authors = ''
+
+        old_authors = [{'first_name':author.first_name,
+                        'last_name':author.last_name}
+                        for author in doc.authors]
+
+        if old_authors:
+            doc, authors = remove_old_authors(old_authors, authors, doc)
+
+        if authors:
+            doc = add_authors_to_doc(authors, doc)
 
     db.session.commit()
+
+def delete_books(book_ids):
+    # get all Goodread books stored in db
+    books = Documents.query.filter_by(user_id=current_user.id, source_id=2).all()
+
+    for book in books:
+        if book.native_doc_id not in book_ids:
+            #print(book.title)
+            Documents.query.filter_by(user_id=current_user.id, source_id=2, native_doc_id=book.native_doc_id).delete()
+
 
