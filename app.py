@@ -37,8 +37,7 @@ from db_functions import get_user_tags, get_user_authors, remove_to_read
 from models import User, Tokens, Documents, Tags, Bunches
 from sources.native import native_blueprint
 from sources.mendeley import mendeley_blueprint, import_mendeley
-from sources.goodreads import goodreads_blueprint, store_goodreads, \
-    update_goodreads
+from sources.goodreads import goodreads_blueprint, import_goodreads
 
 #register blueprints
 app.register_blueprint(native_blueprint)
@@ -643,7 +642,10 @@ def settings():
         if current_user.include_m_unread == 1 and request.form['old_include_m_unread'] == '0':
             import_mendeley('unread_update')
 
-        # will also need to do this for Goodreads once I create update functionality
+        # if user is change pref to include to-read items in Mendeley, set var
+        # do a full update (not limit to recent items)
+        if current_user.include_g_unread == 1 and request.form['old_include_g_unread'] == '0':
+            import_goodreads('unread_update')
 
         flash("Your preferences have been updated.")
         return redirect(url_for('settings'))
@@ -1133,7 +1135,7 @@ def verify_authorization(source):
         if source == 'Goodreads':
             current_user.include_g_unread = request.form['include_g_unread']
             db.session.commit()
-            store_goodreads()
+            import_goodreads('initial')
 
         return redirect(url_for('index'))
 
@@ -1196,7 +1198,10 @@ def refresh():
             return render_template('settings.html')
     if request.args.get('name') == 'Goodreads':
         if current_user.goodreads == 1:
-            update_goodreads()
+            if current_user.goodreads_update:
+                import_goodreads('normal')
+            else:
+                import_mendeley('initial')
             return render_template('settings.html')
 
 
