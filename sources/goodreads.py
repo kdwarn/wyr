@@ -71,8 +71,9 @@ def goodreads_authorize():
         flash('Authorization failed.')
         return redirect(url_for('settings'))
 
-# connect to Goodreads and initiate process of collecting info
 def import_goodreads(update_type):
+    '''Connect to Goodreads and initiate process of collecting info.'''
+
     # get tokens from Tokens table
     tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=2).first()
 
@@ -92,9 +93,10 @@ def import_goodreads(update_type):
 
     return
 
-# collect books from shelf, determine what to do with them
 def get_books_from_shelf(auth_object, shelf, update_type):
-    #first need to figure out how many pages, b/c limited to 200 items per call
+    ''' Get Books from shelf, determine what to do with them.'''
+
+    # first need to figure out how many pages, b/c limited to 200 items per call
     payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf,
                'sort':'date_updated'}
 
@@ -139,16 +141,14 @@ def get_books_from_shelf(auth_object, shelf, update_type):
 
                     # if normal update, break out of loop if book updated before last refresh
                     if update_type == 'normal':
-                        print("hello, in for loop, update_type = normal:"+ book.find('id').text)
                         date_updated = datetime.strptime(book.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
 
                         # *date_updated* is in local time, convert to UTC, remove timezone
                         date_updated = date_updated.astimezone(pytz.utc).replace(tzinfo=None)
 
                         if date_updated < current_user.goodreads_update:
-                            # we are beyond last update, exit
-                            #exit_loop = 1
-                            #break
+                            # book not updated
+                            # we could exit here, but need ids to check for deleted docs
                             continue
 
                     # pass along any existing doc to save function
@@ -165,13 +165,13 @@ def get_books_from_shelf(auth_object, shelf, update_type):
     db.session.commit()
     return
 
-# save book information
 def save_doc(book, shelf, existing_doc=""):
     '''
-    Insert a book & info into the db, or update existing records.
-    *book* is the book object from goodreads
-    *shelf* is the Goodreads shelf ('to-read' or 'read')
-    *existing_doc* is doc object from WYR Document object (implying an update)
+    Save book (insert or update in db) and any authors and tags.
+
+    book -- book object from goodreads
+    shelf -- the Goodreads shelf ('to-read' or 'read')
+    existing_doc -- doc object from WYR Document object (implying an update)
     '''
 
     if not existing_doc: # inserting, create Document object
@@ -276,12 +276,12 @@ def save_doc(book, shelf, existing_doc=""):
     db.session.commit()
 
 def delete_books(book_ids):
-    # get all Goodread books stored in db
+    '''Remove deleted books from db.'''
+
     books = Documents.query.filter_by(user_id=current_user.id, source_id=2).all()
 
     for book in books:
         if book.native_doc_id not in book_ids:
-            #print(book.title)
             Documents.query.filter_by(user_id=current_user.id, source_id=2, native_doc_id=book.native_doc_id).delete()
 
 
