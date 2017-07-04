@@ -1,5 +1,4 @@
-from flask import Blueprint, request, redirect, url_for, flash, session, \
-    render_template
+from flask import Blueprint, request, redirect, url_for, flash, session
 from flask.ext.login import login_required, current_user
 from datetime import datetime
 from db_functions import get_user_tag, add_tags_to_doc, add_authors_to_doc, \
@@ -226,11 +225,10 @@ def save_doc(m_doc, auth_object, existing_doc=""):
     existing_doc -- doc object from WYR Document object
     '''
 
-    #if not an update (existing_doc not passed), need to create Document object
-    if not existing_doc:
+    if not existing_doc: # inserting, create Document object
         doc = Documents(1, m_doc['title'])
         current_user.documents.append(doc)
-    else:
+    else: # updating, Document object already exists
         doc = existing_doc
 
     doc.created=m_doc['created']
@@ -242,10 +240,8 @@ def save_doc(m_doc, auth_object, existing_doc=""):
         doc.year = m_doc['year']
     if 'last_modified' in m_doc:
         doc.last_modified=m_doc['last_modified']
-
-    #Mendeley allows multiple links, but only include first one
     if 'websites' in m_doc:
-        doc.link = m_doc['websites'][0]
+        doc.link = m_doc['websites'][0] # only include first link
 
     #get notes
     an_params = {'document_id':m_doc['id'], 'type':'note'}
@@ -253,20 +249,29 @@ def save_doc(m_doc, auth_object, existing_doc=""):
     if annotations:
         doc.note = annotations[0]['text']
 
+    # get file id to link to
+    file_params = {'document_id':m_doc['id']}
+    files = auth_object.get('https://api.mendeley.com/files', params=file_params).json()
+
     db.session.add(doc)
     db.session.commit()
 
-
-
-    # add/update tags
-    # add
+    # insert
     if not existing_doc:
-        if 'tags' in m_doc:
+        if 'tags' in m_doc: # to-read tag set later, if necessary
             doc = add_tags_to_doc(m_doc['tags'], doc)
+        if 'authors' in m_doc:
+            doc = add_authors_to_doc(m_doc['authors'], doc)
+        if files:
+            for file in files:
+                new_filelink = FileLinks(doc.id, file['id'])
+                new_filelink.mime_type = file['mime_type']
+                db.session.add(new_filelink)
 
     # update
     else:
-        #set tags variable so it can be used below, even if empty
+        # tags  (to-read tag set later, if necessary)
+        # set tags variable so it can be used below, even if empty
         try:
             tags = m_doc['tags']
         except KeyError:
@@ -282,25 +287,7 @@ def save_doc(m_doc, auth_object, existing_doc=""):
         if tags:
             doc = add_tags_to_doc(tags, doc)
 
-
-    # if unread, tag as "to-read" - and we might have to create this tag
-    # this follows insert/update of normal tags, so that it doesn't get dropped
-    if not m_doc['read']:
-        to_read_tag = get_user_tag('to-read')
-        if to_read_tag != None:
-            doc.tags.append(to_read_tag)
-        else:
-            new_tag = Tags('to-read')
-            doc.tags.append(new_tag)
-
-    # add/update authors
-    # add
-    if not existing_doc:
-        if 'authors' in m_doc:
-            doc = add_authors_to_doc(m_doc['authors'], doc)
-
-    # update
-    else:
+        # authors
         try:
             authors = m_doc['authors']
         except KeyError:
@@ -316,35 +303,21 @@ def save_doc(m_doc, auth_object, existing_doc=""):
         if authors:
             doc = add_authors_to_doc(authors, doc)
 
-    """
-    # skip editors for now
-    if 'editors' in m_doc:
-        for editor in m_doc['editors']:
-            try:
-                new_editor = Authors(current_user.id, doc.id, editor['first_name'], editor['last_name'], 1)
-            except KeyError:
+        """
+        # skip editors for now
+        if 'editors' in m_doc:
+            for editor in m_doc['editors']:
                 try:
-                    new_editor = Authors(current_user.id, doc.id, '', editor['last_name'], 1)
+                    new_editor = Authors(current_user.id, doc.id, editor['first_name'], editor['last_name'], 1)
                 except KeyError:
-                    new_editor = Authors(current_user.id, doc.id, editor['first_name'], '', 1)
-            db.session.add(new_editor)
-    """
+                    try:
+                        new_editor = Authors(current_user.id, doc.id, '', editor['last_name'], 1)
+                    except KeyError:
+                        new_editor = Authors(current_user.id, doc.id, editor['first_name'], '', 1)
+                db.session.add(new_editor)
+        """
 
-    # add/update files
-    # get file id to link to
-    file_params = {'document_id':m_doc['id']}
-    files = auth_object.get('https://api.mendeley.com/files', params=file_params).json()
-
-    # add
-    if not existing_doc:
-        if files:
-            for file in files:
-                new_filelink = FileLinks(doc.id, file['id'])
-                new_filelink.mime_type = file['mime_type']
-                db.session.add(new_filelink)
-
-    # update
-    else:
+        # files
         old_file_links = doc.file_links
 
         # one scenario not caught by "if files:" below: there were old files, but no
@@ -374,7 +347,15 @@ def save_doc(m_doc, auth_object, existing_doc=""):
                 new_filelink.mime_type = file['mime_type']
                 db.session.add(new_filelink)
 
-
+    # if unread, tag as "to-read" - and we might have to create this tag
+    # this follows insert/update of normal tags, so that it doesn't get dropped
+    if not m_doc['read']:
+        to_read_tag = get_user_tag('to-read')
+        if to_read_tag != None:
+            doc.tags.append(to_read_tag)
+        else:
+            new_tag = Tags('to-read')
+            doc.tags.append(new_tag)
 
 
     db.session.commit()
