@@ -123,6 +123,12 @@
 
             <label class="sr-only" for="notes">Notes</label>
             <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes"></textarea><br><br>
+
+            Read?
+            <input class="login_form" type="radio" id="read" name="read" value="1" CHECKED/>Yes
+            <input class="login_form" type="radio" id="read" name="read" value="0"/>No (add to to-read list)<br/>
+            <br/>
+
             {% if title or link %}
                 <button type="submit" name="submit" value="Submit">Submit</button>&nbsp;
             {% else %}

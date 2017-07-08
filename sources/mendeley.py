@@ -235,6 +235,7 @@ def save_doc(m_doc, auth_object, existing_doc=""):
     doc.read=m_doc['read']
     doc.starred=m_doc['starred']
     doc.native_doc_id=m_doc['id']
+    doc.read = int(m_doc['read'])
 
     if 'year' in m_doc:
         doc.year = m_doc['year']
@@ -346,16 +347,5 @@ def save_doc(m_doc, auth_object, existing_doc=""):
                 new_filelink = FileLinks(doc.id, file['id'])
                 new_filelink.mime_type = file['mime_type']
                 db.session.add(new_filelink)
-
-    # if unread, tag as "to-read" - and we might have to create this tag
-    # this follows insert/update of normal tags, so that it doesn't get dropped
-    if not m_doc['read']:
-        to_read_tag = get_user_tag('to-read')
-        if to_read_tag != None:
-            doc.tags.append(to_read_tag)
-        else:
-            new_tag = Tags('to-read')
-            doc.tags.append(new_tag)
-
 
     db.session.commit()

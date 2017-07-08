@@ -301,16 +301,14 @@ def remove_old_authors(old_authors, authors, doc):
 
 # if user has changed pref from including to excluding to-read docs, del them
 def remove_to_read(source):
-    to_read_tag = get_user_tag('to-read')
 
-    if to_read_tag != None:
-        # delete all docs with to-read as tag
-        current_user.documents.filter(Documents.source_id==source, Documents.tags.any(name=to_read_tag.name)).delete(synchronize_session='fetch')
-        db.session.commit()
+    # delete all unnread docs
+    current_user.documents.filter(Documents.source_id==source, Documents.read==0).delete(synchronize_session='fetch')
+    db.session.commit()
 
-        if source == 1:
-            flash("Any unread items from Mendeley have been removed.")
-        if source == 2:
-            flash("Any unread books from Goodreads have been removed.")
+    if source == 1:
+        flash("Any unread items from Mendeley have been removed.")
+    if source == 2:
+        flash("Any unread books from Goodreads have been removed.")
 
     return

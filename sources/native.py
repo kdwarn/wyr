@@ -43,6 +43,7 @@ def add():
         tags = request.form['tags']
         authors = request.form['authors']
         notes = request.form['notes']
+        read = int(request.form['read'])
         submit = request.form['submit']
 
         #validation
@@ -69,7 +70,7 @@ def add():
         new_doc.link = link
         new_doc.year = year
         new_doc.note = notes
-        new_doc.read = 1
+        new_doc.read = read
         new_doc.created = datetime.now()
         db.session.add(new_doc)
 
@@ -148,6 +149,7 @@ def edit():
         authors = request.form['authors']
         old_authors = request.form['old_authors']
         notes = request.form['notes']
+        read = int(request.form['read'])
         submit = request.form['submit']
 
         if submit == "Cancel":
@@ -173,6 +175,7 @@ def edit():
         update_doc.link = link
         update_doc.year = year
         update_doc.note = notes
+        update_doc.read = read
         update_doc.last_modified = datetime.now()
 
         #update tags

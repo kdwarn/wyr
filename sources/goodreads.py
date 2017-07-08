@@ -211,8 +211,8 @@ def save_doc(book, shelf, existing_doc=""):
             #make list of tags out of shelves this book is on
             tags = []
             for shelf in book.findall('shelves/shelf'):
-                # don't add the 'read' shelf as a tag
-                if shelf.get('name') == 'read':
+                # don't add the 'read' or 'to-read' shelves as a tag
+                if shelf.get('name') == 'read' or shelf.get('name') == 'to-read':
                     continue
                 tags.append(shelf.get('name'))
                 doc = add_tags_to_doc(tags, doc)
@@ -235,8 +235,8 @@ def save_doc(book, shelf, existing_doc=""):
     else:
         tags = []
         for shelf in book.findall('shelves/shelf'):
-            # don't add the 'read' shelf as a tag
-            if shelf.get('name') == 'read':
+            # don't add the 'read' or 'to-read' shelves as a tag
+            if shelf.get('name') == 'read' or shelf.get('name') == 'to-read':
                 continue
             tags.append(shelf.get('name'))
 

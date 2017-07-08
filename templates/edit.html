@@ -96,11 +96,19 @@
             {% else %}
                 <textarea cols="40" rows="10" id="notes" name="notes" placeholder="Notes"></textarea>
             {% endif %}
-
+            <br><br>
+            Read?
+            {% if doc.read == 1 %}
+                <input class="login_form" type="radio" id="read" name="read" value="1" CHECKED/>Yes
+                <input class="login_form" type="radio" id="read" name="read" value="0"/>No (add to to-read list)<br/>
+            {% else %}
+                <input class="login_form" type="radio" id="read" name="read" value="1"/>Yes
+                <input class="login_form" type="radio" id="read" name="read" value="0" CHECKED />No (add to to-read list)<br/>
+            {% endif %}
             <input type="hidden" name="id" value="{{doc.id}}">
             <input type="hidden" name="old_tags" value="{{tags}}">
             <input type="hidden" name="old_authors" value="{{authors}}">
-            <br><br>
+            <br>
             <button type="submit" name="submit" value="Submit">Submit</button>&nbsp;
             <button type="submit" name="submit" value="Cancel">Cancel</button>
             <br><br>

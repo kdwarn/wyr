@@ -21,8 +21,13 @@
 {% block content %}
 <div id="main">
     {# subset of documents - describe what is being shown #}
-    {% if tagpage or authorpage or bunch_tag_names %}
+    {% if tagpage or authorpage or bunch_tag_names or page == 'to-read' %}
         <h2>
+
+        {# to-read items #}
+        {% if page == 'to-read' %}
+            <span class="bold">to-read</span>
+        {% endif %}
 
         {# items by one tag #}
         {% if tagpage %}
@@ -51,7 +56,7 @@
         {% endif %}
         </h2>
     {% else %}
-        {% set page = '1' %}
+        {% set page = 'all' %}
     {% endif %}
 
     {# if already a saved bunch, show name #}
@@ -124,6 +129,17 @@
                 </span>
                 <br>
                 <span class="info">
+                {% if doc.read == 1 %}
+                    Added/Read: {{ doc.created.strftime("%B %d, %Y") }}<br>
+
+                    {% if doc.last_modified %}
+                        Last modified: {{ doc.last_modified.strftime("%B %d, %Y") }}<br>
+                    {% endif %}
+                {% else %}
+                    <a href="{{ url_for('to_read') }}">To-Read</a><br>
+                    Added: {{ doc.created.strftime("%B %d, %Y") }}<br>
+                {% endif %}
+
                 {% if doc.tags %}
                     Tagged:
                     {% for tag in doc.tags|sort(attribute='name') %}
@@ -136,12 +152,6 @@
                         </span>
                     {% endfor %}
                 <br>
-                {% endif %}
-
-                Added/Read: {{ doc.created.strftime("%B %d, %Y") }}<br>
-
-                {% if doc.last_modified %}
-                    Last modified: {{ doc.last_modified.strftime("%B %d, %Y") }}<br>
                 {% endif %}
 
                 {% if doc.file_links %}

@@ -1,24 +1,30 @@
 <div class="block-center">
     <span class="small center">
-    {% if page == '1' %}
+    {% if page == 'all' %}
         all |
     {% else %}
         <a href="{{url_for('index')}}">all</a> |
     {% endif %}
 
-    {% if page == '2' %}
+    {% if page == 'to-read' %}
+        to-read |
+    {% else %}
+        <a href="{{url_for('to_read')}}">to-read</a> |
+    {% endif %}
+
+    {% if page == 'tags' %}
         tags |
     {% else %}
         <a href="{{url_for('tags')}}">tags</a> |
     {% endif %}
 
-    {% if page == '3' %}
+    {% if page == 'bunches' %}
         bunches |
     {% else %}
         <a href="{{url_for('bunches')}}">bunches</a> |
     {% endif %}
 
-    {% if page == '4' %}
+    {% if page == 'authors' %}
         authors
     {% else %}
         <a href="{{url_for('authors')}}">authors</a>

@@ -202,6 +202,18 @@ def index():
     else:
         return render_template('index.html')
 
+@app.route('/to-read')
+@login_required
+def to_read():
+    ''' Return all unread items.'''
+
+    # set var for returning to proper page after edit or delete native doc
+    session['return_to'] = url_for('to_read')
+
+    docs = Documents.query.filter_by(user_id=current_user.id, read=0).order_by(desc(Documents.created)).all()
+
+    return render_template('read.html', docs=docs, page='to-read')
+
 @app.route('/tags')
 @login_required
 def tags():
