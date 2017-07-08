@@ -130,7 +130,7 @@
                 <br>
                 <span class="info">
                 {% if doc.read == 1 %}
-                    Added/Read: {{ doc.created.strftime("%B %d, %Y") }}<br>
+                    Read: {{ doc.created.strftime("%B %d, %Y") }}<br>
 
                     {% if doc.last_modified %}
                         Last modified: {{ doc.last_modified.strftime("%B %d, %Y") }}<br>

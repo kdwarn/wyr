@@ -5,8 +5,10 @@ from db_functions import get_user_tag_names, get_user_author_names, \
     str_tags_to_list, add_tags_to_doc, remove_old_tags,  \
     str_authors_to_list, add_authors_to_doc, remove_old_authors
 from bs4 import BeautifulSoup
+import pytz
 from app import db
 from models import Documents, Tags
+
 
 native_blueprint = Blueprint('native', __name__, template_folder='templates')
 
@@ -175,8 +177,13 @@ def edit():
         update_doc.link = link
         update_doc.year = year
         update_doc.note = notes
+
+        # if read status changed from to-read to read, change created date
+        if update_doc.read == 0 and read == 1:
+            update_doc.created = datetime.now(pytz.utc)
+
         update_doc.read = read
-        update_doc.last_modified = datetime.now()
+        update_doc.last_modified = datetime.now(pytz.utc)
 
         #update tags
         # turn strings of tags into lists of tags
@@ -253,50 +260,11 @@ def delete():
     else:
         return redirect(url_for('index'))
 
-
-"""
-This is the beginning of a bulk edit process for tags
-@native_blueprint.route('/tags/edit', methods=['GET', 'POST'])
-@login_required
-def bulk_edit():
-    if request.method == 'GET':
-        #display tags just like in /tags, but only for native docs
-        #tags = db.session.query(Tags.name).filter_by(user_id=current_user.id, source_id="3").order_by(Tags.name).distinct()
-        tags = db.session.query(Tags.name).join(Documents).filter(Documents.user_id==current_user.id, Documents.source_id=="3").\
-        order_by(Tags.name).distinct()
-
-        #form names can't contain spaces, so have to work around - send dict of tag names, temp_ids
-        tag_list = list()
-        i=0
-        for tag in tags:
-            tag_list.append({'temp_id':i, 'name':tag.name})
-            i += 1
-
-        return render_template('edit_tags.html', tags=tag_list)
-
-    else:
-        return render_template('contact.html')
-
-        if request.form['submit'] == 'Cancel':
-            return redirect(url_for('tags'))
-
-
-        form_variables = request.form
-        #go through each one starting with "rename." or "delete." and rename/delete?
-
-        #original dict is in input tag_list, has temp_ids and names, use to associate with rename.#/delete.#
-
-        return render_template('test_bulk_edit.html', variables=form_variables)
-"""
-
-################################################################################
-################################################################################
-## IMPORT BOOKMARKS FROM HTML FILE #############################################
-# also source_id 3
-
 @native_blueprint.route('/import', methods=['GET', 'POST'])
 @login_required
 def import_bookmarks():
+    '''Import bookmarks from HTML file.'''
+
     if request.method == 'POST':
         #get folders so user can select which ones to import
         if 'step1' in request.form:
