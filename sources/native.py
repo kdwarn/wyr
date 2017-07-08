@@ -178,12 +178,15 @@ def edit():
         update_doc.year = year
         update_doc.note = notes
 
-        # if read status changed from to-read to read, change created date
+        # if change from to-read to read, updated created, delete last_modified
         if update_doc.read == 0 and read == 1:
             update_doc.created = datetime.now(pytz.utc)
+            update_doc.last_modified = ''
+        else:
+            update_doc.last_modified = datetime.now(pytz.utc)
 
         update_doc.read = read
-        update_doc.last_modified = datetime.now(pytz.utc)
+
 
         #update tags
         # turn strings of tags into lists of tags
