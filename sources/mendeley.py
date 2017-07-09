@@ -1,10 +1,11 @@
 from flask import Blueprint, request, redirect, url_for, flash, session
 from flask.ext.login import login_required, current_user
 from datetime import datetime
-from db_functions import get_user_tag, add_tags_to_doc, add_authors_to_doc, \
+import pytz
+from db_functions import add_tags_to_doc, add_authors_to_doc, \
     remove_old_tags, remove_old_authors
 from app import db
-from models import Documents, Tags, Tokens, FileLinks
+from models import Documents, Tokens, FileLinks
 from requests_oauthlib import OAuth2Session
 from config import m
 #from oauthlib.oauth2 import InvalidGrantError
@@ -171,7 +172,7 @@ def import_mendeley(update_type):
     else:
         flash("No updated items were found in Mendeley.")
 
-    current_user.mendeley_update = datetime.now()
+    current_user.mendeley_update = datetime.now(pytz.utc)
     db.session.commit()
 
 def get_docs(auth_object, type=''):
@@ -231,7 +232,7 @@ def save_doc(m_doc, auth_object, existing_doc=""):
     else: # updating, Document object already exists
         doc = existing_doc
 
-    doc.created=m_doc['created']
+    doc.created=m_doc['created'] # already in UTC
     doc.read=m_doc['read']
     doc.starred=m_doc['starred']
     doc.native_doc_id=m_doc['id']
@@ -240,7 +241,7 @@ def save_doc(m_doc, auth_object, existing_doc=""):
     if 'year' in m_doc:
         doc.year = m_doc['year']
     if 'last_modified' in m_doc:
-        doc.last_modified=m_doc['last_modified']
+        doc.last_modified=m_doc['last_modified'] #already in UTC
     if 'websites' in m_doc:
         doc.link = m_doc['websites'][0] # only include first link
 

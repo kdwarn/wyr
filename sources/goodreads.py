@@ -186,9 +186,17 @@ def save_doc(book, shelf, existing_doc=""):
 
     # add date when created, convert from string to datetime object
     if book.find('read_at').text is not None:
-        doc.created = datetime.strptime(book.find('read_at').text, '%a %b %d %H:%M:%S %z %Y')
+        created = datetime.strptime(book.find('read_at').text, '%a %b %d %H:%M:%S %z %Y')
+
+        # *created* is in local time, convert to UTC, remove timezone
+        doc.created = created.astimezone(pytz.utc).replace(tzinfo=None)
+
     else:
-        doc.created = datetime.strptime(book.find('date_added').text, '%a %b %d %H:%M:%S %z %Y')
+        created = datetime.strptime(book.find('date_added').text, '%a %b %d %H:%M:%S %z %Y')
+
+        # *created* is in local time, convert to UTC, remove timezone
+        doc.created = created.astimezone(pytz.utc).replace(tzinfo=None)
+
 
     if book.find('book/published').text is not None:
         doc.year = book.find('book/published').text
@@ -196,7 +204,11 @@ def save_doc(book, shelf, existing_doc=""):
     doc.link = book.find('book/link').text
 
     if book.find('date_updated').text is not None:
-        doc.last_modified = datetime.strptime(book.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
+        last_modified = datetime.strptime(book.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
+
+        # *last_modified* is in local time, convert to UTC, remove timezone
+        doc.last_modified = last_modified.astimezone(pytz.utc).replace(tzinfo=None)
+
 
     if book.find('body').text is not None:
         doc.note = book.find('body').text

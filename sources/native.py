@@ -73,7 +73,7 @@ def add():
         new_doc.year = year
         new_doc.note = notes
         new_doc.read = read
-        new_doc.created = datetime.now()
+        new_doc.created = datetime.now(pytz.utc)
         db.session.add(new_doc)
 
         if tags:
