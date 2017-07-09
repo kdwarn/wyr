@@ -136,11 +136,12 @@ def get_books_from_shelf(auth_object, shelf, update_type):
                     save_doc(book, shelf)
 
                 else:
-                    #add the book's native id to a list (to check for deleted)
-                    book_ids.append(book.find('id').text)
 
-                    # if normal update, break out of loop if book updated before last refresh
                     if update_type == 'normal':
+
+                        #add the book's native id to a list (to check for deleted)
+                        book_ids.append(book.find('id').text)
+
                         date_updated = datetime.strptime(book.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
 
                         # *date_updated* is in local time, convert to UTC, remove timezone
@@ -157,7 +158,8 @@ def get_books_from_shelf(auth_object, shelf, update_type):
 
                     save_doc(book, shelf, check_doc)
 
-        delete_books(book_ids)
+        if update_type == 'normal':
+            delete_books(book_ids)
 
         flash("Books on your Goodreads {} shelf have been updated.".format(shelf))
 

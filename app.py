@@ -181,14 +181,14 @@ def index():
         # authorizing, check for that
         if current_user.mendeley == 1 and not current_user.mendeley_update:
             import_mendeley('initial')
-        elif current_user.mendeley == 1 and current_user.mendeley_update < then:
+        if current_user.mendeley == 1 and current_user.mendeley_update < then:
             import_mendeley('normal')
-        else:
-            pass
-        """ disabling for now
+
+        if current_user.goodreads == 1 and not current_user.goodreads_update:
+            import_goodreads('initial')
         if current_user.goodreads == 1 and current_user.goodreads_update < then:
-            update_goodreads()
-        """
+            import_goodreads('normal')
+
         # put user's docs into variable to return
         docs = current_user.documents.order_by(desc(Documents.created))
 
