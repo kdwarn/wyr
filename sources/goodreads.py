@@ -65,7 +65,7 @@ def goodreads_authorize():
         db.session.commit()
 
         flash("Authorization successful.")
-        return redirect(url_for('verify_authorization', source='Goodreads'))
+        return redirect(url_for('common.verify_authorization', source='Goodreads'))
 
     else:
         flash('Authorization failed.')

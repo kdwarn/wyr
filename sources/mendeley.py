@@ -70,7 +70,7 @@ def mendeley_authorize():
     db.session.commit()
 
     flash("Authorization successful.")
-    return redirect(url_for('verify_authorization', source='Mendeley'))
+    return redirect(url_for('common.verify_authorization', source='Mendeley'))
 
 def update_token(new_token):
     token = Tokens.query.filter_by(user_id=current_user.id, source_id=1).first()
