@@ -72,8 +72,8 @@
         <p>Mendeley |
         {% if current_user.mendeley == 1 %}
             Authorized &#10003; &nbsp;
-            <a href="{{ url_for('deauthorize', name='Mendeley') }}">Deauthorize</a> |
-            <a href="{{ url_for('refresh', name='Mendeley') }}">Refresh</a>
+            <a href="{{ url_for('common.deauthorize', name='Mendeley') }}">Deauthorize</a> |
+            <a href="{{ url_for('common.refresh', name='Mendeley') }}">Refresh</a>
         {% else %}
             <a href="{{ url_for('mendeley.mendeley_login') }}">Authorize</a>
         {% endif %}
@@ -81,8 +81,8 @@
         <p>Goodreads |
         {% if current_user.goodreads == 1 %}
             Authorized &#10003; &nbsp;
-            <a href="{{ url_for('deauthorize', name='Goodreads') }}">Deauthorize</a> |
-            <a href="{{ url_for('refresh', name='Goodreads') }}">Refresh</a>
+            <a href="{{ url_for('common.deauthorize', name='Goodreads') }}">Deauthorize</a> |
+            <a href="{{ url_for('common.refresh', name='Goodreads') }}">Refresh</a>
         {% else %}
             <a href="{{ url_for('goodreads.goodreads_login') }}">Authorize</a>
         {% endif %}
