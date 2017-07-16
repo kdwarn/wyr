@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, \
+    flash, session
 from flask.ext.login import login_required, current_user
 from datetime import datetime
 from db_functions import get_user_tag_names, get_user_author_names, \
@@ -7,7 +8,7 @@ from db_functions import get_user_tag_names, get_user_author_names, \
 from bs4 import BeautifulSoup
 import pytz
 from app import db
-from models import Documents, Tags
+from models import Documents
 
 
 native_blueprint = Blueprint('native', __name__, template_folder='templates')
@@ -279,12 +280,6 @@ def import_bookmarks():
             #get file and return user to form if none selected
             file = request.files['bookmarks']
 
-            #limit size of file
-            #except RequestEntityTooLarge:
-            #    flash('Sorry, that file is a bit too big.')
-            #    return render_template('import.html')
-
-
             if not file:
                 flash('No file was selected. Please choose a file.')
                 return render_template('import.html')
@@ -295,13 +290,15 @@ def import_bookmarks():
                 flash("Sorry, that doesn't look like a .html file.")
                 return render_template('import.html')
 
-            #limit size of file
+            # put soupped file into a global variable accessed by username,
+            # so we can work with it after step 2 (and so it's uniquely named)
+            soup = dict()
+            soup[current_user.username] = BeautifulSoup(file, 'html.parser')
 
-            #make object global to get it again, parse file for folders
             global soup
-            soup = BeautifulSoup(file, 'html.parser')
+
             folders = []
-            for each in soup.find_all('h3'):
+            for each in soup[current_user.username].find_all('h3'):
                 folders.append(each.string)
 
             #return user to import to choose which folders to pull links from
@@ -317,9 +314,7 @@ def import_bookmarks():
             #put checked folders into list
             folders = request.form.getlist('folder')
 
-            global soup
-
-            for each in soup.find_all('a'):
+            for each in soup[current_user.username].find_all('a'):
                 if each.string != None:
                     # get the dl above the link
                     parent_dl = each.find_parent('dl')
@@ -334,15 +329,14 @@ def import_bookmarks():
                                 #replace commas with spaces in folders before inserting into db
                                 h3.string = h3.string.replace(',', '')
                                 new_doc = Documents(3, each.string)
-                                current_user.docsuments.append(new_doc)
+                                current_user.documents.append(new_doc)
                                 new_doc.link = each['href']
                                 new_doc.read = 1
                                 #convert add_date (seconds from epoch format) to datetime
                                 new_doc.created = datetime.fromtimestamp(int(each['add_date']))
                                 db.session.add(new_doc)
                                 db.session.commit()
-                                new_tag = Tags(current_user.id, new_doc.id, h3.string)
-                                db.session.add(new_tag)
+                                add_tags_to_doc([h3.string], new_doc)
                                 db.session.commit()
 
             flash('Bookmarks successfully imported.')

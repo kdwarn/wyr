@@ -574,7 +574,7 @@ def activate():
         hashed_password = myctx.encrypt(password)
 
         #add user
-        user = User(username=username, password=hashed_password, email=email)
+        user = User(username, hashed_password, email)
         db.session.add(user)
         db.session.commit()
 
@@ -1129,3 +1129,9 @@ def paypal():
 #def page_not_found(e):
 #    flash("Sorry, that page wasn't found.")
 #    return redirect(url_for('index'))
+
+@app.errorhandler(413)
+def file_too_big(e):
+    flash('Sorry, that file is too big.')
+    return render_template('import.html')
+

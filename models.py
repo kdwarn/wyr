@@ -37,14 +37,16 @@ class User(db.Model, UserMixin):
     markdown = db.Column(db.Integer)
 
     #relationships
-    #this works, and the fastest way so far
     documents = db.relationship('Documents', lazy='dynamic', backref=db.backref('documents', cascade='all, delete'))
 
-    #seems to be about twice as fast as this:
-    #documents = db.relationship('Documents', backref='user', lazy='dynamic')
-
-    #how about this? still slow
-    #documents = db.relationship('Documents', backref='user', lazy='joined')
+    def __init__(self, username, password, email):
+        self.username = username
+        self.password = password
+        self.email = email
+        self.include_m_unread = 0
+        self.include_g_unread = 0
+        self.auto_close = 0
+        self.markdown = 1
 
 #table of different sources - manually add through mysql
 # 1 - Mendeley
@@ -116,7 +118,6 @@ class Authors(db.Model, UserMixin):
     def __init__(self, first_name, last_name):
         self.first_name = first_name
         self.last_name = last_name
-
 
 class FileLinks(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
