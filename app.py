@@ -670,6 +670,7 @@ def settings():
 @login_required
 def change_password():
     ''' Let users change password '''
+
     if request.method == 'GET':
         return render_template('change_password.html')
     elif request.method == 'POST':
@@ -680,10 +681,6 @@ def change_password():
         current_password = request.form['wyr_current_password']
         new_password = request.form['wyr_new_password']
         confirm_password = request.form['wyr_confirm_password']
-        submit = request.form['submit']
-
-        if submit == 'Cancel':
-            return redirect(url_for('settings'))
 
         #first verify current password
         myctx = CryptContext(schemes=['pbkdf2_sha256'])
@@ -702,6 +699,22 @@ def change_password():
 
                 current_user.password = hash
                 db.session.commit()
+
+                # send user email to confirm, allow reset of password
+                #hash for confirm change
+                serializer = URLSafeSerializer(app.config['SECRET_KEY'])
+                email_hash = serializer.dumps([current_user.email], salt='reset_password')
+
+                to = current_user.email
+                subject = 'Password Change'
+                text = """The password for your What You've Read account has been
+                changed. If this was not you, someone has access to your account. You should
+                <a href="http://www.whatyouveread.com/reset_password?code={}">reset your
+                password</a> immediately.<br>
+                <br>
+                -Kris @ What You've Read""".format(email_hash)
+
+                send_simple_message(to, subject, text)
 
                 flash('Your password has been updated.')
                 return redirect(url_for('settings'))
