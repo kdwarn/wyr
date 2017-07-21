@@ -131,10 +131,6 @@
                 <span class="info">
                 {% if doc.read == 1 %}
                     Read: {{ doc.created.strftime("%B %d, %Y") }}<br>
-
-                    {% if doc.last_modified %}
-                        Last modified: {{ doc.last_modified.strftime("%B %d, %Y") }}<br>
-                    {% endif %}
                 {% else %}
                     <a href="{{ url_for('to_read') }}">To-Read</a><br>
                     Added: {{ doc.created.strftime("%B %d, %Y") }}<br>
