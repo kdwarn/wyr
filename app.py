@@ -34,7 +34,7 @@ md.init_app(app)
 
 # import things that depend upon db
 from db_functions import get_user_tags, get_user_authors, remove_to_read
-from models import User, Documents, Tags, Bunches
+from models import User, Documents, Tags, Bunches, Authors
 from sources.native import native_blueprint
 from sources.mendeley import mendeley_blueprint, import_mendeley
 from sources.goodreads import goodreads_blueprint, import_goodreads
@@ -439,36 +439,30 @@ def authors():
     authors = get_user_authors()
     return render_template('authors.html', authors=authors)
 
-@app.route('/authors/<first_name> <last_name>')
+@app.route('/author/<author_id>')
 @login_required
-def docs_by_author(first_name, last_name):
+def docs_by_author(author_id):
     ''' Return all documents by particular author. '''
 
     # set var for returning to proper page after edit or delete native doc
-    session['return_to'] = url_for('docs_by_author',
-                                   first_name=first_name,
-                                   last_name=last_name)
+    session['return_to'] = url_for('docs_by_author', author_id=author_id)
+
+    #author = Authors.id=id.one()
+    author = Authors.query.filter_by(id=author_id).one()
 
     #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
-    docs = current_user.documents.filter(Documents.authors.any(first_name=first_name)).\
-        filter(Documents.authors.any(last_name=last_name)).order_by(desc(Documents.created)).all()
+    docs = current_user.documents.filter(Documents.authors.any(id=author_id)).\
+        order_by(desc(Documents.created)).all()
 
-    #authorpage, first_name, last_name used for header
-    return render_template('read.html', docs=docs, authorpage=1, first_name=first_name, last_name=last_name)
-
-@app.route('/authors/ <last_name>')
-@login_required
-def docs_by_author_last(last_name):
-    ''' Same as above, but in the special case where there is only a last name (institional name) '''
-
-    # set var for returning to proper page after edit or delete native doc
-    session['return_to'] = url_for('docs_by_author_last', last_name=last_name)
-
-    #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
-    docs = current_user.documents.filter(Documents.authors.any(last_name=last_name)).order_by(desc(Documents.created)).all()
-
-    #authorpage, first_name, last_name used for header
-    return render_template('read.html', docs=docs, authorpage=1, last_name=last_name)
+    # only return docs author info if user has docs by that author
+    # this ensures one user can't type in an id and see an author another user has
+    if docs:
+        #authorpage, first_name, last_name used for header
+        return render_template('read.html', docs=docs, authorpage=1, \
+            first_name=author.first_name, last_name=author.last_name)
+    else:
+        flash('Sorry, you have no documents by that author.')
+        return redirect(url_for('authors'))
 
 #############################
 ### ADMIN/SETTINGS ROUTES ###

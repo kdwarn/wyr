@@ -8,8 +8,13 @@
     <div  style="line-height:1.5em">
     {% if current_user.is_authenticated %}
         {% for author in authors %}
-            <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
-            {{ author.last_name }}, {{author.first_name}}</a><br>
+            {% if author.first_name %}
+                <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
+                    {{ author.last_name }}, {{author.first_name}}</a><br>
+            {% else %}
+                <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
+                    {{ author.last_name }}</a><br>
+            {% endif %}
         {% endfor %}
     {% endif %}
     </div>
