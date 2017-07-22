@@ -1,6 +1,6 @@
 # What You've Read
 
-[What You've Read](https://www.whatyouveread.com), v0.15.
+[What You've Read](https://www.whatyouveread.com), v0.2.
 
 See [Milestones](https://github.com/kdwarn/wyr/milestones?with_issues=no) for
 development plans.
