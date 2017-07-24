@@ -21,10 +21,11 @@
                 setTimeout('window.close()', 6000)
             </script>
         {% else %}
-            <form id="close_form">
-                <button type="submit" name ="close" id="close"
-                    onclick="window.open('', '_self', ''); window.close();">Close</button>
-            </form>
+            <p>You will be redirected back to the main page momentarily.</p>
+            <script type="text/JavaScript">
+                setTimeout("location.href = 'https://www.whatyouveread.com';",1500);
+            </script>
+
         {% endif %}
 
     {% else %}
