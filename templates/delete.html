@@ -21,10 +21,10 @@
                 by
                 {% for author in doc.authors %}
                     {% if author != doc.authors[-1] %}
-                        <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
+                        <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
                             {{ author.first_name }} {{ author.last_name }}</a>,
                     {% else %}
-                        <a href="{{ url_for('docs_by_author', last_name=author.last_name, first_name=author.first_name) }}">
+                        <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
                             {{ author.first_name }} {{ author.last_name }}</a>
                     {% endif %}
                 {% endfor %}
@@ -42,12 +42,12 @@
                 </span>
             </br>
             {% endif %}
-            <span class="info">Added: {{ doc.created.strftime("%B %d, %Y") }}
-
-            {% if doc.last_modified %}
-                <br/>Last modified: {{ doc.last_modified.strftime("%B %d, %Y") }}<br/>
+            <span class="info">
+            {% if doc.read == 1 %}
+                Read: {{ doc.created.strftime("%B %d, %Y") }}
+            {% else %}
+                Added: {{ doc.created.strftime("%B %d, %Y") }}
             {% endif %}
-
             </span><br>
 
             {% if doc.note %}
