@@ -231,6 +231,7 @@ def save_doc(m_doc, auth_object, existing_doc=""):
         current_user.documents.append(doc)
     else: # updating, Document object already exists
         doc = existing_doc
+        doc.title = m_doc['title']
 
     doc.created=m_doc['created'] # already in UTC
     doc.read=m_doc['read']
