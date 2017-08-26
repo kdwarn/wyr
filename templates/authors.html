@@ -5,18 +5,29 @@
 <div id="main">
     {% set page = 'authors' %}
     {% include 'sort_subheader.html' %}
-    <div  style="line-height:1.5em">
-    {% if current_user.is_authenticated %}
-        {% for author in authors %}
-            {% if author.first_name %}
-                <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
-                    {{ author.last_name }}, {{author.first_name}}</a><br>
-            {% else %}
-                <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
-                    {{ author.last_name }}</a><br>
-            {% endif %}
+    <div style="line-height:1.5em">
+
+        <div class="center">JUMP TO:
+        {% for key in grouped_authors.keys() %}
+            <a href="#{{key}}">{{ key }}</a>
         {% endfor %}
-    {% endif %}
+        </div>
+
+        {% for key, authors in grouped_authors.items() %}
+            <div id="{{key}}"> </div>
+            <br>
+            <div class="bold">{{key}}</div>
+            {% for author in authors %}
+                {% if author.first_name %}
+                    <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
+                        {{ author.last_name }}, {{author.first_name}}</a><br>
+                {% else %}
+                    <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
+                        {{ author.last_name }}</a><br>
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+
     </div>
 </div>
 <br>

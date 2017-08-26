@@ -19,6 +19,8 @@ import requests
 from flask.ext.misaka import Misaka
 import re
 from jinja2 import evalcontextfilter, Markup, escape
+from collections import OrderedDict
+import string
 
 ###############
 ### CONFIG ####
@@ -221,7 +223,25 @@ def to_read():
 def tags():
     ''' Return page of all tags, which user can select to display documents with that tag. '''
     tags = get_user_tags()
-    return render_template('tags.html', tags=tags)
+
+    # group tags by their first letter, to enable jumping down page
+    grouped_tags = OrderedDict()
+
+    for tag in tags:
+        if tag['name'][0] not in string.ascii_letters:
+            try:
+                grouped_tags['#'].append(tag)
+            except KeyError:
+                grouped_tags['#'] = []
+                grouped_tags['#'].append(tag)
+        else:
+            try:
+                grouped_tags[tag['name'][0].upper()].append(tag)
+            except KeyError:
+                grouped_tags[tag['name'][0].upper()] = []
+                grouped_tags[tag['name'][0].upper()].append(tag)
+
+    return render_template('tags.html', grouped_tags=grouped_tags)
 
 @app.route('/tag/<tag>/')
 @login_required
@@ -435,9 +455,26 @@ def bunch_delete():
 @login_required
 def authors():
     ''' Display all authors for user's documents. '''
-
     authors = get_user_authors()
-    return render_template('authors.html', authors=authors)
+
+    # group authors by first letter of last name, to enable jumping down page
+    grouped_authors = OrderedDict()
+
+    for author in authors:
+        if author['last_name'][0] not in string.ascii_letters:
+            try:
+                grouped_authors['#'].append(author)
+            except KeyError:
+                grouped_authors['#'] = []
+                grouped_authors['#'].append(author)
+        else:
+            try:
+                grouped_authors[author['last_name'][0].upper()].append(author)
+            except KeyError:
+                grouped_authors[author['last_name'][0].upper()] = []
+                grouped_authors[author['last_name'][0].upper()].append(author)
+
+    return render_template('authors.html', grouped_authors=grouped_authors)
 
 @app.route('/author/<author_id>')
 @login_required
