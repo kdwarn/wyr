@@ -15,16 +15,24 @@
         <header>
             <nav>
             {% if current_user.is_authenticated %}
+                <div style="float:left; vertical align:middle; display:block;
+	            padding:5px; font-weight:bold"><a href="/"
+	            style="text-decoration:none; color:white">What You've Read</a></div>
+
+                <div style="float:right">
                 <label for="show-menu" class="show-menu">&#9776;</label>
                 <input type="checkbox" id="show-menu" role="button">
                 <ul id="menu">
-                <a href="/"><li>Home</li></a>
+                <a href="{{url_for('tags')}}"><li>Tags</li></a>
+                <a href="{{url_for('bunches')}}"><li>Bunches</li></a>
+                <a href="{{url_for('authors')}}"><li>Authors</li></a>
                 <a href="/add"><li>Add</li></a>
                 <a href="/settings"><li>Settings</li></a>
                 <a href="/contact"><li>Contact</li></a>
                 <a href="/donate"><li>Donate</li></a>
                 <a href="/logout"><li>Logout</li></a>
                 </ul>
+                </div>
 
             {% endif %}
             </nav>
@@ -39,7 +47,6 @@
                 {% endif %}
             {% endwith %}
             </div>
-            <h1>What You've Read</h1>
         </header>
         {% block content %}{% endblock %}
     </body>

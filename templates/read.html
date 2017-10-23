@@ -2,37 +2,92 @@
 {% extends 'header.html' %}
 {% block title %}
     {% if tagpage %}
-        - {{tagpage}}
-    {% endif %}
-
-    {% if bunch_tag_names and not bunch_name %}
-        - Bunch
+        : {{tagpage}}
     {% endif %}
 
     {% if authorpage %}
-        - {{first_name}} {{last_name}}
+        : {{first_name}} {{last_name}}
+    {% endif %}
+
+    {% if bunch_tag_names and not bunch_name %}
+        : Bunch
     {% endif %}
 
     {% if bunch_name %}
-        - {{bunch_name}}
+        : {{bunch_name}}
     {% endif %}
+
+    {% if read_status %}
+        : {{read_status}}
+    {% endif %}
+
 {% endblock %}
 
 {% block content %}
 <div id="main">
-    {# subset of documents - describe what is being shown #}
-    {% if tagpage or authorpage or bunch_tag_names or page == 'to-read' %}
-        <h2>
 
-        {# to-read items #}
-        {% if page == 'to-read' %}
-            <span class="bold">to-read</span>
+    {# filter items by read status #}
+    <h1>
+
+    {% if read_status == 'all' %}
+        all |
+    {% else %}
+        {% if tagpage %}
+            <a href="{{ url_for('docs_by_tag', tag=tagpage, read_status="all") }}">all</a> |
+        {% elif authorpage %}
+            <a href="{{ url_for('docs_by_author', author_id=author.id, read_status="all") }}">all</a> |
+        {% elif bunch_name %}
+            <a href="{{ url_for('bunch', read_status="all", name=bunch_name) }}">all</a> |
+        {% else %}
+            <a href="{{url_for('index')}}">all</a> |
         {% endif %}
+    {% endif %}
 
+    {% if read_status == 'read' %}
+        read |
+    {% else %}
+        {% if tagpage %}
+            <a href="{{ url_for('docs_by_tag', tag=tagpage, read_status="read") }}">read</a> |
+        {% elif authorpage %}
+            <a href="{{ url_for('docs_by_author', author_id=author.id, read_status="read") }}">read</a> |
+        {% elif bunch_name %}
+            <a href="{{ url_for('bunch', read_status="read", name=bunch_name) }}">read</a> |
+        {% else %}
+            <a href="{{url_for('read')}}">read</a> |
+        {% endif %}
+    {% endif %}
+
+    {% if read_status == 'to-read' %}
+        to-read
+    {% else %}
+        {% if tagpage %}
+            <a href="{{ url_for('docs_by_tag', tag=tagpage, read_status="to-read") }}">to-read</a>
+        {% elif authorpage %}
+            <a href="{{ url_for('docs_by_author', author_id=author.id, read_status="to-read") }}">to-read</a>
+        {% elif bunch_name %}
+            <a href="{{ url_for('bunch', read_status="to-read", name=bunch_name) }}">to-read</a>
+        {% else %}
+            <a href="{{url_for('to_read')}}">to-read</a>
+        {% endif %}
+    {% endif %}
+    </h1>
+
+
+    {# inform user if filtered by tag, author, or bunch; enable clearing #}
+    {% if tagpage or authorpage or bunch_tag_names %}
+        <h2>
         {# items by one tag #}
         {% if tagpage %}
-            <span class="bold">tagged</span> {{tagpage}}
+            &nbsp; tagged {{tagpage}}
+            {% if read_status == 'read' %}
+                <a href="/read" class="clear_filter">&#10005</a>
+            {% elif read_status == 'to-read' %}
+                <a href="/to-read" class="clear_filter">&#10005</a>
+            {% else %}
+                <a href="/" class="clear_filter">&#10005</a>
+            {% endif %}
         {% endif %}
+
 
         {# items by bunch #}
         {% if bunch_tag_names %}
@@ -52,19 +107,30 @@
 
         {# items by author #}
         {% if authorpage %}
-            by {{first_name}} {{last_name}}
+            &nbsp; by {{first_name}} {{last_name}}
+            {% if read_status == 'read' %}
+                <a href="/read" class="clear_filter">&#10005</a>
+            {% elif read_status == 'to-read' %}
+                <a href="/to-read" class="clear_filter">&#10005</a>
+            {% else %}
+                <a href="/" class="clear_filter">&#10005</a>
+            {% endif %}
         {% endif %}
         </h2>
-    {% else %}
-        {% set page = 'all' %}
     {% endif %}
 
     {# if already a saved bunch, show name #}
     {% if bunch_name %}
-        <div class="block-center">({{bunch_name}} bunch)</div><br>
+        <div class="block-center">({{bunch_name}} bunch)
+        {% if read_status == 'read' %}
+            <a href="/read" class="clear_filter">&#10005</a>
+        {% elif read_status == 'to-read' %}
+            <a href="/to-read" class="clear_filter">&#10005</a>
+        {% else %}
+            <a href="/" class="clear_filter">&#10005</a>
+        {% endif %}
+        </div><br>
     {% endif %}
-
-    {% include 'sort_subheader.html' %}
 
     {# option to save bunch #}
     {% if bunch_tag_names and not bunch_name %}
@@ -80,7 +146,8 @@
         </div>
     {% endif %}
 
-    <div>
+    {# display the docs #}
+    <div style="margin-top:1rem">
     {% if current_user.is_authenticated %}
         {% for doc in docs %}
             <div class="doc">
@@ -111,14 +178,14 @@
                     <span style="font-size:1rem;">by</span>
                     {% for author in doc.authors %}
                         {% if author != doc.authors[-1] %}
-                            <a href="{{ url_for('docs_by_author', author_id=author.id)}}">
+                            <a href="{{ url_for('docs_by_author', author_id=author.id, read_status=read_status)}}">
                             {% if author.role == 1 %}
                                 {{ author.first_name }} {{ author.last_name }}</a> (editor),
                             {% else %}
                                 {{ author.first_name }} {{ author.last_name }}</a>,
                             {% endif %}
                         {% else %}
-                            <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
+                            <a href="{{ url_for('docs_by_author', author_id=author.id, read_status=read_status) }}">
                                 {{ author.first_name }} {{ author.last_name }}</a>
                             {% if author.role == 1 %}
                                 (editor)
@@ -141,9 +208,9 @@
                     {% for tag in doc.tags|sort(attribute='name') %}
                         <span class="tags">
                         {% if tag != doc.tags|sort(attribute='name')|last %}
-                            <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>,
+                            <a href="{{ url_for('docs_by_tag', tag=tag.name, read_status=read_status) }}">{{ tag.name }}</a>,
                         {% else %}
-                            <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>
+                            <a href="{{ url_for('docs_by_tag', tag=tag.name, read_status=read_status)  }}">{{ tag.name }}</a>
                         {% endif %}
                         </span>
                     {% endfor %}

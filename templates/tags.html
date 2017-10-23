@@ -3,8 +3,7 @@
 {% block title %} - Tags {% endblock %}
 {% block content %}
 <div id="main">
-    {% set page = 'tags' %}
-    {% include 'sort_subheader.html' %}
+    <h1>Tags</h1><br>
     <div style="line-height:1.5em">
 
         <div class="center">JUMP TO:
@@ -18,7 +17,7 @@
             <br>
             <div class="bold">{{key}}</div>
             {% for tag in tags %}
-                <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a><br>
+                <a href="{{ url_for('docs_by_tag', tag=tag.name, read_status="all") }}">{{ tag.name }}</a><br>
             {% endfor %}
         {% endfor %}
 

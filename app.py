@@ -202,9 +202,21 @@ def index():
             individually.""")
             return redirect(url_for('settings'))
 
-        return render_template('read.html', docs=docs)
+        return render_template('read.html', docs=docs, read_status='all')
     else:
         return render_template('index.html')
+
+@app.route('/read')
+@login_required
+def read():
+    ''' Return all read items.'''
+
+    # set var for returning to proper page after edit or delete native doc
+    session['return_to'] = url_for('read')
+
+    docs = Documents.query.filter_by(user_id=current_user.id, read=1).order_by(desc(Documents.created)).all()
+
+    return render_template('read.html', docs=docs, read_status='read')
 
 @app.route('/to-read')
 @login_required
@@ -216,7 +228,7 @@ def to_read():
 
     docs = Documents.query.filter_by(user_id=current_user.id, read=0).order_by(desc(Documents.created)).all()
 
-    return render_template('read.html', docs=docs, page='to-read')
+    return render_template('read.html', docs=docs, read_status='to-read')
 
 @app.route('/tags')
 @login_required
@@ -243,39 +255,54 @@ def tags():
 
     return render_template('tags.html', grouped_tags=grouped_tags)
 
-@app.route('/tag/<tag>/')
+@app.route('/<read_status>/tag/<tag>/')
 @login_required
-def docs_by_tag(tag):
+def docs_by_tag(read_status, tag):
     ''' Return all user's documents tagged <tag>. '''
 
     # set var for returning to proper page after edit or delete native doc
-    session['return_to'] = url_for('docs_by_tag', tag=tag)
+    session['return_to'] = url_for('docs_by_tag', tag=tag, read_status=read_status)
 
-    #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
-    docs = current_user.documents.filter(Documents.tags.any(name=tag)).order_by(desc(Documents.created)).all()
+    if read_status == 'read' or read_status == 'to-read':
+        if read_status == 'read':
+            status = 1
+        if read_status == 'to-read':
+            status = 0
 
-    return render_template('read.html', docs=docs, tagpage=tag) #tagpage is used for header
+        #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
+        docs = current_user.documents.filter_by(read=status).filter(Documents.tags.any(name=tag)).order_by(desc(Documents.created)).all()
 
-@app.route('/bunch/<name>')
+    else:
+        #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
+        docs = current_user.documents.filter(Documents.tags.any(name=tag)).order_by(desc(Documents.created)).all()
+
+    return render_template('read.html', docs=docs, tagpage=tag, read_status=read_status) #tagpage is used for header
+
+@app.route('/<read_status>/bunch/<name>') #, defaults={'read_status':'all'})
 @login_required
-def bunch(name):
+def bunch(read_status, name):
     ''' Display docs from saved bunch '''
 
     # set var for returning to proper page after edit or delete native doc
-    session['return_to'] = url_for('bunch', name=name)
+    session['return_to'] = url_for('bunch', read_status=read_status, name=name)
 
-    #get the name, tags, and selector for this bunch
+    # get the name, tags, read_stuats, and selector for this bunch
     bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==name).one()
 
-    if bunch.selector == 'or':
+    if read_status == 'all':
         docs = current_user.documents.filter(Documents.tags.any(Tags.id.in_([t.id for t in bunch.tags]))).order_by(desc(Documents.created)).all()
+
+    if read_status == 'read':
+        docs = current_user.documents.filter(Documents.read==1, Documents.tags.any(Tags.id.in_([t.id for t in bunch.tags]))).order_by(desc(Documents.created)).all()
+
+
+    if read_status == 'to-read':
+        docs = current_user.documents.filter(Documents.read==0, Documents.tags.any(Tags.id.in_([t.id for t in bunch.tags]))).order_by(desc(Documents.created)).all()
 
     if bunch.selector == 'and':
-        #couldn't figure out how to do this in one query, so this is probably inefficient, but...
-        #first get the docs that have any of the tags chosen
-        docs = current_user.documents.filter(Documents.tags.any(Tags.id.in_([t.id for t in bunch.tags]))).order_by(desc(Documents.created)).all()
-
-        # now go through docs and eliminate them if they don't have every tag in tags
+        # couldn't figure out how to do this in one query, so this is probably inefficient, but...
+        # take the query above (which get the "or" scenario, and
+        # go through docs and eliminate them if they don't have every tag in tags
         for doc in docs[:]:
             for tag in bunch.tags:
                 if tag.id not in [each.id for each in doc.tags]:
@@ -283,7 +310,11 @@ def bunch(name):
                     break
 
     #in this view, I could just return bunch=bunch, but bunches uses bunch_tag_names and selector
-    return render_template('read.html', docs=docs, bunch_tag_names=[tag.name for tag in bunch.tags], bunch_name=bunch.name, selector=bunch.selector)
+    return render_template('read.html', docs=docs,
+                           bunch_tag_names=[tag.name for tag in bunch.tags],
+                           bunch_name=name,
+                           read_status=read_status,
+                           selector=bunch.selector)
 
 @app.route('/bunches', methods=['GET', 'POST'])
 @login_required
@@ -335,7 +366,9 @@ def bunches():
             return redirect(url_for('bunches'))
 
         #return docs as well as list of tags and how they were chosen
-        return render_template('read.html', docs=docs, bunch_tag_names=bunch_tag_names, selector=selector)
+        return render_template('read.html', docs=docs,
+                                bunch_tag_names=bunch_tag_names,
+                                selector=selector)
 
 @app.route('/bunch/save', methods=['GET', 'POST'])
 @login_required
@@ -476,30 +509,48 @@ def authors():
 
     return render_template('authors.html', grouped_authors=grouped_authors)
 
-@app.route('/author/<author_id>')
+@app.route('/<read_status>/author/<author_id>')
 @login_required
-def docs_by_author(author_id):
+def docs_by_author(read_status, author_id):
     ''' Return all documents by particular author. '''
 
     # set var for returning to proper page after edit or delete native doc
-    session['return_to'] = url_for('docs_by_author', author_id=author_id)
+    session['return_to'] = url_for('docs_by_author', author_id=author_id, read_status=read_status)
 
     #author = Authors.id=id.one()
     author = Authors.query.filter_by(id=author_id).one()
 
-    #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
-    docs = current_user.documents.filter(Documents.authors.any(id=author_id)).\
-        order_by(desc(Documents.created)).all()
+    if read_status == 'read' or read_status == 'to-read':
+        if read_status == 'read':
+            status = 1
+        if read_status == 'to-read':
+            status = 0
+
+        #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
+        docs = current_user.documents.filter_by(read=status).filter(Documents.authors.any(id=author_id)).\
+            order_by(desc(Documents.created)).all()
+
+
+    else:
+        #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
+        docs = current_user.documents.filter(Documents.authors.any(id=author_id)).\
+            order_by(desc(Documents.created)).all()
 
     # only return docs author info if user has docs by that author
     # this ensures one user can't type in an id and see an author another user has
-    if docs:
+    if not docs:
+        if read_status == 'read':
+            flash("Sorry, you have no read documents by that author.")
+        elif read_status == 'to-read':
+            flash("Sorry, you have no to-read documents by that author.")
+        else:
+            flash("Sorry, you have no documents by that author.")
+        return redirect(url_for('authors'))
+
+    else:
         #authorpage, first_name, last_name used for header
         return render_template('read.html', docs=docs, authorpage=1, \
-            first_name=author.first_name, last_name=author.last_name)
-    else:
-        flash('Sorry, you have no documents by that author.')
-        return redirect(url_for('authors'))
+            author=author, first_name=author.first_name, last_name=author.last_name, read_status=read_status)
 
 #############################
 ### ADMIN/SETTINGS ROUTES ###

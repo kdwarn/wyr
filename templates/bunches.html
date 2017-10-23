@@ -2,15 +2,14 @@
 {% block title %} - Bunches {% endblock %}
 {% block content %}
 <div id="main">
-    {% set page = 'bunches' %}
-    {% include 'sort_subheader.html' %}
+    <h1>Bunches</h1><br>
     <div class="center">Bunches are groups of tags.</div><br>
 
     {# user's saved bunches #}
     {% if bunches %}
         <div>
         {% for bunch in bunches|sort(attribute='name') %}
-            <a href="{{ url_for('bunch', name=bunch.name)}}">{{ bunch.name }}</a>
+            <a href="{{ url_for('bunch', read_status="all", name=bunch.name)}}">{{ bunch.name }}</a>
             <br><span class="small">
             <a href="{{ url_for('bunch_edit', name=bunch.name)}}">edit</a>
             | <a href="{{ url_for('bunch_delete', name=bunch.name)}}">delete</a>
@@ -35,19 +34,18 @@
 
     {# create new bunch #}
     <div class="small center bold">Create New Bunch</div><br>
-    <div class="small">Choose how to build the bunch (do you want items tagged
+    <div class="small">Choose how to group
+    the bunch (do you want items tagged
     "tag1" <i>AND</i> "tag2" <i>AND</i> "tag3", etc, or do you want items
-    tagged "tag1" <i>OR</i> "tag2" <i>OR</i> "tag3", etc?), and then
+    tagged "tag1" <i>OR</i> "tag2" <i>OR</i> "tag3", etc?) and then
     the tags to group together. Submit below, and the items matching the bunch
     will be displayed, with an option to save it.
-    {% if not bunches %}
-        Saved bunches will be displayed above.
-    {% endif %}
     </div>
 
     {# show selector and tags #}
     <form name="bunch" id="bunch" method="post" action="{{url_for('bunches')}}">
         <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+
         <div id="multiple_tags" class="center">
             <ul>
                 <li><input type="radio" name="selector" id="and" value="and" checked>

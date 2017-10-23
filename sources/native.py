@@ -17,20 +17,27 @@ native_blueprint = Blueprint('native', __name__, template_folder='templates')
 # WYR NATIVE
 # source_id = 3
 
+def return_to_previous():
+    ''' redirect user back to last page prior to edit or delete (or cancel) '''
+
+    if 'return_to' in session:
+        return redirect(session['return_to'])
+    return redirect(url_for('index'))
+
 @native_blueprint.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
     if request.method == 'GET':
 
-        #if this is from bookmarklet, pass along variables
+        # if this is from bookmarklet, pass along variables
         title = request.args.get('title')
         link = request.args.get('link', '')
 
-        #also pass along tags and author names for autocomplete
+        # also pass along tags and author names for autocomplete
         tags = get_user_tag_names()
         authors = get_user_author_names()
 
-        #check if link already exists, redirect user to edit if so
+        # check if link already exists, redirect user to edit if so
         if link:
             if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
                 doc = current_user.documents.filter(Documents.link==link, Documents.source_id==3).first()
@@ -49,23 +56,23 @@ def add():
         read = int(request.form['read'])
         submit = request.form['submit']
 
-        #validation
+        # validation
         if not title:
             flash('Please enter a title. It is the only required field.')
             return redirect(url_for('native.add'))
 
-        #check if link already exists, redirect user to edit if so
+        # check if link already exists, redirect user to edit if so
         if link:
             if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
                 doc = current_user.documents.filter_by(Documents.link==link, Documents.source_id==3).first()
                 flash("You've already saved that link; you may edit it below.")
                 return redirect(url_for('native.edit', id=doc.id))
 
-        #insert
+        # insert
         new_doc = Documents(3, title)
         current_user.documents.append(new_doc)
 
-        #add "http://" if not there or else will be relative link within site
+        # add "http://" if not there or else will be relative link within site
         if link:
             if 'http://' not in link and 'https://' not in link:
                 link = 'http://' + link
@@ -93,7 +100,7 @@ def add():
             return redirect(url_for('index'))
         if submit == "Submit and Add Another":
             return redirect(url_for('native.add'))
-        #if submitted from bookmarklet, just send to confirmation page
+        # if submitted from bookmarklet, just send to confirmation page
         if submit == "Submit":
             return render_template('add.html', bookmarklet=1)
     else:
@@ -103,7 +110,7 @@ def add():
 @login_required
 def edit():
     if request.method == 'GET':
-        #check that doc is one of current_user's
+        # check that doc is one of current_user's
         id = request.args.get('id', '')
 
         doc = current_user.documents.filter(Documents.id==id).first()
@@ -113,11 +120,11 @@ def edit():
             new_authors_list = []
             new_authors = ''
 
-            #have to format tags and authors for form
+            # have to format tags and authors for form
             if doc.tags:
-                #put names into list to sort
+                # put names into list to sort
                 super_new_tag_list=[tag.name for tag in doc.tags]
-                super_new_tag_list.sort() #sort
+                super_new_tag_list.sort() # sort
                 for name in super_new_tag_list:
                     if name != super_new_tag_list[-1]:
                         new_tags += name + ', '
@@ -134,7 +141,7 @@ def edit():
                 else:
                     new_authors += author.last_name + ', ' + author.first_name
 
-            #also pass along all tags and authors for autocomplete
+            # also pass along all tags and authors for autocomplete
             all_tags = get_user_tag_names()
             all_authors = get_user_author_names()
 
@@ -157,20 +164,18 @@ def edit():
 
         if submit == "Cancel":
             flash("Edit canceled.")
-            if 'return_to' in session:
-                return redirect(session['return_to'])
-            return redirect(url_for('index'))
+            return return_to_previous()
 
-        #validation
+        # validation
         if not title:
             flash('Please enter a title. It is the only required field.')
             return redirect(url_for('native.edit'))
 
-        #update
+        # update
         update_doc = current_user.documents.filter(Documents.source_id==3, Documents.id==id).first()
         update_doc.title = title
 
-        #add http:// if not there or else will be relative link within site
+        # add http:// if not there or else will be relative link within site
         if link:
             if 'http://' not in link and 'https://' not in link:
                 link = 'http://' + link
@@ -189,7 +194,7 @@ def edit():
         update_doc.read = read
 
 
-        #update tags
+        # update tags
         # turn strings of tags into lists of tags
         tags = str_tags_to_list(tags)
         old_tags = str_tags_to_list(old_tags)
@@ -201,7 +206,7 @@ def edit():
         if tags:
             update_doc = add_tags_to_doc(tags, update_doc)
 
-        #update authors
+        # update authors
         authors = str_authors_to_list(authors)
         old_authors = str_authors_to_list(old_authors)
         if old_authors:
@@ -213,9 +218,7 @@ def edit():
         db.session.commit()
         flash('Item edited.')
 
-        if 'return_to' in session:
-            return redirect(session['return_to'])
-        return redirect(url_for('index'))
+        return return_to_previous()
 
     else:
         return redirect(url_for('index'))
@@ -224,11 +227,17 @@ def edit():
 @login_required
 def delete():
     if request.method == 'GET':
-        #check that doc is one of current_user's
+        # check that doc is one of current_user's
         id = request.args.get('id', '')
         doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).first()
+
         if doc:
-            return render_template('delete.html', doc=doc)
+            if doc.read == 0:
+                read_status = 'to-read'
+            else:
+                read_status = 'read'
+
+            return render_template('delete.html', doc=doc, read_status=read_status)
         else:
             return redirect(url_for('index'))
     elif request.method == 'POST':
@@ -236,30 +245,26 @@ def delete():
         id = request.form['id']
         if delete == 'Cancel':
             flash("Item not deleted.")
-            if 'return_to' in session:
-                return redirect(session['return_to'])
-            return redirect(url_for('index'))
+            return return_to_previous()
 
         if delete == 'Delete':
-            #delete doc
+            # delete doc
             doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).one()
 
-            #delete docs tags
+            # delete docs tags
             for tag in doc.tags:
                 doc.tags.remove(tag)
 
-            #delete docs authors
+            # delete docs authors
             for author in doc.authors:
                 doc.authors.remove(author)
 
-            #delete it
+            # delete it
             doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).delete()
 
             db.session.commit()
             flash("Item deleted.")
-            if 'return_to' in session:
-                return redirect(session['return_to'])
-            return redirect(url_for('index'))
+            return return_to_previous()
 
     else:
         return redirect(url_for('index'))
@@ -270,21 +275,21 @@ def import_bookmarks():
     '''Import bookmarks from HTML file.'''
 
     if request.method == 'POST':
-        #get folders so user can select which ones to import
+        # get folders so user can select which ones to import
         if 'step1' in request.form:
 
             if request.form['step1'] == "Cancel":
                 flash("Bookmarks import cancelled.")
                 return redirect(url_for('settings'))
 
-            #get file and return user to form if none selected
+            # get file and return user to form if none selected
             file = request.files['bookmarks']
 
             if not file:
                 flash('No file was selected. Please choose a file.')
                 return render_template('import.html')
 
-            #get file extension and return user to form if not .html
+            # get file extension and return user to form if not .html
             file_extension = file.filename.rsplit('.', 1)[1]
             if file_extension != 'html':
                 flash("Sorry, that doesn't look like a .html file.")
@@ -311,7 +316,7 @@ def import_bookmarks():
                 flash("Bookmarks import cancelled.")
                 return redirect(url_for('settings'))
 
-            #put checked folders into list
+            # put checked folders into list
             folders = request.form.getlist('folder')
 
             for each in soup[current_user.username].find_all('a'):
@@ -321,18 +326,18 @@ def import_bookmarks():
                     # get the dt above that
                     grandparent_dt = parent_dl.find_parent('dt')
                     if grandparent_dt != None:
-                        #get the h3 below the grandparent dt
+                        # get the h3 below the grandparent dt
                         h3 = grandparent_dt.find_next('h3')
-                        #check that there is a folder and that it's in user-reviewed list
+                        # check that there is a folder and that it's in user-reviewed list
                         if h3 != None:
                             if h3.string in folders:
-                                #replace commas with spaces in folders before inserting into db
+                                # replace commas with spaces in folders before inserting into db
                                 h3.string = h3.string.replace(',', '')
                                 new_doc = Documents(3, each.string)
                                 current_user.documents.append(new_doc)
                                 new_doc.link = each['href']
                                 new_doc.read = 1
-                                #convert add_date (seconds from epoch format) to datetime
+                                # convert add_date (seconds from epoch format) to datetime
                                 new_doc.created = datetime.fromtimestamp(int(each['add_date']))
                                 db.session.add(new_doc)
                                 db.session.commit()

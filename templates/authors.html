@@ -3,8 +3,7 @@
 {% block title %} - Authors {% endblock %}
 {% block content %}
 <div id="main">
-    {% set page = 'authors' %}
-    {% include 'sort_subheader.html' %}
+    <h1>Authors</h1><br>
     <div style="line-height:1.5em">
 
         <div class="center">JUMP TO:
@@ -19,10 +18,10 @@
             <div class="bold">{{key}}</div>
             {% for author in authors %}
                 {% if author.first_name %}
-                    <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
+                    <a href="{{ url_for('docs_by_author', author_id=author.id, read_status="all") }}">
                         {{ author.last_name }}, {{author.first_name}}</a><br>
                 {% else %}
-                    <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
+                    <a href="{{ url_for('docs_by_author', author_id=author.id, read_status="all") }}">
                         {{ author.last_name }}</a><br>
                 {% endif %}
             {% endfor %}

@@ -21,10 +21,10 @@
                 by
                 {% for author in doc.authors %}
                     {% if author != doc.authors[-1] %}
-                        <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
+                        <a href="{{ url_for('docs_by_author', author_id=author.id, read_status=read_status) }}">
                             {{ author.first_name }} {{ author.last_name }}</a>,
                     {% else %}
-                        <a href="{{ url_for('docs_by_author', author_id=author.id) }}">
+                        <a href="{{ url_for('docs_by_author', author_id=author.id, read_status=read_status) }}">
                             {{ author.first_name }} {{ author.last_name }}</a>
                     {% endif %}
                 {% endfor %}
@@ -34,9 +34,9 @@
                 <span class="info">Tagged:
                 {% for tag in doc.tags|sort(attribute="name") %}
                     {% if tag != doc.tags[-1] %}
-                        <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>,
+                        <a href="{{ url_for('docs_by_tag', tag=tag.name, read_status=read_status) }}">{{ tag.name }}</a>,
                     {% else %}
-                        <a href="{{ url_for('docs_by_tag', tag=tag.name) }}">{{ tag.name }}</a>
+                        <a href="{{ url_for('docs_by_tag', tag=tag.name, read_status=read_status) }}">{{ tag.name }}</a>
                     {% endif %}
                 {% endfor %}
                 </span>
