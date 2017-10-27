@@ -113,7 +113,6 @@ class Authors(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(100))
     last_name = db.Column(db.String(100))
-    role = db.Column(db.Integer, default=0)
 
     def __init__(self, first_name, last_name):
         self.first_name = first_name

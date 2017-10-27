@@ -179,17 +179,10 @@
                     {% for author in doc.authors %}
                         {% if author != doc.authors[-1] %}
                             <a href="{{ url_for('docs_by_author', author_id=author.id, read_status=read_status)}}">
-                            {% if author.role == 1 %}
-                                {{ author.first_name }} {{ author.last_name }}</a> (editor),
-                            {% else %}
-                                {{ author.first_name }} {{ author.last_name }}</a>,
-                            {% endif %}
+                            {{ author.first_name }} {{ author.last_name }}</a>,
                         {% else %}
                             <a href="{{ url_for('docs_by_author', author_id=author.id, read_status=read_status) }}">
                                 {{ author.first_name }} {{ author.last_name }}</a>
-                            {% if author.role == 1 %}
-                                (editor)
-                            {% endif %}
                         {% endif %}
                     {% endfor %}
                 {% endif %}

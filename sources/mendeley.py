@@ -249,8 +249,10 @@ def save_doc(m_doc, auth_object, existing_doc=""):
     #get notes
     an_params = {'document_id':m_doc['id'], 'type':'note'}
     annotations = auth_object.get('https://api.mendeley.com/annotations', params=an_params).json()
-    if annotations:
+    try:
         doc.note = annotations[0]['text']
+    except KeyError:
+        pass
 
     # get file id to link to
     file_params = {'document_id':m_doc['id']}
@@ -265,6 +267,8 @@ def save_doc(m_doc, auth_object, existing_doc=""):
             doc = add_tags_to_doc(m_doc['tags'], doc)
         if 'authors' in m_doc:
             doc = add_authors_to_doc(m_doc['authors'], doc)
+        if 'editors' in m_doc:
+            doc = add_authors_to_doc(m_doc['editors'], doc)
         if files:
             for file in files:
                 new_filelink = FileLinks(doc.id, file['id'])
@@ -294,7 +298,17 @@ def save_doc(m_doc, auth_object, existing_doc=""):
         try:
             authors = m_doc['authors']
         except KeyError:
-            authors = ''
+            authors = []
+
+        # editors
+        try:
+            editors = m_doc['editors']
+        except KeyError:
+            editors = []
+
+        # combine list of authors & editors, b/c we aren't differentiating
+        authors = authors + editors
+
 
         old_authors = [{'first_name':author.first_name,
                         'last_name':author.last_name}
@@ -303,22 +317,8 @@ def save_doc(m_doc, auth_object, existing_doc=""):
         if old_authors:
             doc, authors = remove_old_authors(old_authors, authors, doc)
 
-        if authors:
+        if authors: # authors and editors
             doc = add_authors_to_doc(authors, doc)
-
-        """
-        # skip editors for now
-        if 'editors' in m_doc:
-            for editor in m_doc['editors']:
-                try:
-                    new_editor = Authors(current_user.id, doc.id, editor['first_name'], editor['last_name'], 1)
-                except KeyError:
-                    try:
-                        new_editor = Authors(current_user.id, doc.id, '', editor['last_name'], 1)
-                    except KeyError:
-                        new_editor = Authors(current_user.id, doc.id, editor['first_name'], '', 1)
-                db.session.add(new_editor)
-        """
 
         # files
         old_file_links = doc.file_links
