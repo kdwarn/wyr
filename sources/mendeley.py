@@ -253,6 +253,8 @@ def save_doc(m_doc, auth_object, existing_doc=""):
         doc.note = annotations[0]['text']
     except KeyError:
         pass
+    except IndexError:
+        pass
 
     # get file id to link to
     file_params = {'document_id':m_doc['id']}
