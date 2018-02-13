@@ -8,7 +8,7 @@ from requests_oauthlib import OAuth1Session
 from xml.etree import ElementTree
 from math import ceil
 from config import g
-from app import db
+from app import db, send_simple_message
 from models import Documents, Tokens
 
 # goodreads uses Oauth1, returns xml
@@ -74,23 +74,30 @@ def goodreads_authorize():
 def import_goodreads(update_type):
     '''Connect to Goodreads and initiate process of collecting info.'''
 
-    # get tokens from Tokens table
-    tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=2).first()
+    try:
+        # get tokens from Tokens table
+        tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=2).first()
 
-    # get Oauth object
-    auth_object = OAuth1Session(g['client_id'],
-                  client_secret=g['client_secret'],
-                  resource_owner_key=tokens.access_token,
-                  resource_owner_secret=tokens.access_token_secret)
+        # get Oauth object
+        auth_object = OAuth1Session(g['client_id'],
+                      client_secret=g['client_secret'],
+                      resource_owner_key=tokens.access_token,
+                      resource_owner_secret=tokens.access_token_secret)
 
-    # get books in the 'read' shelf unless this is an unread_update
-    if update_type != 'unread_update':
-        get_books_from_shelf(auth_object, 'read', update_type)
+        # get books in the 'read' shelf unless this is an unread_update
+        if update_type != 'unread_update':
+            get_books_from_shelf(auth_object, 'read', update_type)
 
-    # get books in the 'to-read' shelf if user wants them
-    if current_user.include_g_unread == 1:
-        get_books_from_shelf(auth_object, 'to-read', update_type)
-
+        # get books in the 'to-read' shelf if user wants them
+        if current_user.include_g_unread == 1:
+            get_books_from_shelf(auth_object, 'to-read', update_type)
+    except:
+        to = 'whatyouveread@gmail.com'
+        subject = 'Error updating Goodreads'
+        text = 'An error has occurred while attmpting to update Goodreads.'
+        send_simple_message(to, subject, text)
+        flash('An error has occurred while attempting to update the books on '
+            'your Goodreads bookshelves. We will fix this as soon as possible.')
     return
 
 def get_books_from_shelf(auth_object, shelf, update_type):
@@ -109,7 +116,7 @@ def get_books_from_shelf(auth_object, shelf, update_type):
         docs = ElementTree.fromstring(r.content)
 
         #figure out how many pages of results
-        total = docs[1].get('total')
+        total = docs[2].get('total')
         pages = ceil(int(total)/200)
 
         exit_loop = 0 # iniate var that determinds when to stop an update

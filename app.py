@@ -9,18 +9,18 @@ from flask.ext.login import LoginManager, login_user, logout_user, \
 from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
-from config import stripe_keys, mailgun
+from config import stripe_keys
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, URLSafeSerializer
 from random import random
 import stripe
-import requests
 from flask.ext.misaka import Misaka
 import re
 from jinja2 import evalcontextfilter, Markup, escape
 from collections import OrderedDict
 import string
+from helpers import send_simple_message, get_stripe_info
 
 ###############
 ### CONFIG ####
@@ -115,37 +115,6 @@ def user_loader(user_id):
     if user.count() == 1:
         return user.one()
     return None
-
-def send_simple_message(to, subject, text):
-    """ send email via mailgun """
-    return requests.post(
-        mailgun['messages_url'],
-        auth=('api', mailgun['api_key']),
-        data={'from': mailgun['from'],
-              'h:Reply-To': mailgun['reply_to'],
-              'to': to,
-              'subject': subject,
-              'html': text})
-
-def get_stripe_info():
-    """ get user's Stripe info """
-    if current_user.stripe_id is not None:
-        donor = stripe.Customer.retrieve(current_user.stripe_id)
-
-        #simplify object a bit, see if user has current subscription to plan
-        try:
-            subscription = donor.subscriptions['data'][0]
-        except IndexError:
-            subscription = ''
-
-        #drop everything else from donor
-        #to do
-
-    else:
-        donor = ''
-        subscription = ''
-
-    return donor, subscription
 
 
 ##############

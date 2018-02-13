@@ -7,6 +7,7 @@ from db_functions import get_user_tag_names, get_user_author_names, \
     str_authors_to_list, add_authors_to_doc, remove_old_authors
 from bs4 import BeautifulSoup
 import pytz
+
 from app import db
 from models import Documents
 
