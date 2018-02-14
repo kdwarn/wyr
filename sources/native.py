@@ -48,7 +48,10 @@ def add():
         if link:
             if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
                 doc = current_user.documents.filter(Documents.link==link, Documents.source_id==3).first()
-                flash("You've already saved that link; you may edit it below.")
+                type = 'read' if doc.read == 1 else 'to-read'
+
+                flash("You've already saved that link as {}; "
+                    "you may edit it below.".format(type))
                 return redirect(url_for('native.edit', id=doc.id))
 
         return render_template('add.html', doc=doc, tags=tags, authors=authors,
