@@ -30,31 +30,52 @@ def return_to_previous():
 def add():
     if request.method == 'GET':
 
-        # if this is from bookmarklet, pass along variables
-        title = request.args.get('title')
+        # although only 2 vars may be populated, create full object bc this
+        # goes to same template as editing doc and will reduce if/else in temp
+        title = request.args.get('title', '')
         link = request.args.get('link', '')
 
+        doc = Documents(3, title)
+        doc.link = link
+        doc.year = ''
+        doc.note = ''
+        tags = ''
+        authors = ''
+        from_bookmarklet = request.args.get('bookmarklet', '')
+
         # also pass along tags and author names for autocomplete
-        tags = get_user_tag_names()
-        authors = get_user_author_names()
+        all_tags = get_user_tag_names()
+        all_authors = get_user_author_names()
 
         # check if link already exists, redirect user to edit if so
-        if link:
+        if request.args.get('link'):
             if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
                 doc = current_user.documents.filter(Documents.link==link, Documents.source_id==3).first()
                 flash("You've already saved that link; you may edit it below.")
                 return redirect(url_for('native.edit', id=doc.id))
 
-        return render_template('add.html', title=title, link=link, tags=tags, authors=authors)
+        return render_template('add.html', doc=doc, tags=tags, authors=authors,
+            all_tags=all_tags, all_authors=all_authors,
+            from_bookmarklet=from_bookmarklet)
 
     elif request.method == 'POST':
         title = request.form['title']
         link = request.form['link']
-        year = request.form['year']
         tags = request.form['tags']
         authors = request.form['authors']
+        year = request.form['year']
         notes = request.form['notes']
-        read = int(request.form['read'])
+
+        try:
+            another = request.form['another']
+        except:
+            another = None
+
+        try:
+            from_bookmarklet = request.form['from_bookmarklet']
+        except:
+            from_bookmarklet = None
+
         submit = request.form['submit']
 
         # validation
@@ -81,8 +102,13 @@ def add():
         new_doc.link = link
         new_doc.year = year
         new_doc.note = notes
-        new_doc.read = read
         new_doc.created = datetime.now(pytz.utc)
+
+        if submit == 'unread':
+            new_doc.read = 0
+        else:
+            new_doc.read = 1
+
         db.session.add(new_doc)
 
         if tags:
@@ -97,13 +123,12 @@ def add():
 
         flash('Item added.')
 
-        if submit == "Submit and Return Home":
-            return redirect(url_for('index'))
-        if submit == "Submit and Add Another":
-            return redirect(url_for('native.add'))
-        # if submitted from bookmarklet, just send to confirmation page
-        if submit == "Submit":
+        if from_bookmarklet:
             return render_template('add.html', bookmarklet=1)
+        else:
+            if another == '1':
+                return redirect(url_for('native.add'))
+            return redirect(url_for('index'))
     else:
         return redirect(url_for('index'))
 
@@ -146,7 +171,8 @@ def edit():
             all_tags = get_user_tag_names()
             all_authors = get_user_author_names()
 
-            return render_template('edit.html', doc=doc, tags=new_tags, all_tags=all_tags, all_authors=all_authors, authors=new_authors)
+            return render_template('add.html', edit=1, doc=doc, tags=new_tags,
+                all_tags=all_tags, all_authors=all_authors, authors=new_authors)
         else:
             return redirect(url_for('index'))
 
@@ -160,12 +186,7 @@ def edit():
         authors = request.form['authors']
         old_authors = request.form['old_authors']
         notes = request.form['notes']
-        read = int(request.form['read'])
         submit = request.form['submit']
-
-        if submit == "Cancel":
-            flash("Edit canceled.")
-            return return_to_previous()
 
         # validation
         if not title:
@@ -186,14 +207,16 @@ def edit():
         update_doc.note = notes
 
         # if change from to-read to read, updated created, delete last_modified
-        if update_doc.read == 0 and read == 1:
+        if update_doc.read == 0 and submit == 'read':
             update_doc.created = datetime.now(pytz.utc)
             update_doc.last_modified = ''
         else:
             update_doc.last_modified = datetime.now(pytz.utc)
 
-        update_doc.read = read
-
+        if submit == 'read':
+            update_doc.read = 1
+        else:
+            update_doc.read = 0
 
         # update tags
         # turn strings of tags into lists of tags
