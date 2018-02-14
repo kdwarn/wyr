@@ -165,13 +165,13 @@
     <p></p>
 
     {# cursor focus on tags if from bookmarklet or editing, otherwise title #}
-    {% if not from_bookmarklet or edit %}
+    {% if from_bookmarklet == '1' or edit == 1 %}
         <script type="text/javascript" language="JavaScript">
         document.forms['add_or_edit'].elements['tags'].focus();
         </script>
     {% else %}
         <script type="text/javascript" language="JavaScript">
-        document.forms['add'].elements['title'].focus();
+        document.forms['add_or_edit'].elements['title'].focus();
         </script>
     {% endif %}
 

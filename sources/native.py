@@ -37,10 +37,7 @@ def add():
 
         doc = Documents(3, title)
         doc.link = link
-        doc.year = ''
-        doc.note = ''
-        tags = ''
-        authors = ''
+        doc.year, doc.note, tags, authors = '', '', '', ''
         from_bookmarklet = request.args.get('bookmarklet', '')
 
         # also pass along tags and author names for autocomplete
@@ -48,7 +45,7 @@ def add():
         all_authors = get_user_author_names()
 
         # check if link already exists, redirect user to edit if so
-        if request.args.get('link'):
+        if link:
             if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
                 doc = current_user.documents.filter(Documents.link==link, Documents.source_id==3).first()
                 flash("You've already saved that link; you may edit it below.")
@@ -104,10 +101,7 @@ def add():
         new_doc.note = notes
         new_doc.created = datetime.now(pytz.utc)
 
-        if submit == 'unread':
-            new_doc.read = 0
-        else:
-            new_doc.read = 1
+        new_doc.read = 0 if submit == 'unread' else 1
 
         db.session.add(new_doc)
 
@@ -213,10 +207,7 @@ def edit():
         else:
             update_doc.last_modified = datetime.now(pytz.utc)
 
-        if submit == 'read':
-            update_doc.read = 1
-        else:
-            update_doc.read = 0
+        update_doc.read = 0 if submit == 'unread' else 1
 
         # update tags
         # turn strings of tags into lists of tags
@@ -256,10 +247,7 @@ def delete():
         doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).first()
 
         if doc:
-            if doc.read == 0:
-                read_status = 'to-read'
-            else:
-                read_status = 'read'
+            read_status = 'to-read' if doc.read == 0 else 'read'
 
             return render_template('delete.html', doc=doc, read_status=read_status)
         else:
