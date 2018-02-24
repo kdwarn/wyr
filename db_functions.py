@@ -162,7 +162,11 @@ def add_tags_to_doc(tags, doc):
         #append any user's existing tags to the document, remove from list tags
         for user_tag in user_tags:
             for tag in tags[:]:
-                if user_tag['name'] == tag:
+                # strip both of any non-alphanumeric characters, make them
+                # lower case, and check against each other.
+                # This avoids creating what are essentially duplicate tags.
+                if (''.join(ch for ch in tag.lower() if ch.isalnum())
+                    == ''.join(ch for ch in user_tag['name'].lower() if ch.isalnum())):
                     #get the tag object and append to new_doc.tags
                     existing_tag = Tags.query.filter(Tags.id==user_tag['id']).one()
                     doc.tags.append(existing_tag)
