@@ -229,7 +229,7 @@
                 {% if doc.note %}
                     <div class="notes">
                     {% if doc.source_id == 3 and current_user.markdown == 1 %}
-                        {# adjust for p wrap that Misaka throws in #}
+                        {# adjust for p wrap that Flask-Misaka throws in #}
                         <div style="margin-top:-1em">
                         {{ doc.note|markdown }}
                         </div>

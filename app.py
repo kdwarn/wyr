@@ -2,33 +2,38 @@
 ### IMPORTS ###
 ###############
 
+import re
+import string
+from datetime import datetime, timedelta
+from collections import OrderedDict
+from random import random
+from passlib.context import CryptContext
+
 from flask import Flask, render_template, request, session, redirect, url_for, \
     abort, flash
 from flask.ext.login import LoginManager, login_user, logout_user, \
     login_required, current_user
 from flask.ext.sqlalchemy import SQLAlchemy
+from flask.ext.misaka import Misaka
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, URLSafeSerializer
+from jinja2 import evalcontextfilter, Markup, escape
+
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
-from config import stripe_keys
-from passlib.context import CryptContext
-from datetime import datetime, timedelta
-from itsdangerous import URLSafeTimedSerializer, SignatureExpired, URLSafeSerializer
-from random import random
+
 import stripe
-from flask.ext.misaka import Misaka
-import re
-from jinja2 import evalcontextfilter, Markup, escape
-from collections import OrderedDict
-import string
+
 from helpers import send_simple_message, get_stripe_info
+from config import stripe_keys
 
 ###############
 ### CONFIG ####
 ###############
 
 stripe.api_key = stripe_keys['secret_key']
-md = Misaka(autolink='true', underline='true', strikethrough='true', \
-    html='false', no_html='true', highlight='true', hardwrap='true', wrap='true')
+md = Misaka(autolink='true', underline='true', strikethrough='true', html='false',
+            no_html='true', highlight='true', hardwrap='true', wrap='true',
+            fenced_code='true')
 app = Flask(__name__)
 app.config.from_object('config')
 db = SQLAlchemy(app)
@@ -270,7 +275,7 @@ def bunch(read_status, name):
 
     if bunch.selector == 'and':
         # couldn't figure out how to do this in one query, so this is probably inefficient, but...
-        # take the query above (which get the "or" scenario, and
+        # take the query above (which get the "or" scenario), and
         # go through docs and eliminate them if they don't have every tag in tags
         for doc in docs[:]:
             for tag in bunch.tags:
