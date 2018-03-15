@@ -21,6 +21,10 @@
         : {{read_status}}
     {% endif %}
 
+    {% if last_month %}
+        : last month
+    {% endif %}
+
 {% endblock %}
 
 {% block content %}
@@ -72,52 +76,55 @@
     {% endif %}
     </h1>
 
+    {# inform user if filtered by tag, author, bunch, or last month; enable clearing #}
 
-    {# inform user if filtered by tag, author, or bunch; enable clearing #}
-    {% if tagpage or authorpage or bunch_tag_names %}
-        <h2>
-        {# items by one tag #}
-        {% if tagpage %}
-            &nbsp; tagged {{tagpage}}
-            {% if read_status == 'read' %}
-                <a href="/read" class="clear_filter">&#10005</a>
-            {% elif read_status == 'to-read' %}
-                <a href="/to-read" class="clear_filter">&#10005</a>
-            {% else %}
-                <a href="/" class="clear_filter">&#10005</a>
-            {% endif %}
+    <h2>
+    {# items by one tag #}
+    {% if tagpage %}
+        &nbsp; tagged {{tagpage}}
+        {% if read_status == 'read' %}
+            <a href="/read" class="clear_filter">&#10005</a>
+        {% elif read_status == 'to-read' %}
+            <a href="/to-read" class="clear_filter">&#10005</a>
+        {% else %}
+            <a href="/" class="clear_filter">&#10005</a>
         {% endif %}
-
-
-        {# items by bunch #}
-        {% if bunch_tag_names %}
-            tagged
-            {% for tag in bunch_tag_names|sort %}
-                {% if tag != bunch_tag_names|sort|last %}
-                    {% if selector == 'or' %}
-                        {{ tag }} or
-                    {% else %}
-                        {{ tag }} and
-                    {% endif %}
-                {% else %}
-                    {{ tag }}
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-
-        {# items by author #}
-        {% if authorpage %}
-            &nbsp; by {{first_name}} {{last_name}}
-            {% if read_status == 'read' %}
-                <a href="/read" class="clear_filter">&#10005</a>
-            {% elif read_status == 'to-read' %}
-                <a href="/to-read" class="clear_filter">&#10005</a>
-            {% else %}
-                <a href="/" class="clear_filter">&#10005</a>
-            {% endif %}
-        {% endif %}
-        </h2>
     {% endif %}
+
+
+    {# items by bunch #}
+    {% if bunch_tag_names %}
+        tagged
+        {% for tag in bunch_tag_names|sort %}
+            {% if tag != bunch_tag_names|sort|last %}
+                {% if selector == 'or' %}
+                    {{ tag }} or
+                {% else %}
+                    {{ tag }} and
+                {% endif %}
+            {% else %}
+                {{ tag }}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    {# items by author #}
+    {% if authorpage %}
+        &nbsp; by {{first_name}} {{last_name}}
+        {% if read_status == 'read' %}
+            <a href="/read" class="clear_filter">&#10005</a>
+        {% elif read_status == 'to-read' %}
+            <a href="/to-read" class="clear_filter">&#10005</a>
+        {% else %}
+            <a href="/" class="clear_filter">&#10005</a>
+        {% endif %}
+    {% endif %}
+
+    {# items read last month #}
+    {% if last_month %}
+        &nbsp; last month <a href="{{url_for('read')}}" class="clear_filter">&#10005</a>
+    {% endif %}
+    </h2>
 
     {# if already a saved bunch, show name #}
     {% if bunch_name %}

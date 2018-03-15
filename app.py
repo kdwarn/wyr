@@ -139,7 +139,6 @@ def testing():
 ### MAIN DISPLAY ROUTES ###
 ###########################
 
-#main display
 @app.route('/')
 def index():
     ''' Return documents or settings page for authenticated page, else return
@@ -177,8 +176,9 @@ def index():
             return redirect(url_for('settings'))
 
         return render_template('read.html', docs=docs, read_status='all')
-    else:
-        return render_template('index.html')
+
+    return render_template('index.html')
+
 
 @app.route('/read')
 @login_required
@@ -192,6 +192,7 @@ def read():
 
     return render_template('read.html', docs=docs, read_status='read')
 
+
 @app.route('/to-read')
 @login_required
 def to_read():
@@ -203,6 +204,7 @@ def to_read():
     docs = Documents.query.filter_by(user_id=current_user.id, read=0).order_by(desc(Documents.created)).all()
 
     return render_template('read.html', docs=docs, read_status='to-read')
+
 
 @app.route('/tags')
 @login_required
@@ -229,6 +231,7 @@ def tags():
 
     return render_template('tags.html', grouped_tags=grouped_tags)
 
+
 @app.route('/<read_status>/tag/<tag>/')
 @login_required
 def docs_by_tag(read_status, tag):
@@ -251,6 +254,7 @@ def docs_by_tag(read_status, tag):
         docs = current_user.documents.filter(Documents.tags.any(name=tag)).order_by(desc(Documents.created)).all()
 
     return render_template('read.html', docs=docs, tagpage=tag, read_status=read_status) #tagpage is used for header
+
 
 @app.route('/<read_status>/bunch/<name>') #, defaults={'read_status':'all'})
 @login_required
@@ -289,6 +293,7 @@ def bunch(read_status, name):
                            bunch_name=name,
                            read_status=read_status,
                            selector=bunch.selector)
+
 
 @app.route('/bunches', methods=['GET', 'POST'])
 @login_required
@@ -344,6 +349,7 @@ def bunches():
                                 bunch_tag_names=bunch_tag_names,
                                 selector=selector)
 
+
 @app.route('/bunch/save', methods=['GET', 'POST'])
 @login_required
 def bunch_save():
@@ -365,6 +371,7 @@ def bunch_save():
 
     flash("New bunch saved.")
     return redirect(url_for('bunches'))
+
 
 @app.route('/bunch/edit', methods=['GET', 'POST'])
 @login_required
@@ -430,6 +437,7 @@ def bunch_edit():
         flash('Bunch edited.')
         return redirect(url_for('bunches')) # or maybe this should go to bunch/<name>?
 
+
 @app.route('/bunch/delete', methods=['GET', 'POST'])
 @login_required
 def bunch_delete():
@@ -458,6 +466,7 @@ def bunch_delete():
         flash('Bunch deleted.')
         return redirect(url_for('bunches'))
 
+
 @app.route('/authors')
 @login_required
 def authors():
@@ -483,6 +492,7 @@ def authors():
 
     return render_template('authors.html', grouped_authors=grouped_authors)
 
+
 @app.route('/<read_status>/author/<author_id>')
 @login_required
 def docs_by_author(read_status, author_id):
@@ -503,7 +513,6 @@ def docs_by_author(read_status, author_id):
         #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
         docs = current_user.documents.filter_by(read=status).filter(Documents.authors.any(id=author_id)).\
             order_by(desc(Documents.created)).all()
-
 
     else:
         #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
@@ -526,6 +535,24 @@ def docs_by_author(read_status, author_id):
         return render_template('read.html', docs=docs, authorpage=1, \
             author=author, first_name=author.first_name, last_name=author.last_name, read_status=read_status)
 
+
+@app.route('/lastmonth')
+@login_required
+def last_month():
+    ''' Return all read items from last month, in chronological order'''
+
+    # set var for returning to proper page after edit or delete native doc
+    session['return_to'] = url_for('last_month')
+
+    one_month_ago = datetime.today() - timedelta(days=31)
+
+    docs = Documents.query.filter(Documents.user_id==current_user.id, Documents.read==1,
+                                  Documents.created >= one_month_ago).order_by(Documents.created).all()
+
+    return render_template('read.html', docs=docs, read_status='read', last_month=1)
+
+
+
 #############################
 ### ADMIN/SETTINGS ROUTES ###
 #############################
@@ -535,6 +562,7 @@ def docs_by_author(read_status, author_id):
 def show_user_profile(username):
     ''' show the user profile for that user '''
     return 'Hello {}'.format(username)
+
 
 @app.route('/sign_up', methods=['GET', 'POST'])
 def sign_up():
@@ -581,6 +609,7 @@ def sign_up():
         return redirect(url_for('index'))
     else:
         abort(405)
+
 
 @app.route('/activate', methods=['GET', 'POST'])
 def activate():
@@ -639,6 +668,7 @@ def activate():
         flash('Thank you. Your account has been activated.')
         return redirect(url_for('settings'))
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     ''' Let users log in. '''
@@ -677,12 +707,14 @@ def login():
 
         return redirect(url_for(next))
 
+
 @app.route('/logout')
 def logout():
     ''' Log out users. '''
     logout_user()
     flash('You\'ve been logged out.')
     return redirect(url_for('index'))
+
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
@@ -721,6 +753,7 @@ def settings():
         return redirect(url_for('settings'))
     else:
         return redirect(url_for('index'))
+
 
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
@@ -780,6 +813,7 @@ def change_password():
     else:
         return abort(405)
 
+
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
     ''' Display form to send email link to reset password; display form to
@@ -823,6 +857,7 @@ def forgot_password():
             return redirect(url_for('index'))
     else:
         return abort(405)
+
 
 @app.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
@@ -897,6 +932,7 @@ def reset_password():
 
     else:
         return abort(405)
+
 
 @app.route('/change_email', methods=['GET', 'POST'])
 @login_required
@@ -1017,10 +1053,12 @@ def change_email():
     else:
         return abort(405)
 
+
 @app.route('/screenshots')
 def screenshots():
     ''' screenshots of WYR for new potential users '''
     return render_template('screenshots.html')
+
 
 @app.route('/contact', methods = ['GET', 'POST'])
 def contact():
@@ -1057,6 +1095,7 @@ def contact():
 
     return redirect(url_for('index'))
 
+
 @app.route('/delete_account', methods=['GET', 'POST'])
 @login_required
 def delete_account():
@@ -1083,6 +1122,7 @@ def delete_account():
     else:
         return redirect(url_for('index'))
 
+
 @app.route('/donate')
 @login_required
 def donate():
@@ -1090,6 +1130,7 @@ def donate():
     donor, subscription = get_stripe_info()
 
     return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
+
 
 @app.route('/cancel_donation', methods=['GET', 'POST'])
 @login_required
@@ -1116,6 +1157,7 @@ def cancel_donation():
         donor, subscription = get_stripe_info()
 
         return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
+
 
 @app.route('/charge', methods=['GET', 'POST'])
 @login_required
@@ -1189,9 +1231,11 @@ def charge():
 
     return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
 
+
 @app.route('/donate_paypal')
 def paypal():
     return render_template('donate_paypal.html')
+
 
 #handle 404 - this was throwing errors where it shouldn't, so disabled
 #@app.errorhandler(404)
@@ -1199,8 +1243,8 @@ def paypal():
 #    flash("Sorry, that page wasn't found.")
 #    return redirect(url_for('index'))
 
+
 @app.errorhandler(413)
 def file_too_big(e):
     flash('Sorry, that file is too big.')
     return render_template('import.html')
-
