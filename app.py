@@ -151,22 +151,21 @@ def index():
         # set var for returning to proper page after edit or delete native doc
         session['return_to'] = url_for('index')
 
-        # create datetime object for one week ago to see if we need to update
-        then = datetime.now() - timedelta(days=7)
+        one_week_ago = datetime.now() - timedelta(days=7)
 
+        # update items from any sources if last update was > one week ago.
         # it's possible the user didn't immediately import source items after
         # authorizing, check for that
         if current_user.mendeley == 1 and not current_user.mendeley_update:
             import_mendeley('initial')
-        if current_user.mendeley == 1 and current_user.mendeley_update < then:
+        if current_user.mendeley == 1 and current_user.mendeley_update < one_week_ago:
             import_mendeley('normal')
 
         if current_user.goodreads == 1 and not current_user.goodreads_update:
             import_goodreads('initial')
-        if current_user.goodreads == 1 and current_user.goodreads_update < then:
+        if current_user.goodreads == 1 and current_user.goodreads_update < one_week_ago:
             import_goodreads('normal')
 
-        # put user's docs into variable to return
         docs = current_user.documents.order_by(desc(Documents.created))
 
         if not docs:

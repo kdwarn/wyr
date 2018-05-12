@@ -3,12 +3,14 @@ from flask.ext.login import login_required, current_user
 from datetime import datetime
 import pytz
 from db_functions import add_tags_to_doc, add_authors_to_doc, \
-    remove_old_tags, remove_old_authors
+    remove_old_tags, remove_old_authors, force_deauthorize
 from app import db
 from models import Documents, Tokens, FileLinks
 from requests_oauthlib import OAuth2Session
+from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
+from werkzeug.routing import RequestRedirect
 from config import m
-#from oauthlib.oauth2 import InvalidGrantError
+
 
 # Mendeley uses Oauth 2, returns json
 # source_id = 1
@@ -131,6 +133,7 @@ def import_mendeley(update_type):
             else:
                 flash("{} items had been deleted in Mendeley and were removed.".format(len(delete_docs)))
 
+
     #now get current docs
     docs = get_docs(mendeley, update_type)
 
@@ -193,7 +196,13 @@ def get_docs(auth_object, type=''):
         modified_since = current_user.mendeley_update.isoformat()
         payload = {'limit':'500', 'deleted_since':modified_since, 'include_trashed':'true'}
 
-    r = auth_object.get('https://api.mendeley.com/documents', params=payload)
+    try:
+        r = auth_object.get('https://api.mendeley.com/documents', params=payload)
+    except InvalidGrantError:
+        ''' Something has gone wrong with authorization. Use RequestRedirect
+        to directly return from this function.'''
+        force_deauthorize('Mendeley')
+        raise RequestRedirect(url_for('settings'))
 
     docs = r.json()
 

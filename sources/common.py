@@ -73,6 +73,7 @@ def deauthorize():
     else:
         return redirect(url_for('index'))
 
+
 @common_blueprint.route('/refresh')
 @login_required
 def refresh():
@@ -80,6 +81,7 @@ def refresh():
         A user could skip doing the import of items immediately after
         authorizing by going to home page, so there's a check in for that.
     '''
+
     if request.args.get('name') == 'Mendeley':
         if current_user.mendeley == 1:
             if current_user.mendeley_update:

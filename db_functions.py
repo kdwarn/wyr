@@ -2,7 +2,7 @@ from flask import flash
 from app import db
 from sqlalchemy import text
 from flask.ext.login import current_user
-from models import Tags, Authors, Documents
+from models import Tags, Authors, Documents, Tokens
 
 def get_user_tags():
     '''
@@ -303,10 +303,11 @@ def remove_old_authors(old_authors, authors, doc):
 
     return doc, authors
 
-# if user has changed pref from including to excluding to-read docs, del them
-def remove_to_read(source):
 
-    # delete all unnread docs
+
+def remove_to_read(source):
+    ''' Delete to-read docs if user changes pref from including to excluding them. '''
+
     current_user.documents.filter(Documents.source_id==source, Documents.read==0).delete(synchronize_session='fetch')
     db.session.commit()
 
@@ -316,3 +317,34 @@ def remove_to_read(source):
         flash("Any unread books from Goodreads have been removed.")
 
     return
+
+
+def force_deauthorize(source):
+    '''
+    If authorization becomes corrupted somehow, deauthorize a source directly
+    and delete all documents from it.
+    '''
+    print('hello from fore_dauthorize()')
+    if source == 'Mendeley':
+        #delete documents
+        Documents.query.filter_by(user_id=current_user.id, source_id=1).delete()
+        #delete tokens
+        Tokens.query.filter_by(user_id=current_user.id, source_id=1).delete()
+        #unset flags
+        current_user.mendeley = 0
+        current_user.mendeley_update = ''
+        current_user.include_m_unread = 0
+    if source == 'Goodreads':
+        #delete documents
+        Documents.query.filter_by(user_id=current_user.id, source_id=2).delete()
+        #delete tokens
+        Tokens.query.filter_by(user_id=current_user.id, source_id=2).delete()
+        #unset my flags for this
+        current_user.goodreads = 0
+        current_user.goodreads_update = 'NULL'
+        current_user.include_g_unread = 0
+
+    db.session.commit()
+    flash('There was an error with your {} account. Please re-authorize it.'.format(source))
+    return
+
