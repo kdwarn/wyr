@@ -4,6 +4,7 @@ from app import db
 from sources.mendeley import import_mendeley
 from sources.goodreads import import_goodreads
 from models import Documents, Tokens
+from db_functions import force_deauthorize
 
 common_blueprint = Blueprint('common', __name__, template_folder='templates')
 
@@ -44,25 +45,7 @@ def deauthorize():
         source = request.form['name']
         confirm = request.form['deauthorize']
         if confirm == 'Yes':
-            if source == 'Mendeley':
-                #delete documents
-                Documents.query.filter_by(user_id=current_user.id, source_id=1).delete()
-                #delete tokens
-                Tokens.query.filter_by(user_id=current_user.id, source_id=1).delete()
-                #unset flags
-                current_user.mendeley = 0
-                current_user.mendeley_update = ''
-                current_user.include_m_unread = 0
-            if source == 'Goodreads':
-                #delete documents
-                Documents.query.filter_by(user_id=current_user.id, source_id=2).delete()
-                #delete tokens
-                Tokens.query.filter_by(user_id=current_user.id, source_id=2).delete()
-                #unset my flags for this
-                current_user.goodreads = 0
-                current_user.goodreads_update = 'NULL'
-                current_user.include_g_unread = 0
-
+            force_deauthorize(source)
             message = '{} has been deauthorized.'.format(source)
             db.session.commit()
         else:

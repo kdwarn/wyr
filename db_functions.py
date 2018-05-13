@@ -324,7 +324,11 @@ def force_deauthorize(source):
     If authorization becomes corrupted somehow, deauthorize a source directly
     and delete all documents from it.
     '''
-    print('hello from fore_dauthorize()')
+
+    if source not in ['Mendeley', 'Goodreads']:
+        flash("Cannot deauthorize unknown source.")
+        return
+
     if source == 'Mendeley':
         #delete documents
         Documents.query.filter_by(user_id=current_user.id, source_id=1).delete()
@@ -339,12 +343,11 @@ def force_deauthorize(source):
         Documents.query.filter_by(user_id=current_user.id, source_id=2).delete()
         #delete tokens
         Tokens.query.filter_by(user_id=current_user.id, source_id=2).delete()
-        #unset my flags for this
+        #unset flags
         current_user.goodreads = 0
         current_user.goodreads_update = 'NULL'
         current_user.include_g_unread = 0
 
     db.session.commit()
-    flash('There was an error with your {} account. Please re-authorize it.'.format(source))
     return
 

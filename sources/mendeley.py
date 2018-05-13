@@ -202,6 +202,7 @@ def get_docs(auth_object, type=''):
         ''' Something has gone wrong with authorization. Use RequestRedirect
         to directly return from this function.'''
         force_deauthorize('Mendeley')
+        flash('There was an error with your Mendeley account. Please re-authorize it.')
         raise RequestRedirect(url_for('settings'))
 
     docs = r.json()

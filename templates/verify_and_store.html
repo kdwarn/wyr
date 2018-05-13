@@ -9,8 +9,7 @@
 
         <form name="verify_authorization" action="{{ url_for('common.verify_authorization', source=source) }}" method="post">
             <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"/>
-            <label for="include_m_unread">Would you like to include unread items? (If so, they
-            will be tagged "to-read".) You can change this setting later.</label><br><br>
+            <label for="include_m_unread">Would you like to include unread items? (You can include or exclude them later.)</label><br><br>
 
             {% if source == 'Mendeley': %}
                 <input type="radio" name="include_m_unread" id="include_m_unread" value="1">Yes
