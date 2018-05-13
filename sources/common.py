@@ -47,7 +47,6 @@ def deauthorize():
         if confirm == 'Yes':
             force_deauthorize(source)
             message = '{} has been deauthorized.'.format(source)
-            db.session.commit()
         else:
             message = 'Deauthorization cancelled.'
 
