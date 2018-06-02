@@ -1,7 +1,7 @@
 from flask import flash
 from app import db
 from sqlalchemy import text
-from flask.ext.login import current_user
+from flask_login import current_user
 from models import Tags, Authors, Documents, Tokens
 
 def get_user_tags():

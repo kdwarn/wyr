@@ -11,10 +11,10 @@ from passlib.context import CryptContext
 
 from flask import Flask, render_template, request, session, redirect, url_for, \
     abort, flash
-from flask.ext.login import LoginManager, login_user, logout_user, \
+from flask_login import LoginManager, login_user, logout_user, \
     login_required, current_user
-from flask.ext.sqlalchemy import SQLAlchemy
-from flask.ext.misaka import Misaka
+from flask_sqlalchemy import SQLAlchemy
+from flask_misaka import Misaka
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, URLSafeSerializer
 from jinja2 import evalcontextfilter, Markup, escape
 

@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask.ext.login import login_required, current_user
+from flask_login import login_required, current_user
 from app import db
 from sources.mendeley import import_mendeley
 from sources.goodreads import import_goodreads

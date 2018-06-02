@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, \
     flash, session
-from flask.ext.login import login_required, current_user
+from flask_login import login_required, current_user
 from datetime import datetime
 from db_functions import get_user_tag_names, get_user_author_names, \
     str_tags_to_list, add_tags_to_doc, remove_old_tags,  \

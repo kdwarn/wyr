@@ -1,6 +1,6 @@
 import requests
 from config import mailgun
-from flask.ext.login import current_user
+from flask_login import current_user
 import stripe
 
 

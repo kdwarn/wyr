@@ -1,5 +1,5 @@
 from flask import Blueprint, request, redirect, url_for, flash, session
-from flask.ext.login import login_required, current_user
+from flask_login import login_required, current_user
 from datetime import datetime
 import pytz
 from db_functions import add_tags_to_doc, add_authors_to_doc, remove_old_tags, \

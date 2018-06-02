@@ -1,5 +1,5 @@
 from app import db
-from flask.ext.login import UserMixin
+from flask_login import UserMixin
 from sqlalchemy_utils import auto_delete_orphans
 
 #association tables
