@@ -103,6 +103,8 @@ def import_goodreads(update_type):
 def get_books_from_shelf(auth_object, shelf, update_type):
     ''' Get Books from shelf, determine what to do with them.'''
 
+    print('yes')
+
     # first need to figure out how many pages, b/c limited to 200 items per call
     payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf,
                'sort':'date_updated'}
@@ -117,6 +119,7 @@ def get_books_from_shelf(auth_object, shelf, update_type):
 
         #figure out how many pages of results
         total = docs[2].get('total')
+        print(total)
         pages = ceil(int(total)/200)
 
         exit_loop = 0 # iniate var that determinds when to stop an update
