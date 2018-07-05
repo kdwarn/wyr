@@ -91,10 +91,10 @@ def import_goodreads(update_type):
         # get books in the 'to-read' shelf if user wants them
         if current_user.include_g_unread == 1:
             get_books_from_shelf(auth_object, 'to-read', update_type)
-    except:
+    except Exception as e:
         to = 'whatyouveread@gmail.com'
         subject = 'Error updating Goodreads'
-        text = 'An error has occurred while attmpting to update Goodreads.'
+        text = 'An exception ({}) has occurred while attempting to update Goodreads.'.format(e)
         send_simple_message(to, subject, text)
         flash('An error has occurred while attempting to update the books on '
             'your Goodreads bookshelves. We will fix this as soon as possible.')
@@ -102,8 +102,6 @@ def import_goodreads(update_type):
 
 def get_books_from_shelf(auth_object, shelf, update_type):
     ''' Get Books from shelf, determine what to do with them.'''
-
-    print('yes')
 
     # first need to figure out how many pages, b/c limited to 200 items per call
     payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf,
@@ -115,44 +113,38 @@ def get_books_from_shelf(auth_object, shelf, update_type):
     if r.status_code != 200:
         flash("You don't appear to have books on your Goodreads {} shelf.".format(shelf))
     else:
-        docs = ElementTree.fromstring(r.content)
+        root = ElementTree.fromstring(r.content)
 
-        #figure out how many pages of results
-        total = docs[2].get('total')
-        print(total)
+        # figure out how many pages of results
+        total = root[2].get('total')
         pages = ceil(int(total)/200)
-
-        exit_loop = 0 # iniate var that determinds when to stop an update
 
         book_ids = [] # list to determine if any books were deleted
 
-        #go through each page (have to add one since page count doesn't start at 0)
-        for i in range(1, pages+1):
-
-            if exit_loop == 1: # set in nested for loop, for an update
-                break
+        # go through each page
+        for i in range(1, pages+1):  # add one since page count doesn't start at 0
 
             payload = {'v':'2', 'key':g['client_id'], 'shelf':shelf,
                     'per_page':'200', 'page':'{}'.format(i)}
             r = auth_object.get('https://www.goodreads.com/review/list.xml',
                             params=payload)
 
-            #Goodreads returns xml response
-            books = ElementTree.fromstring(r.content)
+            # Goodreads returns xml response
+            root = ElementTree.fromstring(r.content)
 
             # go through each book, and see if we need to insert/update it
-            for book in books[1]:
+            for review in root[2]:  # root[2] is *reviews* top-level xml
+
                 if update_type == 'initial':
-                    save_doc(book, shelf)
+                    save_doc(review, shelf)
 
                 else:
-
                     if update_type == 'normal':
 
-                        #add the book's native id to a list (to check for deleted)
-                        book_ids.append(book.find('id').text)
+                        # add the book's native id to a list (to check for deleted)
+                        book_ids.append(review.find('id').text)
 
-                        date_updated = datetime.strptime(book.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
+                        date_updated = datetime.strptime(review.find('date_updated').text, '%a %b %d %H:%M:%S %z %Y')
 
                         # *date_updated* is in local time, convert to UTC, remove timezone
                         date_updated = date_updated.astimezone(pytz.utc).replace(tzinfo=None)
@@ -164,9 +156,9 @@ def get_books_from_shelf(auth_object, shelf, update_type):
 
                     # pass along any existing doc to save function
                     check_doc = Documents.query.filter_by(user_id=current_user.id,
-                        source_id=2, native_doc_id=book.find('id').text).first()
+                        source_id=2, native_doc_id=review.find('id').text).first()
 
-                    save_doc(book, shelf, check_doc)
+                    save_doc(review, shelf, check_doc)
 
         if update_type == 'normal':
             delete_books(book_ids)
