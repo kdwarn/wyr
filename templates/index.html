@@ -25,7 +25,7 @@
         <h2>Login</h2>
         <form name="login" action="/login" method="post">
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-        <input name="next" type="hidden" value="{{ next or 'index' }}">
+        <input name="next" type="hidden" value="{{ next }}">
         <label class="sr-only" for="wyr_username">Username</label>
         <input class="login_form" type="text" size="20" id="wyr_username" name="wyr_username" placeholder="Username"/><br>
         <label class="sr-only" for="wyr_password">Password</label>
