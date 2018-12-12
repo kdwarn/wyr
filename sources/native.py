@@ -310,12 +310,14 @@ def import_bookmarks():
                 flash("Sorry, that doesn't look like a .html file.")
                 return render_template('import.html')
 
+
             # put soupped file into a global variable accessed by username,
             # so we can work with it after step 2 (and so it's uniquely named)
+            global soup
             soup = dict()
             soup[current_user.username] = BeautifulSoup(file, 'html.parser')
 
-            global soup
+
 
             folders = []
             for each in soup[current_user.username].find_all('h3'):

@@ -1,7 +1,3 @@
-###############
-### IMPORTS ###
-###############
-
 import re
 import string
 from datetime import datetime, timedelta
@@ -25,6 +21,7 @@ import stripe
 
 from helpers import send_simple_message, get_stripe_info
 from config import stripe_keys
+
 
 ###############
 ### CONFIG ####
@@ -53,8 +50,7 @@ app.register_blueprint(mendeley_blueprint)
 app.register_blueprint(goodreads_blueprint)
 app.register_blueprint(common_blueprint)
 
-
-USE_SESSION_FOR_NEXT = True
+# login initialization
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -113,6 +109,7 @@ def nl2br(eval_ctx, value):
     return result
 #now make it a filter
 app.jinja_env.filters['nl2br'] = nl2br
+
 
 @login_manager.user_loader
 def user_loader(user_id):
@@ -677,12 +674,7 @@ def login():
         username = request.form['wyr_username']
         password = request.form['wyr_password']
         remember = request.form.getlist('remember')
-
-        # get/set value of 'next' if it exists, in order to redirect user back
-        # to a page dec'd @login_required they may have tried to log in from
-        next = 'index'
-        if 'next' in session:
-            next = session['next']
+        next = request.form['next']
 
         #first see if username exists
         if User.query.filter_by(username=username).count() == 1:
@@ -704,7 +696,10 @@ def login():
         else:
             flash('Username does not exist.')
 
-        return redirect(url_for(next))
+        if next:
+            return redirect('https://www.whatyouveread.com' + next)
+
+        return redirect(url_for('index'))
 
 
 @app.route('/logout')
