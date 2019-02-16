@@ -381,23 +381,6 @@ def add_item(content, user):
     if authors:
         authors = str_authors_to_list(authors)
 
-    # if content['link']:
-    #     link = content['link']
-    # if 'tags' in content:
-    #     tags = content['tags']
-    #     tags = str_tags_to_list(tags)
-    # if 'authors' in content:
-    #     authors = content['authors']
-    #     authors = str_authors_to_list(authors)
-    # if 'year' in content:
-    #     year = content['year']
-    # if 'notes' in content:
-    #     notes = content['notes']
-    # if 'read' in content:
-    #     read = int(content['read'])
-    # else:
-    #     read = 0
-
     if link:
         doc = user.documents.filter(Documents.link==link, Documents.source_id==3).first()
         if doc:
