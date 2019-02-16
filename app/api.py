@@ -26,87 +26,18 @@ TODO:
 '''
 import datetime
 from functools import wraps
-import pytz
 
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 import jwt
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import db
-from .common import get_user_tag_names, get_user_author_names, \
-    str_tags_to_list, add_tags_to_doc, remove_old_tags,  \
-    str_authors_to_list, add_authors_to_doc, remove_old_authors
-from .exceptions import NoTokenException, NoTitleException, \
-    DuplicateLinkException, BadReadValueError, NoDocsException
+from . import common
+from . import exceptions as ex
 from .models import Documents, User
 
 
-api_bp = Blueprint('api', __name__)  # this sets url_prefix to /api
-
-# TODO: move this to common.py, import from there and use directly in add
-# (will need some re-working)
-def add_item(content, user):
-
-    # TODO: ensure authentication on this, somewhow. Test type(user)?
-
-    # TODO: I'm not sure if this will work properly from both form and API calls, check
-    # the call from native.add works because it gets the form variables and
-    # enters them into content (even if empty), so all dictionary keys will be
-    # there. But in direct call to API that is not the case.
-    # maybe do a get() call and set a default?
-
-    title, link, tags, authors, year, notes = '', '', '', '', '', ''
-
-    if content.get('title'):
-        title = content['title']
-    else:
-        raise NoTitleException
-
-    if content['link']:
-        link = content['link']
-    if 'tags' in content:
-        tags = content['tags']
-        tags = str_tags_to_list(tags)
-    if 'authors' in content:
-        authors = content['authors']
-        authors = str_authors_to_list(authors)
-    if 'year' in content:
-        year = content['year']
-    if 'notes' in content:
-        notes = content['notes']
-    if 'read' in content:
-        read = int(content['read'])
-    else:
-        read = 0
-
-    if link:
-        doc = user.documents.filter(Documents.link==link, Documents.source_id==3).first()
-        if doc:
-            raise DuplicateLinkException(doc.id)
-
-        # add "http://" if not there or else will be relative link within site
-        if 'http://' not in link and 'https://' not in link:
-            link = 'http://' + link
-
-    if read not in [0,1]:
-        raise BadReadValueError
-
-
-    doc = Documents(3, title, link=link, year=year, note=notes, read=read,
-                    created = datetime.datetime.now(pytz.utc))
-
-    if tags:
-        doc = add_tags_to_doc(tags, doc)
-
-    if authors:
-        doc = add_authors_to_doc(authors, doc)
-
-    user.documents.append(doc)
-
-    db.session.commit()
-
-    return {'message': 'Item added.'}, 200
+api_bp = Blueprint('api', __name__)  # url prefix of /api set in init
 
 
 def token_required(f):
@@ -120,8 +51,8 @@ def token_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         # if coming from WYR forms, no need to check token
-        if current_user.is_authenticated:
-            return f(current_user.username, *args, **kwargs)
+        # if current_user.is_authenticated:
+        #     return f(current_user.username, *args, **kwargs)
 
         if request.method == 'GET':
             token = request.args.get('token')
@@ -203,7 +134,8 @@ def get(username, id):
 
 @api_bp.route('/document', methods=['POST'])
 @token_required
-def api_add(username):
+def add(username):
+    print(username)
     '''
     Add a document to user's account.
     *username* is passed in from @token_required, if user's token is authorized.
@@ -219,17 +151,18 @@ def api_add(username):
     user = User.query.filter_by(username=username).one()
 
     try:
-        result, http_status = add_item(content, user)
-    except NoTitleException as e:
+        common.add_item(content, user)
+    except ex.NoTitleException as e:
         return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
-    except DuplicateLinkException as e:
+    except ex.DuplicateLinkException as e:
         return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
-    except BadReadValueError as e:
+    except ex.BadReadValueError as e:
         return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
+    else:
+        return jsonify({'message': 'Success!'}), 200
 
-    return jsonify({'message': 'Success!'}), 200
 
-# @api_blueprint.route('api/document/<id>', methods=['PUT'])
+# @api_blueprint.route('document/<id>', methods=['PUT'])
 # @token_required
 # def edit():
 #     if request.method == 'GET':

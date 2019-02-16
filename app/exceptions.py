@@ -3,11 +3,7 @@ class WyrException(Exception):
     pass
 
 
-# API exceptions
-
-class NoTokenException(WyrException):
-    pass
-    # TODO
+# API exceptions?
 
 
 # Doc-related exceptions
@@ -38,11 +34,7 @@ class BadReadValueError(WyrException, ValueError):
 
 # Tag- and Bunch-related Exceptions
 
-class NoTagsException(WyrException):
-    pass
 
 
 # Author-related Exceptions
 
-class NoAuthorsException(WyrException):
-    pass

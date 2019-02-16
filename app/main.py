@@ -16,10 +16,9 @@ from app import db, cache
 from .models import User, Documents, Tags, Bunches, Authors
 from .common import get_user_tags, get_user_authors, remove_to_read, \
     send_simple_message, get_stripe_info, force_deauthorize
-from .exceptions import NoTagsException, NoAuthorsException
+from .exceptions import NoDocsException
 from . import mendeley
 from . import goodreads
-from . import api
 
 
 bp = Blueprint('main', __name__)
@@ -33,7 +32,7 @@ def get_docs(user, read_status=None):
         docs = user.documents.filter_by(read=read_status).order_by(desc(Documents.created)).all()
 
     if not docs:
-        raise api.NoDocsException
+        raise NoDocsException
     return docs
 
 
@@ -71,7 +70,7 @@ def index():
 
         try:
             docs = get_docs(current_user)
-        except api.NoDocsException:
+        except NoDocsException:
             docs = ''  # deal with this in template
 
         return render_template('read.html', docs=docs, read_status='all')
@@ -90,7 +89,7 @@ def read():
 
     try:
         docs = get_docs(current_user, read_status=1)
-    except api.NoDocsException:
+    except NoDocsException:
         docs = ''  # deal with this in the template
 
     return render_template('read.html', docs=docs, read_status='read')
@@ -107,7 +106,7 @@ def to_read():
 
     try:
         docs = get_docs(current_user, read_status=0)
-    except api.NoDocsException:
+    except NoDocsException:
         docs = '' # deal with this in the template
 
     return render_template('read.html', docs=docs, read_status='to-read')
@@ -118,12 +117,11 @@ def to_read():
 #@cache.cached(timeout=3600)
 def tags():
     ''' Return page of all tags, which user can select to display documents with that tag. '''
-    try:
-        tags = get_user_tags()
-    except NoTagsException:
-        return render_template('tags.html', grouped_tags='')
-    else:
+    tags = get_user_tags()
 
+    if not tags:
+        grouped_tags = ''
+    else:
         # group tags by their first letter, to enable jumping down page
         grouped_tags = OrderedDict()
 
@@ -141,7 +139,7 @@ def tags():
                     grouped_tags[tag['name'][0].upper()] = []
                     grouped_tags[tag['name'][0].upper()].append(tag)
 
-        return render_template('tags.html', grouped_tags=grouped_tags)
+    return render_template('tags.html', grouped_tags=grouped_tags)
 
 
 @bp.route('/<read_status>/tag/<tag>/')
@@ -216,9 +214,9 @@ def bunches():
     '''Let user select multiple tags and display the docs that fit the criteria.
     Include link to save the bunch, which takes place through bunch_save().'''
     if request.method == 'GET':
-        try:
-            tags = get_user_tags()
-        except NoTagsException:
+        tags = get_user_tags()
+
+        if not tags:
             tags = ''
             bunches = ''
         else:
@@ -393,9 +391,9 @@ def bunch_delete():
 #@cache.cached(timeout=3600)
 def authors():
     ''' Display all authors for user's documents. '''
-    try:
-        authors = get_user_authors()
-    except NoAuthorsException:
+    authors = get_user_authors()
+
+    if not authors:
         grouped_authors = ''
     else:
 

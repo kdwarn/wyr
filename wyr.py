@@ -40,6 +40,12 @@ def https_redirect():
 #must use  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"> in template forms
 @wyr_app.before_request
 def csrf_protect():
+
+    # don't add csrf protection for the API - authorizaton handled by JWT token,
+    # and csrf token not required
+    if request.blueprint == 'api':
+        return
+
     if request.method == "POST":
         token = session.pop('_csrf_token', None)
         if not token or "{}".format(token) != request.form.get('_csrf_token'):

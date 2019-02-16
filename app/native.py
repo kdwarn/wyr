@@ -7,12 +7,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, \
 from flask_login import login_required, current_user
 
 from app import db
-from . import api
-from .common import get_user_tag_names, get_user_author_names, \
-    str_tags_to_list, add_tags_to_doc, remove_old_tags,  \
-    str_authors_to_list, add_authors_to_doc, remove_old_authors
-from .exceptions import NoTitleException, DuplicateLinkException
 from .models import Documents
+from . import common
+from . import exceptions as ex
 
 
 native_bp = Blueprint('native', __name__)
@@ -45,8 +42,8 @@ def add():
         from_bookmarklet = request.args.get('bookmarklet', '')
 
         # also pass along tags and author names for autocomplete
-        all_tags = get_user_tag_names()
-        all_authors = get_user_author_names()
+        all_tags = common.get_user_tag_names()
+        all_authors = common.get_user_author_names()
 
         # check if link already exists, redirect user to edit if so
         if link:
@@ -67,34 +64,26 @@ def add():
         content = request.form  # ImmutableDict, but functions much in the same way as json
 
         try:
-            # http_status unused here, but used in API calls
-            result, http_status = api.add_item(content, current_user)
-        except NoTitleException as e:
+            common.add_item(content, current_user)
+        except ex.NoTitleException as e:
             flash(e.message)
             return redirect(url_for('native.add'))
-        except DuplicateLinkException as e:
+        except ex.DuplicateLinkException as e:
             flash(e.message)
             return redirect(url_for('native.edit', id=e.doc_id))
 
         try:
             another = content['another']
-        except:
+        except KeyError:
             another = None
 
         try:
             from_bookmarklet = content['from_bookmarklet']
-        except:
+        except KeyError:
             from_bookmarklet = None
 
-        # if 'error' in result:
-        #     if result['error'] == 10:
-        #         flash("Please enter a title; it is the only required field.")
-        #         return redirect(url_for('native.add'))
 
-        #     if result['error'] == 11:
-        #         flash("You've already saved that link; you may edit it below.")
-        #         return redirect(url_for('native.edit', id=result['doc_id']))
-        flash(result['message'])
+        flash('Item added.')
 
         if from_bookmarklet:
             return render_template('add.html', bookmarklet=1)
@@ -248,8 +237,8 @@ def edit():
                     new_authors += author.last_name + ', ' + author.first_name
 
             # also pass along all tags and authors for autocomplete
-            all_tags = get_user_tag_names()
-            all_authors = get_user_author_names()
+            all_tags = common.get_user_tag_names()
+            all_authors = common.get_user_author_names()
 
             return render_template('add.html', edit=1, doc=doc, tags=new_tags,
                 all_tags=all_tags, all_authors=all_authors, authors=new_authors)
@@ -297,24 +286,24 @@ def edit():
 
         # update tags
         # turn strings of tags into lists of tags
-        tags = str_tags_to_list(tags)
-        old_tags = str_tags_to_list(old_tags)
+        tags = common.str_tags_to_list(tags)
+        old_tags = common.str_tags_to_list(old_tags)
         # if there were old tags, remove those no longer associated with doc,
         # update the doc and also return updated list of tags
         if old_tags:
-            update_doc, tags = remove_old_tags(old_tags, tags, update_doc)
+            update_doc, tags = common.remove_old_tags(old_tags, tags, update_doc)
         # add any new tags to doc
         if tags:
-            update_doc = add_tags_to_doc(tags, update_doc)
+            update_doc = common.add_tags_to_doc(tags, update_doc)
 
         # update authors
-        authors = str_authors_to_list(authors)
-        old_authors = str_authors_to_list(old_authors)
+        authors = common.str_authors_to_list(authors)
+        old_authors = common.str_authors_to_list(old_authors)
         if old_authors:
-            update_doc, authors = remove_old_authors(old_authors, authors,
+            update_doc, authors = common.remove_old_authors(old_authors, authors,
                 update_doc)
         if authors:
-            update_doc = add_authors_to_doc(authors, update_doc)
+            update_doc = common.add_authors_to_doc(authors, update_doc)
 
         db.session.commit()
         flash('Item edited.')
@@ -399,9 +388,6 @@ def import_bookmarks():
             global soup
             soup = dict()
             soup[current_user.username] = BeautifulSoup(file, 'html.parser')
-
-
-
             folders = []
             for each in soup[current_user.username].find_all('h3'):
                 folders.append(each.string)
@@ -441,7 +427,7 @@ def import_bookmarks():
                                 new_doc.created = datetime.datetime.fromtimestamp(int(each['add_date']))
                                 db.session.add(new_doc)
                                 db.session.commit()
-                                add_tags_to_doc([h3.string], new_doc)
+                                common.add_tags_to_doc([h3.string], new_doc)
                                 db.session.commit()
 
             flash('Bookmarks successfully imported.')

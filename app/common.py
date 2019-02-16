@@ -1,13 +1,15 @@
-import requests
+import datetime
 
 from flask import flash, current_app
 from flask_login import current_user
+import pytz
+import requests
 from sqlalchemy import text
 import stripe
 
 from app import db
 from .models import Tags, Authors, Documents, Tokens
-from .exceptions import NoTagsException, NoAuthorsException
+from . import exceptions as ex
 
 
 def get_user_tags():
@@ -29,9 +31,6 @@ def get_user_tags():
     tags = []
     for row in result:
         tags.append({'id': row[1], 'name': row[0]})
-
-    if not tags:
-        raise NoTagsException
 
     return tags
 
@@ -110,9 +109,6 @@ def get_user_authors():
     authors = []
     for row in result:
         authors.append({'id': row[0], 'first_name': row[1], 'last_name': row[2]})
-
-    if not authors:
-        raise NoAuthorsException
 
     return authors
 
@@ -319,7 +315,6 @@ def remove_old_authors(old_authors, authors, doc):
     return doc, authors
 
 
-
 def remove_to_read(source):
     ''' Delete to-read docs if user changes pref from including to excluding them. '''
 
@@ -367,8 +362,76 @@ def force_deauthorize(source):
     return
 
 
+def add_item(content, user):
+    '''Add document to database.'''
+
+    title = content.get('title')
+    if not title:
+        raise ex.NoTitleException
+    link = content.get('link')
+    tags = content.get('tags')
+    authors = content.get('authors')
+    year = content.get('year')
+    notes = content.get('notes')
+    read = int(content.get('read')) if content.get('read') else 1 # default to read
+
+    if tags:
+        tags = str_tags_to_list(tags)
+
+    if authors:
+        authors = str_authors_to_list(authors)
+
+    # if content['link']:
+    #     link = content['link']
+    # if 'tags' in content:
+    #     tags = content['tags']
+    #     tags = str_tags_to_list(tags)
+    # if 'authors' in content:
+    #     authors = content['authors']
+    #     authors = str_authors_to_list(authors)
+    # if 'year' in content:
+    #     year = content['year']
+    # if 'notes' in content:
+    #     notes = content['notes']
+    # if 'read' in content:
+    #     read = int(content['read'])
+    # else:
+    #     read = 0
+
+    if link:
+        doc = user.documents.filter(Documents.link==link, Documents.source_id==3).first()
+        if doc:
+            raise ex.DuplicateLinkException(doc.id)
+
+        # add "http://" if not there or else will be relative link within site
+        if 'http://' not in link and 'https://' not in link:
+            link = 'http://' + link
+
+    if read not in [0,1]:
+        raise ex.BadReadValueError
+
+    doc = Documents(3, title, link=link, year=year, note=notes, read=read,
+                    created = datetime.datetime.now(pytz.utc))
+
+    if tags:
+        doc = add_tags_to_doc(tags, doc)
+
+    if authors:
+        doc = add_authors_to_doc(authors, doc)
+
+    user.documents.append(doc)
+
+    db.session.commit()
+
+    return
+
+
+################
+# MISC FUNCTIONS
+################
+
 def send_simple_message(to, subject, text):
-    """ send email via mailgun """
+    '''Send email via mailgun.'''
     mailgun = current_app.config['MAILGUN']
 
     return requests.post(
@@ -382,7 +445,7 @@ def send_simple_message(to, subject, text):
 
 
 def get_stripe_info():
-    """ get user's Stripe info """
+    '''Get user's Stripe info.'''
     if current_user.stripe_id is not None:
         donor = stripe.Customer.retrieve(current_user.stripe_id)
 
