@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+    <head>
+        {% block head %}
+        <title>What You've Read {% block title %}{% endblock %}</title>
+        <link rel="stylesheet" href="/static/style.css">
+        {# next one is for the tag autocomplete feature #}
+        <link rel="stylesheet" href="/static/jquery-ui.css">
+        <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="keywords" content="social bookmarking, reference manager, reading journal, what you've read, track what you read, remember what you've read, what I've read, remember">
+        {% endblock %}
+    </head>
+    <body>
+        <header>
+            <nav>
+            {% if current_user.is_authenticated %}
+                <div style="float:left; vertical align:middle; display:block;
+	            padding:5px; font-weight:bold"><a href="/"
+	            style="text-decoration:none; color:white">What You've Read</a></div>
+
+                <div style="float:right">
+                <label for="show-menu" class="show-menu">&#9776;</label>
+                <input type="checkbox" id="show-menu" role="button">
+                <ul id="menu">
+                <a href="{{url_for('main.tags')}}"><li>Tags</li></a>
+                <a href="{{url_for('main.bunches')}}"><li>Bunches</li></a>
+                <a href="{{url_for('main.authors')}}"><li>Authors</li></a>
+                <a href="{{url_for('main.last_month')}}"><li>Last Month</li></a>
+                <a href="/add"><li>Add</li></a>
+                <a href="/settings"><li>Settings</li></a>
+                <a href="/contact"><li>Contact</li></a>
+                <a href="/donate"><li>Donate</li></a>
+                <a href="/logout"><li>Logout</li></a>
+                </ul>
+                </div>
+
+            {% endif %}
+            </nav>
+            <div id="messages" class="center">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div role="alert">{{ message }}</div>
+                    {% endfor %}
+                {% else %}
+                    <div>&nbsp;</div> {# just to keep spacing the same #}
+                {% endif %}
+            {% endwith %}
+            </div>
+        </header>
+        {% block content %}{% endblock %}
+    </body>
+</html>

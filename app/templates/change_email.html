@@ -1,0 +1,27 @@
+{% extends 'header.html' %}
+{% block title %} - Change Email {% endblock %}
+{% block content %}
+<div id="main">
+    <div class="block-center">
+        <h2>Change Email</h2>
+        <p class ="left">Your email is currently {{current_user.email}}. If you'd
+        like to change it, enter a new email address below and we will send you
+        an email with a link to confirm the requested change. After that,
+        another link will be sent to your new email address to confirm it is correct.</p>
+
+        <form name="change_email" action="{{ url_for('main.change_email') }}" method="post">
+            <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"/>
+            <input name="hash" type="hidden" value="{{ hash }}"/>
+            <label class="sr-only" for="new_email">New Email</label>
+            <input class="login_form" type="text" size="20" id="new_email" name="new_email" placeholder="New email"/><br>
+            <label class="sr-only" for="password">Password</label>
+            <input class="login_form" type="password" size="20" id="password" name="password" placeholder="Password"/><br>
+            <button type="submit" name="submit" value="Submit">Submit</button>&nbsp;<button type="submit" name="submit" value="Cancel">Cancel</button>
+        </form>
+    </div>
+
+    <script type="text/javascript" language="JavaScript">
+    document.forms['change_email'].elements['new_email'].focus();
+    </script>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+
+{% extends 'header.html' %}
+{% block title %} - Tags {% endblock %}
+{% block content %}
+<div id="main">
+    <h1>Tags</h1><br>
+    <div style="line-height:1.5em">
+        {% if grouped_tags %}
+            <div class="center">JUMP TO:
+            {% for key in grouped_tags.keys() %}
+                <a href="#{{key}}">{{ key }}</a>
+            {% endfor %}
+            </div>
+
+            {% for key, tags in grouped_tags.items() %}
+                <div id="{{key}}"> </div>
+                <br>
+                <div class="bold">{{key}}</div>
+                {% for tag in tags %}
+                    <a href="{{ url_for('main.docs_by_tag', tag=tag.name, read_status="all") }}">{{ tag.name }}</a><br>
+                {% endfor %}
+            {% endfor %}
+        {% else %}
+            <div class="center">You don't yet have any tags.</div>
+        {% endif %}
+
+    </div>
+</div>
+<br>
+{% endblock %}

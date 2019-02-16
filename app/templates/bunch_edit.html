@@ -1,0 +1,46 @@
+
+{% extends 'header.html' %}
+{% block title %} - Edit Bunch {% endblock %}
+{% block content %}
+<div id="main">
+    <h1>Bunches</h1><br>
+    <div class="center">Edit {{bunch.name}} Bunch</div><br>
+    <form name="bunch" id="bunch" method="post" action="{{url_for('main.bunch_edit')}}">
+        <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+        Name: <input name="new_bunch_name" size="15" value="{{bunch.name}}">
+
+        <div id="multiple_tags" class="center">
+            <ul>
+                <li><input type="radio" name="selector" id="and" value="and"
+                {% if bunch.selector == 'and' %}
+                    checked
+                {% endif %}
+                >
+                <label for="and">AND</label></li>
+                <li><input type="radio" name="selector" id="or" value="or"
+                {% if bunch.selector == 'or' %}
+                    checked
+                {% endif %}
+                >
+                <label for="or">OR</label></li>
+            </ul>
+        </div>
+        <div style="line-height:1.5em" id="multiple_tags">
+            {% for tag in tags %}
+                <input type="checkbox" name="bunch_tags" id="{{tag.id}}" value="{{tag.id}}"
+                {% if tag.id in bunch.tags|map(attribute='id') %}
+                    checked
+                {% endif %}
+                >
+                <label for="{{ tag.id }}">{{tag.name}}</label><br>
+            {% endfor %}
+        </div>
+        <div class="center">
+        <input type="hidden" name="old_bunch_name" value="{{bunch.name}}">
+        <button type="submit" name="submit" value="submit">Submit</button>&nbsp;
+        <button type="submit" name="submit" value="cancel">Cancel</button>
+        </div>
+    </form>
+</div>
+<br>
+{% endblock %}

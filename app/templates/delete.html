@@ -1,0 +1,82 @@
+
+{% extends 'header.html' %}
+{% block title %} - Delete Item {% endblock %}
+{% block content %}
+<div id="main">
+    <div class="block-center">
+        <h2>Confirm Deletion</h2>
+        <div class="doc left">
+        {% if doc.link %}
+            <a href="{{ doc.link }}" target="_blank">{{ doc.title }}</a>
+        {% else %}
+            {{ doc.title }}
+        {% endif %}
+
+        {% if doc.year %}
+            ({{ doc.year }})
+        {% endif %}
+
+        {% if doc.authors %}
+            by
+            {% for author in doc.authors %}
+                {% if author != doc.authors[-1] %}
+                    <a href="{{ url_for('main.docs_by_author', author_id=author.id, read_status=read_status) }}">
+                        {{ author.first_name }} {{ author.last_name }}</a>,
+                {% else %}
+                    <a href="{{ url_for('main.docs_by_author', author_id=author.id, read_status=read_status) }}">
+                        {{ author.first_name }} {{ author.last_name }}</a>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+        </br>
+        {% if doc.tags %}
+            <span class="info">Tagged:
+            {% for tag in doc.tags|sort(attribute="name") %}
+                {% if tag != doc.tags[-1] %}
+                    <a href="{{ url_for('main.docs_by_tag', tag=tag.name, read_status=read_status) }}">{{ tag.name }}</a>,
+                {% else %}
+                    <a href="{{ url_for('main.docs_by_tag', tag=tag.name, read_status=read_status) }}">{{ tag.name }}</a>
+                {% endif %}
+            {% endfor %}
+            </span>
+        </br>
+        {% endif %}
+        <span class="info">
+        {% if doc.read == 1 %}
+            Read: {{ doc.created.strftime("%B %d, %Y") }}
+        {% else %}
+            Added: {{ doc.created.strftime("%B %d, %Y") }}
+        {% endif %}
+        </span><br>
+
+        {% if doc.note %}
+            <div class="notes">
+            {% if doc.source_id == 3 and current_user.markdown == 1 %}
+                {# adjust for p wrap that Flask-Misaka throws in #}
+                <div style="margin-top:-1em">
+                {{ doc.note|markdown }}
+                </div>
+            {% elif doc.source_id == 1 or doc.source_id == 2 %}
+                {# let notes from Mendeley and Goodreads use html #}
+                {{ doc.note|safe }}
+            {% else %}
+                {# if user disabled markdown, at least allow <br> #}
+                <div style="margin-top:-1em">
+                {{ doc.note|nl2br }}
+                </div>
+            {% endif %}
+        {% endif %}
+
+        </div>
+        <div class="block-center">
+            <form method="POST" action="/delete">
+                <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+                <input type="hidden" name="id" value=" {{doc.id}}">
+                <button type="submit" name="delete" value="Delete">Delete</button>&nbsp;
+                <button type="submit" name="delete" value="Cancel">Cancel</button>
+            </form>
+        </div>
+    </div>
+    <p></p>
+</div>
+{% endblock %}

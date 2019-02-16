@@ -1,0 +1,72 @@
+
+{% extends 'header.html' %}
+{% block title %} - Donate {% endblock %}
+{% block content %}
+<div id="main">
+    <div>
+        <h2>Donate</h2>
+        <p class="left">Thank you for visiting this page! This site is free
+            and without advertising - and always will be - but it does involve
+            some time and money to operate.</p>
+
+        {#
+        go through various scenarios of never donated/donated previously/still donating
+        this is helpful: https://stripe.com/docs/api#retrieve_customer
+        #}
+
+        {# donated, still donating #}
+        {% if donor != '' and subscription != '' and subscription.cancel_at_period_end == false %}
+        <p><span class="bold">Thank you for donating. Your next donation of ${{(subscription.plan['amount']/100)|round|int}}
+            is scheduled for {{subscription.current_period_end|datetime}}.</span> If you'd like
+            to change the amount, you may do so below. You will be charged or reimbursed immediately
+            for the pro-rated difference between your previous donation and the amount you change it to.
+            To cancel your scheduled donation, click <a href="{{url_for('main.cancel_donation')}}">here</a>.</p>
+        {% endif %}
+
+        {# donated previously, doesn't have current subscription #}
+        {% if donor != '' and subscription == ''%}
+            <p class="bold">Thank you for your previous donation. At this time, you have no
+            further donation scheduled. If you'd like to donate again, you can do so below.</p>
+        {% endif %}
+
+        {# donated previously, subscription will not renew #}
+        {% if donor != '' and subscription != '' and subscription.cancel_at_period_end != false %}
+            <p class="bold">Thank you for your previous donation. At this time, you have no
+            further donation scheduled. If you'd like to donate again, you can do so below.</p>
+        {% endif %}
+
+
+        {# never donated #}
+        {% if donor == '' %}
+            <p class="left">If you feel like What You've Read has been useful to you,
+            you are welcome to make a donation. Select the level below and click
+            the button to enter your payment information. A receipt will
+            be emailed to you.</p>
+        {% endif %}
+
+        {# always display the form #}
+        <div class="center">
+        <form action="{{url_for('main.charge')}}" method="POST" name="donate">
+            <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+            <input type="radio" name="plan" value="1">&nbsp; $6/year<br>
+            <input type="radio" name="plan" value="2" checked>$12/year<br>
+            <input type="radio" name="plan" value="3">$24/year<br>
+            <input type="radio" name="plan" value="4">$36/year<br>
+            <input type="hidden" name="sub_id" value="{{subscription.id}}">
+            <input type="hidden" name="customer_id" value="{{donor.id}}">
+            <br><br>
+            <script src="https://checkout.stripe.com/checkout.js" class="stripe-button"
+                data-email="{{current_user.email}}"
+                data-key="{{ key }}"
+                data-label="Donate with Card"
+                data-name="What You've Read"
+                data-description="Donation"
+                data-image="/static/w-100x100.png"
+                data-locale="auto"
+                data-zip-code="true">
+            </script>
+        </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,274 @@
+
+{% extends 'header.html' %}
+{% block title %}
+    {% if tagpage %}
+        : {{tagpage}}
+    {% endif %}
+
+    {% if authorpage %}
+        : {{first_name}} {{last_name}}
+    {% endif %}
+
+    {% if bunch_tag_names and not bunch_name %}
+        : Bunch
+    {% endif %}
+
+    {% if bunch_name %}
+        : {{bunch_name}}
+    {% endif %}
+
+    {% if read_status %}
+        : {{read_status}}
+    {% endif %}
+
+    {% if last_month %}
+        : last month
+    {% endif %}
+
+{% endblock %}
+
+{% block content %}
+<div id="main">
+
+    {# filter items by read status #}
+    <h1>
+
+    {% if read_status == 'all' %}
+        all |
+    {% else %}
+        {% if tagpage %}
+            <a href="{{ url_for('main.docs_by_tag', tag=tagpage, read_status="all") }}">all</a> |
+        {% elif authorpage %}
+            <a href="{{ url_for('main.docs_by_author', author_id=author.id, read_status="all") }}">all</a> |
+        {% elif bunch_name %}
+            <a href="{{ url_for('main.bunch', read_status="all", name=bunch_name) }}">all</a> |
+        {% else %}
+            <a href="{{url_for('main.index')}}">all</a> |
+        {% endif %}
+    {% endif %}
+
+    {% if read_status == 'read' %}
+        read |
+    {% else %}
+        {% if tagpage %}
+            <a href="{{ url_for('main.docs_by_tag', tag=tagpage, read_status="read") }}">read</a> |
+        {% elif authorpage %}
+            <a href="{{ url_for('main.docs_by_author', author_id=author.id, read_status="read") }}">read</a> |
+        {% elif bunch_name %}
+            <a href="{{ url_for('main.bunch', read_status="read", name=bunch_name) }}">read</a> |
+        {% else %}
+            <a href="{{url_for('main.read')}}">read</a> |
+        {% endif %}
+    {% endif %}
+
+    {% if read_status == 'to-read' %}
+        to-read
+    {% else %}
+        {% if tagpage %}
+            <a href="{{ url_for('main.docs_by_tag', tag=tagpage, read_status="to-read") }}">to-read</a>
+        {% elif authorpage %}
+            <a href="{{ url_for('main.docs_by_author', author_id=author.id, read_status="to-read") }}">to-read</a>
+        {% elif bunch_name %}
+            <a href="{{ url_for('main.bunch', read_status="to-read", name=bunch_name) }}">to-read</a>
+        {% else %}
+            <a href="{{url_for('main.to_read')}}">to-read</a>
+        {% endif %}
+    {% endif %}
+    </h1>
+
+    {# inform user if filtered by tag, author, bunch, or last month; enable clearing #}
+
+    <h2>
+    {# items by one tag #}
+    {% if tagpage %}
+        &nbsp; tagged {{tagpage}}
+        {% if read_status == 'read' %}
+            <a href="/read" class="clear_filter">&#10005</a>
+        {% elif read_status == 'to-read' %}
+            <a href="/to-read" class="clear_filter">&#10005</a>
+        {% else %}
+            <a href="/" class="clear_filter">&#10005</a>
+        {% endif %}
+    {% endif %}
+
+
+    {# items by bunch #}
+    {% if bunch_tag_names %}
+        tagged
+        {% for tag in bunch_tag_names|sort %}
+            {% if tag != bunch_tag_names|sort|last %}
+                {% if selector == 'or' %}
+                    {{ tag }} or
+                {% else %}
+                    {{ tag }} and
+                {% endif %}
+            {% else %}
+                {{ tag }}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    {# items by author #}
+    {% if authorpage %}
+        &nbsp; by {{first_name}} {{last_name}}
+        {% if read_status == 'read' %}
+            <a href="/read" class="clear_filter">&#10005</a>
+        {% elif read_status == 'to-read' %}
+            <a href="/to-read" class="clear_filter">&#10005</a>
+        {% else %}
+            <a href="/" class="clear_filter">&#10005</a>
+        {% endif %}
+    {% endif %}
+
+    {# items read last month #}
+    {% if last_month %}
+        &nbsp; last month <a href="{{url_for('main.read')}}" class="clear_filter">&#10005</a>
+    {% endif %}
+    </h2>
+
+    {# if already a saved bunch, show name #}
+    {% if bunch_name %}
+        <div class="block-center">({{bunch_name}} bunch)
+        {% if read_status == 'read' %}
+            <a href="/read" class="clear_filter">&#10005</a>
+        {% elif read_status == 'to-read' %}
+            <a href="/to-read" class="clear_filter">&#10005</a>
+        {% else %}
+            <a href="/" class="clear_filter">&#10005</a>
+        {% endif %}
+        </div><br>
+    {% endif %}
+
+    {# option to save bunch #}
+    {% if bunch_tag_names and not bunch_name %}
+        <div class="block-center small">
+            To save this group of tags as a bunch, provide a name and submit.
+            <form method="POST" name="save_bunch" action="{{url_for('main.bunch_save')}}">
+                <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+                <input type="text" size="15" id="bunch_name" name="bunch_name">
+                <button type="submit">Save</button>
+                <input type="hidden" name="selector" value="{{ selector }}">
+                <input type="hidden" name="tags" value={{tags|safe}}>
+            </form>
+        </div>
+    {% endif %}
+
+    {# display the docs #}
+    <div style="margin-top:1rem">
+    {% if current_user.is_authenticated %}
+        {% if docs %}
+            {% for doc in docs %}
+                <div class="doc">
+                    <div class="logo">
+                    {% if doc.source_id == 1 %}
+                        <img class="logo" src="/static/mendeley_logo.png">
+                    {% elif doc.source_id == 2 %}
+                        <img class="logo" src="/static/goodreads_logo.png">
+                    {% elif doc.source_id == 3 %}
+                        <img class="logo" src="/static/wyr_logo.png">
+                    {% endif %}
+                    </div>
+
+                    <div class="item">
+                    <span class="title">
+                    {% if doc.link %}
+                        <a href="{{ doc.link }}" target="_blank">{{ doc.title }}</a>
+                    {% else %}
+                        {{ doc.title }}
+                    {% endif %}
+
+                    {% if doc.year %}
+                        ({{ doc.year }})
+                    {% endif %}
+                    </span>
+                    <span class="authors">
+                    {% if doc.authors %}
+                        <span style="font-size:1rem;">by</span>
+                        {% for author in doc.authors %}
+                            {% if author != doc.authors[-1] %}
+                                <a href="{{ url_for('main.docs_by_author', author_id=author.id, read_status=read_status)}}">
+                                {{ author.first_name }} {{ author.last_name }}</a>,
+                            {% else %}
+                                <a href="{{ url_for('main.docs_by_author', author_id=author.id, read_status=read_status) }}">
+                                    {{ author.first_name }} {{ author.last_name }}</a>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    </span>
+                    <br>
+                    <span class="info">
+                    {% if doc.read == 1 %}
+                        Read: {{ doc.created.strftime("%B %d, %Y") }}<br>
+                    {% else %}
+                        <a href="{{ url_for('main.to_read') }}">To-Read</a><br>
+                        Added: {{ doc.created.strftime("%B %d, %Y") }}<br>
+                    {% endif %}
+
+                    {% if doc.tags %}
+                        Tagged:
+                        {% for tag in doc.tags|sort(attribute='name') %}
+                            <span class="tags">
+                            {% if tag != doc.tags|sort(attribute='name')|last %}
+                                <a href="{{ url_for('main.docs_by_tag', tag=tag.name, read_status=read_status) }}">{{ tag.name }}</a>,
+                            {% else %}
+                                <a href="{{ url_for('main.docs_by_tag', tag=tag.name, read_status=read_status)  }}">{{ tag.name }}</a>
+                            {% endif %}
+                            </span>
+                        {% endfor %}
+                    <br>
+                    {% endif %}
+
+                    {% if doc.file_links %}
+                        {% for file_link in doc.file_links: %}
+                            {% if file_link.mime_type == 'application/pdf': %}
+                                File: <a href="https://www.mendeley.com/viewer/?fileId={{ file_link.file_link }}&documentId={{ doc.native_doc_id }}" target="_blank">View PDF at Mendeley</a><br>
+                            {% else %}
+                                File: <a href="https://www.mendeley.com/library/fileproxy?id={{ file_link.file_link }}">Download</a><br>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if doc.source_id == 3 %}
+                        <a href="{{ url_for('native.edit', id=doc.id) }}">Edit</a> |
+                        <a href="{{ url_for('native.delete', id=doc.id) }}">Delete</a>
+                    {% endif %}
+                    </span>
+
+                    {% if doc.note %}
+                        <div class="notes">
+                        {% if doc.source_id == 3 and current_user.markdown == 1 %}
+                            {# adjust for p wrap that Flask-Misaka throws in #}
+                            <div style="margin-top:-1em">
+                            {{ doc.note|markdown }}
+                            </div>
+                        {% elif doc.source_id == 1 or doc.source_id == 2 %}
+                            {# let notes from Mendeley and Goodreads use html #}
+                            {{ doc.note|safe }}
+                        {% else %}
+                            {# if user disabled markdown, at least allow <br> #}
+                            <div style="margin-top:-1em">
+                            {{ doc.note|nl2br }}
+                            </div>
+                        {% endif %}
+                        </div>
+                    {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="doc center">
+            {% if read_status == 'all' %}
+                You don't yet have any items saved. Go to settings to import bookmarks
+                or items from other sources. You can also add items individually.
+            {% elif read_status == 'read' %}
+                You don't yet have any read items.
+            {% elif read_status == 'to-read' %}
+                You don't yet have any to-read items.
+            {% endif %}
+            </div>
+        {% endif %}
+    {% endif %}
+    </div>
+</div>
+
+{% endblock %}
