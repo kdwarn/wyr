@@ -1,3 +1,4 @@
+from collections import namedtuple
 import datetime
 import pytz
 
@@ -35,24 +36,28 @@ def add():
         # goes to same template as editing doc and will reduce if/else in temp
         title = request.args.get('title', '')
         link = request.args.get('link', '')
-
-        doc = Documents(3, title)
-        doc.link = link
-        doc.year, doc.note, tags, authors = '', '', '', ''
         from_bookmarklet = request.args.get('bookmarklet', '')
 
+        # because add() and edit() go to same template, create namedtuple for ease of use
+        doc = namedtuple('doc', ['title', 'link', 'year', 'note'])
+        doc.title = title
+        doc.link = link
+        doc.year, doc.note, tags, authors = '', '', '', ''
+
         # also pass along tags and author names for autocomplete
-        all_tags = common.get_user_tag_names()
-        all_authors = common.get_user_author_names()
+        all_tags = common.get_user_tags(current_user)
+        all_tags = [tag.name for tag in all_tags]
+        all_authors = common.get_user_authors(current_user)
+        all_authors = [author.last_name + ', ' + author.first_name for author in all_authors]
 
         # check if link already exists, redirect user to edit if so
         if link:
             if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
                 doc = current_user.documents.filter(Documents.link==link, Documents.source_id==3).first()
-                type = 'read' if doc.read == 1 else 'to-read'
+                read_type = 'read' if doc.read == 1 else 'to-read'
 
-                flash("You've already saved that link as {}; "
-                    "you may edit it below.".format(type))
+                flash(f"You've already saved that link as {read_type}; "
+                    "you may edit it below.")
                 return redirect(url_for('native.edit', id=doc.id))
 
         return render_template('add.html', doc=doc, tags=tags, authors=authors,
@@ -72,134 +77,18 @@ def add():
             flash(e.message)
             return redirect(url_for('native.edit', id=e.doc_id))
 
-        try:
-            another = content['another']
-        except KeyError:
-            another = None
-
-        try:
-            from_bookmarklet = content['from_bookmarklet']
-        except KeyError:
-            from_bookmarklet = None
-
-
         flash('Item added.')
 
-        if from_bookmarklet:
+        if content.get('from_bookmarklet'):
             return render_template('add.html', bookmarklet=1)
-        else:
-            if another == '1':
-                return redirect(url_for('native.add'))
-            return redirect(url_for('main.index'))
-    else:
-        return redirect(url_for('main.index'))
 
-# old one, without use of API
-"""
-@native_blueprint.route('/add', methods=['GET', 'POST'])
-@login_required
-def add():
-    if request.method == 'GET':
-
-        # although only 2 vars may be populated, create full object bc this
-        # goes to same template as editing doc and will reduce if/else in temp
-        title = request.args.get('title', '')
-        link = request.args.get('link', '')
-
-        doc = Documents(3, title)
-        doc.link = link
-        doc.year, doc.note, tags, authors = '', '', '', ''
-        from_bookmarklet = request.args.get('bookmarklet', '')
-
-        # also pass along tags and author names for autocomplete
-        all_tags = get_user_tag_names()
-        all_authors = get_user_author_names()
-
-        # check if link already exists, redirect user to edit if so
-        if link:
-            if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
-                doc = current_user.documents.filter(Documents.link==link, Documents.source_id==3).first()
-                type = 'read' if doc.read == 1 else 'to-read'
-
-                flash("You've already saved that link as {}; "
-                    "you may edit it below.".format(type))
-                return redirect(url_for('native.edit', id=doc.id))
-
-        return render_template('add.html', doc=doc, tags=tags, authors=authors,
-            all_tags=all_tags, all_authors=all_authors,
-            from_bookmarklet=from_bookmarklet)
-
-    elif request.method == 'POST':
-        title = request.form['title']
-        link = request.form['link']
-        tags = request.form['tags']
-        authors = request.form['authors']
-        year = request.form['year']
-        notes = request.form['notes']
-
-        try:
-            another = request.form['another']
-        except:
-            another = None
-
-        try:
-            from_bookmarklet = request.form['from_bookmarklet']
-        except:
-            from_bookmarklet = None
-
-        submit = request.form['submit']
-
-        # validation
-        if not title:
-            flash('Please enter a title. It is the only required field.')
+        if content.get('another'):
             return redirect(url_for('native.add'))
 
-        # check if link already exists, redirect user to edit if so
-        if link:
-            if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
-                doc = current_user.documents.filter_by(Documents.link==link, Documents.source_id==3).first()
-                flash("You've already saved that link; you may edit it below.")
-                return redirect(url_for('native.edit', id=doc.id))
-
-        # insert
-        new_doc = Documents(3, title)
-        current_user.documents.append(new_doc)
-
-        # add "http://" if not there or else will be relative link within site
-        if link:
-            if 'http://' not in link and 'https://' not in link:
-                link = 'http://' + link
-
-        new_doc.link = link
-        new_doc.year = year
-        new_doc.note = notes
-        new_doc.created = datetime.datetime.now(pytz.utc)
-
-        new_doc.read = 0 if submit == 'unread' else 1
-
-        db.session.add(new_doc)
-
-        if tags:
-            tags = str_tags_to_list(tags)
-            new_doc = add_tags_to_doc(tags, new_doc)
-
-        if authors:
-            authors = str_authors_to_list(authors)
-            new_doc = add_authors_to_doc(authors, new_doc)
-
-        db.session.commit()
-
-        flash('Item added.')
-
-        if from_bookmarklet:
-            return render_template('add.html', bookmarklet=1)
-        else:
-            if another == '1':
-                return redirect(url_for('native.add'))
-            return redirect(url_for('main.index'))
+        return redirect(url_for('main.index'))
     else:
         return redirect(url_for('main.index'))
-"""
+
 
 @native_bp.route('/edit', methods=['GET', 'POST'])
 @login_required
@@ -237,8 +126,10 @@ def edit():
                     new_authors += author.last_name + ', ' + author.first_name
 
             # also pass along all tags and authors for autocomplete
-            all_tags = common.get_user_tag_names()
-            all_authors = common.get_user_author_names()
+            all_tags = common.get_user_tags(current_user)
+            all_tags = [tag.name for tag in all_tags]
+            all_authors = common.get_user_authors(current_user)
+            all_authors = [author.last_name + ', ' + author.first_name for author in all_authors]
 
             return render_template('add.html', edit=1, doc=doc, tags=new_tags,
                 all_tags=all_tags, all_authors=all_authors, authors=new_authors)
@@ -246,66 +137,18 @@ def edit():
             return redirect(url_for('main.index'))
 
     elif request.method == 'POST':
-        id = request.form['id']
-        title = request.form['title']
-        link = request.form['link']
-        year = request.form['year']
-        tags = request.form['tags']
-        old_tags = request.form['old_tags']
-        authors = request.form['authors']
-        old_authors = request.form['old_authors']
-        notes = request.form['notes']
-        read = request.form['read']
 
-        # validation
-        if not title:
-            flash('Please enter a title. It is the only required field.')
-            return redirect(url_for('native.edit'))
+        content = request.form
 
-        # update
-        update_doc = current_user.documents.filter(Documents.source_id==3, Documents.id==id).first()
-        update_doc.title = title
+        try:
+            common.edit_item(content, current_user)
+        except ex.NoTitleException as e:
+            flash(e.message)
+            return redirect(url_for('native.edit', id=e.doc_id))
+        except ex.DuplicateLinkException as e:
+            flash(e.message)
+            return redirect(url_for('native.edit', id=e.doc_id))
 
-        # add http:// if not there or else will be relative link within site
-        if link:
-            if 'http://' not in link and 'https://' not in link:
-                link = 'http://' + link
-
-        update_doc.link = link
-        update_doc.year = year
-        update_doc.note = notes
-
-        # if change from to-read to read, updated created, delete last_modified
-        if update_doc.read == 0 and read == '1':
-            update_doc.created = datetime.datetime.now(pytz.utc)
-            update_doc.last_modified = ''
-        else:
-            update_doc.last_modified = datetime.datetime.now(pytz.utc)
-
-        update_doc.read = 0 if read == '0' else '1'
-
-        # update tags
-        # turn strings of tags into lists of tags
-        tags = common.str_tags_to_list(tags)
-        old_tags = common.str_tags_to_list(old_tags)
-        # if there were old tags, remove those no longer associated with doc,
-        # update the doc and also return updated list of tags
-        if old_tags:
-            update_doc, tags = common.remove_old_tags(old_tags, tags, update_doc)
-        # add any new tags to doc
-        if tags:
-            update_doc = common.add_tags_to_doc(tags, update_doc)
-
-        # update authors
-        authors = common.str_authors_to_list(authors)
-        old_authors = common.str_authors_to_list(old_authors)
-        if old_authors:
-            update_doc, authors = common.remove_old_authors(old_authors, authors,
-                update_doc)
-        if authors:
-            update_doc = common.add_authors_to_doc(authors, update_doc)
-
-        db.session.commit()
         flash('Item edited.')
 
         return return_to_previous()
@@ -339,11 +182,11 @@ def delete():
             doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).one()
 
             # delete docs tags
-            for tag in doc.tags:
+            for tag in doc.tags[:]:
                 doc.tags.remove(tag)
 
             # delete docs authors
-            for author in doc.authors:
+            for author in doc.authors[:]:
                 doc.authors.remove(author)
 
             # delete it
@@ -427,7 +270,7 @@ def import_bookmarks():
                                 new_doc.created = datetime.datetime.fromtimestamp(int(each['add_date']))
                                 db.session.add(new_doc)
                                 db.session.commit()
-                                common.add_tags_to_doc([h3.string], new_doc)
+                                common.add_tags_to_doc(current_user, [h3.string], new_doc)
                                 db.session.commit()
 
             flash('Bookmarks successfully imported.')

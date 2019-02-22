@@ -14,11 +14,10 @@ import stripe
 
 from app import db, cache
 from .models import User, Documents, Tags, Bunches, Authors
-from .common import get_user_tags, get_user_authors, remove_to_read, \
-    send_simple_message, get_stripe_info, force_deauthorize
 from .exceptions import NoDocsException
 from . import mendeley
 from . import goodreads
+from . import common
 
 
 bp = Blueprint('main', __name__)
@@ -117,7 +116,7 @@ def to_read():
 #@cache.cached(timeout=3600)
 def tags():
     ''' Return page of all tags, which user can select to display documents with that tag. '''
-    tags = get_user_tags()
+    tags = common.get_user_tags(current_user)
 
     if not tags:
         grouped_tags = ''
@@ -126,7 +125,7 @@ def tags():
         grouped_tags = OrderedDict()
 
         for tag in tags:
-            if tag['name'][0] not in string.ascii_letters:
+            if tag.name[0] not in string.ascii_letters:
                 try:
                     grouped_tags['#'].append(tag)
                 except KeyError:
@@ -134,10 +133,10 @@ def tags():
                     grouped_tags['#'].append(tag)
             else:
                 try:
-                    grouped_tags[tag['name'][0].upper()].append(tag)
+                    grouped_tags[tag.name[0].upper()].append(tag)
                 except KeyError:
-                    grouped_tags[tag['name'][0].upper()] = []
-                    grouped_tags[tag['name'][0].upper()].append(tag)
+                    grouped_tags[tag.name[0].upper()] = []
+                    grouped_tags[tag.name[0].upper()].append(tag)
 
     return render_template('tags.html', grouped_tags=grouped_tags)
 
@@ -214,7 +213,7 @@ def bunches():
     '''Let user select multiple tags and display the docs that fit the criteria.
     Include link to save the bunch, which takes place through bunch_save().'''
     if request.method == 'GET':
-        tags = get_user_tags()
+        tags = common.get_user_tags(current_user)
 
         if not tags:
             tags = ''
@@ -301,7 +300,7 @@ def bunch_edit():
     if request.method == 'GET':
         bunch_name = request.args.get('name', '')
         bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==bunch_name).one()
-        tags = get_user_tags()
+        tags = common.get_user_tags(current_user)
         return render_template('bunch_edit.html', bunch=bunch, tags=tags)
 
     #process
@@ -391,7 +390,7 @@ def bunch_delete():
 #@cache.cached(timeout=3600)
 def authors():
     ''' Display all authors for user's documents. '''
-    authors = get_user_authors()
+    authors = common.get_user_authors(current_user)
 
     if not authors:
         grouped_authors = ''
@@ -401,7 +400,7 @@ def authors():
         grouped_authors = OrderedDict()
 
         for author in authors:
-            if author['last_name'][0] not in string.ascii_letters:
+            if author.last_name[0] not in string.ascii_letters:
                 try:
                     grouped_authors['#'].append(author)
                 except KeyError:
@@ -409,10 +408,10 @@ def authors():
                     grouped_authors['#'].append(author)
             else:
                 try:
-                    grouped_authors[author['last_name'][0].upper()].append(author)
+                    grouped_authors[author.last_name[0].upper()].append(author)
                 except KeyError:
-                    grouped_authors[author['last_name'][0].upper()] = []
-                    grouped_authors[author['last_name'][0].upper()].append(author)
+                    grouped_authors[author.last_name[0].upper()] = []
+                    grouped_authors[author.last_name[0].upper()].append(author)
 
     return render_template('authors.html', grouped_authors=grouped_authors)
 
@@ -515,7 +514,7 @@ def deauthorize():
         source = request.form['name']
         confirm = request.form['deauthorize']
         if confirm == 'Yes':
-            force_deauthorize(source)
+            common.force_deauthorize(source)
             message = '{} has been deauthorized.'.format(source)
         else:
             message = 'Deauthorization cancelled.'
@@ -599,7 +598,7 @@ def sign_up():
         <br>
         -Kris @ What You've Read""".format(email_hash)
 
-        send_simple_message(email, subject, text)
+        common.send_simple_message(email, subject, text)
 
         #redirect them back to home page
         flash('Please check your email to activate your account.')
@@ -733,12 +732,12 @@ def settings():
         # if user is changing pref to exclude to-read items in Mendely, delete any
         # existing Mendeley docs tagged as to-read
         if current_user.include_m_unread == 0 and old_include_m_unread == '1':
-            remove_to_read(1)
+            common.remove_to_read(1)
 
         # if user is changing pref to exclude to-read items in Goodreads, delete any
         # existing Goodreads books tagged as to-read
         if current_user.include_g_unread == 0 and old_include_g_unread == '1':
-            remove_to_read(2)
+            common.remove_to_read(2)
 
         # if user is change pref to include to-read items in Mendeley, set var
         # do a full update (not limit to recent items)
@@ -804,7 +803,7 @@ def change_password():
                 <br>
                 -Kris @ What You've Read""".format(email_hash)
 
-                send_simple_message(to, subject, text)
+                common.send_simple_message(to, subject, text)
 
                 flash('Your password has been updated.')
                 return redirect(url_for('main.settings'))
@@ -848,7 +847,7 @@ def forgot_password():
             <a href="http://www.whatyouveread.com/forgot_password?reset={}">this link</a>
             to reset it.""".format(email_hash)
 
-            send_simple_message(email, subject, text)
+            common.send_simple_message(email, subject, text)
 
             flash('An email has been sent to you. Please follow the link provided to reset your password.')
             return redirect(url_for('main.index'))
@@ -969,7 +968,7 @@ def change_email():
             <a href="http://www.whatyouveread.com/change_email?confirm={}">
             this link</a> to confirm.""".format(email_hash)
 
-            send_simple_message(to, subject, text)
+            common.send_simple_message(to, subject, text)
 
             flash("""Please check your email at your new email address and
             follow the link provided to confirm it.""")
@@ -1042,7 +1041,7 @@ def change_email():
             <a href="http://www.whatyouveread.com/reset_password?code={}">reset your
             password</a> immediately.""".format(new_email, email_hash, email_hash2)
 
-            send_simple_message(to, subject, text)
+            common.send_simple_message(to, subject, text)
 
             flash("""Please check your email at your current email address
                 and follow the link provided.""")
@@ -1090,7 +1089,7 @@ def contact():
         subject = 'Submitted comments on WYR'
         text = '{} ({}) submitted these comments:<br>{}'.format(name, email, comments)
 
-        send_simple_message(to, subject, text)
+        common.send_simple_message(to, subject, text)
 
         flash("Your comments have been sent. Thank you.")
 
@@ -1129,7 +1128,7 @@ def delete_account():
 def donate():
     stripe_keys = current_app.config['STRIPE_KEYS']
     ''' get user stripe info and send to donate page'''
-    donor, subscription = get_stripe_info()
+    donor, subscription = common.get_stripe_info()
 
     return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
 
@@ -1146,7 +1145,7 @@ def cancel_donation():
 
     if request.method == 'POST':
         #get user stripe info
-        donor, subscription = get_stripe_info()
+        donor, subscription = common.get_stripe_info()
 
         #otherwise process form
         if request.form['cancel_next_donation'] == 'Yes':
@@ -1159,7 +1158,7 @@ def cancel_donation():
             flash('Your scheduled donation has NOT been cancelled.')
 
         #get user stripe info
-        donor, subscription = get_stripe_info()
+        donor, subscription = common.get_stripe_info()
 
         return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
 
@@ -1234,7 +1233,7 @@ def charge():
         flash("""Thanks for the donation. A receipt will be emailed to you.
             If you do not get it, contact me.""")
 
-    donor, subscription = get_stripe_info()
+    donor, subscription = common.get_stripe_info()
 
     return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
 

@@ -1,8 +1,9 @@
 import datetime
 from random import random
 import re
+import time
 
-from flask import session, url_for, request, redirect
+from flask import session, url_for, request, redirect, g
 from jinja2 import evalcontextfilter, Markup, escape
 
 from app import create_app
@@ -80,3 +81,4 @@ def nl2br(eval_ctx, value):
         result = Markup(result)
     return result
 wyr_app.jinja_env.filters['nl2br'] = nl2br
+

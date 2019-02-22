@@ -1,7 +1,7 @@
 from flask_login import UserMixin
-from sqlalchemy_utils import auto_delete_orphans
 
 from app import db, login
+
 
 #association tables
 #see for many-to-many tags-documents relationship
@@ -39,7 +39,7 @@ class User(db.Model, UserMixin):
     markdown = db.Column(db.Integer)
 
     #relationships
-    documents = db.relationship('Documents', lazy='dynamic', backref=db.backref('documents', cascade='all, delete'))
+    documents = db.relationship('Documents', lazy='dynamic', backref=db.backref('user', cascade='all, delete'))
 
     def __init__(self, username, password, salt, email):
         self.username = username
@@ -79,7 +79,7 @@ class Tokens(db.Model, UserMixin):
 
 class Documents(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE"))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE")) # think the onupdate can be deleted?
     source_id = db.Column(db.Integer, db.ForeignKey('sources.id'))
     title = db.Column(db.String(300))
     link = db.Column(db.String(300))
@@ -92,22 +92,12 @@ class Documents(db.Model, UserMixin):
     native_doc_id = db.Column(db.String(50)) #need for Mendeley, maybe others
 
     #relationships
-    #fastest; deletes orphans in document_tags but not tags
     tags = db.relationship('Tags', secondary=document_tags, lazy='joined', backref=db.backref('documents', cascade='all, delete'))
-
-    #2 - this one works - much faster than #3 experimental below - but seems slower than above
-    #tags = db.relationship('Tags', secondary=document_tags, lazy='joined', backref=db.backref('tags'))
-    #3 experimental
-    #tags = db.relationship('Tags', secondary=document_tags, backref=db.backref('documents', lazy='dynamic'))
-
-    #fastest; delete orpahs in document_authors but not authors
-    authors = db.relationship('Authors', secondary=document_authors, lazy='joined', backref=db.backref('authors', cascade="all, delete"))
-    #which is faster than this:
-    #authors = db.relationship('Authors', secondary=document_authors, lazy='joined', backref=db.backref('documents', lazy='dynamic'))
-
+    authors = db.relationship('Authors', secondary=document_authors, lazy='joined', backref=db.backref('documents', cascade='all, delete'))
     file_links = db.relationship('FileLinks', lazy="joined", backref="documents", cascade="all, delete, delete-orphan")
 
-    def __init__(self, source_id, title, link='', created='', read='', year='', note=''):
+    def __init__(self, user_id, source_id, title, link='', created='', read='', year='', note=''):
+        self.user_id = user_id
         self.source_id = source_id
         self.title = title
         self.link = link
@@ -115,7 +105,6 @@ class Documents(db.Model, UserMixin):
         self.read = read
         self.year = year
         self.note = note
-    #user_id is also required, but instead of doing adding it here, it gets added when doing a current_user.documents.append() statement
 
 class Tags(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -157,7 +146,4 @@ class Bunches(db.Model, UserMixin):
         self.selector = selector
         self.name = name
 
-# not working
-#auto_delete_orphans(Documents.tags)
-#auto_delete_orphans(Documents.authors)
 

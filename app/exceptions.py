@@ -13,8 +13,9 @@ class NoDocsException(WyrException):
 
 
 class NoTitleException(WyrException):
-    def __init__(self):
+    def __init__(self, doc_id=''):
         self.message = 'Title not submitted but is required.'
+        self.doc_id = doc_id
         self.error = 10
         self.http_status = 400
 
