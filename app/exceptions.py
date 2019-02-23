@@ -32,6 +32,12 @@ class BadReadValueError(WyrException, ValueError):
         self.error = 12
         self.http_status = 400
 
+class NotUserDocException(WyrException):
+    def __init__(self):
+        self.message = 'That document was not found in your collection.'
+        self.error = 13
+        self.http_status = 400
+
 
 # Tag- and Bunch-related Exceptions
 

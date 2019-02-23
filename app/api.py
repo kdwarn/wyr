@@ -14,6 +14,7 @@ TODO:
             10: title not supplied, but required
             11: link already exists in attempted added item
             12: read status not within parameters (0-1)
+            13: not one of the user's items.
         90-99: authorization/submitted json issues
             90: Parameters not submitted in json format
             91: Missing token

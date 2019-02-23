@@ -5,6 +5,7 @@ from flask import flash, current_app
 from flask_login import current_user
 import pytz
 import requests
+from sqlalchemy.orm.exc import NoResultFound
 import stripe
 
 from app import db
@@ -125,6 +126,17 @@ def remove_old_tags(old_tags, tags, doc):
     return doc, tags
 
 
+def delete_orphaned_tags(user, tag):
+
+    tags = Tags.query.join(document_tags).join(Documents).filter(Documents.user_id==user.id, Tags.id==tag.id).all()
+
+    # if not tags return, user has not other documents tagged with this tag,
+    # so safe to delete
+    if not tags:
+        Tags.query.filter(Tags.id==tag.id).delete()
+
+    return
+
 def get_user_authors(user):
     '''Get user's authors.'''
 
@@ -242,6 +254,18 @@ def remove_old_authors(old_authors, authors, doc):
     return doc, authors
 
 
+def delete_orphaned_authors(user, author):
+
+    authors = Authors.query.join(document_authors).join(Documents).filter(Documents.user_id==user.id, Authors.id==author.id).all()
+
+    # if no authors returned, user has no other documents by this author,
+    # so safe to delete
+    if not authors:
+        Authors.query.filter(Authors.id==author.id).delete()
+
+    return
+
+
 def add_item(content, user):
     '''Add document to database.'''
 
@@ -307,50 +331,83 @@ def edit_item(content, user):
     if read not in [0,1]:
         raise ex.BadReadValueError
 
-    doc_to_edit = user.documents.filter(Documents.source_id==3, Documents.id==id).first()
-
-    # add http:// if not there or else will be relative link within site
-    if link:
-        if 'http://' not in link and 'https://' not in link:
-            link = 'http://' + link
-
-    doc_to_edit.title = title
-    doc_to_edit.link = link
-    doc_to_edit.year = year
-    doc_to_edit.note = notes
-    doc_to_edit.read = read
-
-    # if changed from to-read to read, updated created, delete last_modified
-    if doc_to_edit.read == 0 and read == '1':
-        doc_to_edit.created = datetime.datetime.now(pytz.utc)
-        doc_to_edit.last_modified = ''
+    try:
+        doc_to_edit = user.documents.filter(Documents.source_id==3, Documents.id==id).one()
+    except NoResultFound:
+        raise ex.NotUserDocException
     else:
-        doc_to_edit.last_modified = datetime.datetime.now(pytz.utc)
+        # add http:// if not there or else will be relative link within site
+        if link:
+            if 'http://' not in link and 'https://' not in link:
+                link = 'http://' + link
 
-    # update tags
-    # if there were old tags, remove those no longer associated with doc,
-    # update the doc and also return updated list of tags
-    old_tags = str_tags_to_list(old_tags)
-    tags = str_tags_to_list(tags)
+        doc_to_edit.title = title
+        doc_to_edit.link = link
+        doc_to_edit.year = year
+        doc_to_edit.note = notes
+        doc_to_edit.read = read
 
-    if old_tags:
-        doc_to_edit, tags = remove_old_tags(old_tags, tags, doc_to_edit)
+        # if changed from to-read to read, updated created, delete last_modified
+        if doc_to_edit.read == 0 and read == '1':
+            doc_to_edit.created = datetime.datetime.now(pytz.utc)
+            doc_to_edit.last_modified = ''
+        else:
+            doc_to_edit.last_modified = datetime.datetime.now(pytz.utc)
 
-    # add any new tags to doc
-    if tags:
-        doc_to_edit = add_tags_to_doc(user, tags, doc_to_edit)
+        # update tags
+        # if there were old tags, remove those no longer associated with doc,
+        # update the doc and also return updated list of tags
+        old_tags = str_tags_to_list(old_tags)
+        tags = str_tags_to_list(tags)
 
-    # update authers in same manner
-    old_authors = str_authors_to_namedtuple(old_authors)
-    authors = str_authors_to_namedtuple(authors)
+        if old_tags:
+            doc_to_edit, tags = remove_old_tags(old_tags, tags, doc_to_edit)
 
-    if old_authors:
-        doc_to_edit, authors = remove_old_authors(old_authors, authors, doc_to_edit)
+        # add any new tags to doc
+        if tags:
+            doc_to_edit = add_tags_to_doc(user, tags, doc_to_edit)
 
-    if authors:
-        doc_to_edit = add_authors_to_doc(user, authors, doc_to_edit)
+        # update authers in same manner
+        old_authors = str_authors_to_namedtuple(old_authors)
+        authors = str_authors_to_namedtuple(authors)
 
-    db.session.commit()
+        if old_authors:
+            doc_to_edit, authors = remove_old_authors(old_authors, authors, doc_to_edit)
+
+        if authors:
+            doc_to_edit = add_authors_to_doc(user, authors, doc_to_edit)
+
+        db.session.commit()
+
+    return
+
+
+def delete_item(id, user):
+    '''Delete document.'''
+
+    try:
+        # verify doc trying to be deleted is the user's
+        doc = user.documents.filter(Documents.id==id, Documents.source_id==3).one()
+    except NoResultFound:
+        raise ex.NotUserDocException
+    else:
+        # delete doc tags
+        if doc.tags:
+            for tag in doc.tags[:]:
+                doc.tags.remove(tag)
+                delete_orphaned_tags(user, tag)
+
+
+        # delete doc authors
+        if doc.authors:
+            for author in doc.authors[:]:
+                doc.authors.remove(author)
+                delete_orphaned_authors(user, author)
+
+        # delete it
+        doc = user.documents.filter(Documents.id==id, Documents.source_id==3).delete()
+
+        db.session.commit()
 
     return
 

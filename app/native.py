@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from flask import Blueprint, render_template, request, redirect, url_for, \
     flash, session
 from flask_login import login_required, current_user
+from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
 from .models import Documents
@@ -97,9 +98,12 @@ def edit():
         # check that doc is one of current_user's
         id = request.args.get('id', '')
 
-        doc = current_user.documents.filter(Documents.id==id).first()
-
-        if doc:
+        try:
+            doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).one()
+        except NoResultFound:
+            flash('That document was not found in your collection.')
+            return redirect(url_for('main.index'))
+        else:
             new_tags = ''
             new_authors_list = []
             new_authors = ''
@@ -133,8 +137,6 @@ def edit():
 
             return render_template('add.html', edit=1, doc=doc, tags=new_tags,
                 all_tags=all_tags, all_authors=all_authors, authors=new_authors)
-        else:
-            return redirect(url_for('main.index'))
 
     elif request.method == 'POST':
 
@@ -142,6 +144,9 @@ def edit():
 
         try:
             common.edit_item(content, current_user)
+        except ex.NotUserDocException as e:
+            flash(e.message)
+            return redirect(url_for('main.index'))
         except ex.NoTitleException as e:
             flash(e.message)
             return redirect(url_for('native.edit', id=e.doc_id))
@@ -159,45 +164,43 @@ def edit():
 @native_bp.route('/delete', methods=['GET', 'POST'])
 @login_required
 def delete():
+    '''Delete one of the user's documents.'''
+
     if request.method == 'GET':
         # check that doc is one of current_user's
         id = request.args.get('id', '')
-        doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).first()
 
-        if doc:
-            read_status = 'to-read' if doc.read == 0 else 'read'
-
-            return render_template('delete.html', doc=doc, read_status=read_status)
-        else:
+        try:
+            doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).one()
+        except NoResultFound:
+            flash('That document was not found in your collection.')
             return redirect(url_for('main.index'))
+
+        read_status = 'to-read' if doc.read == 0 else 'read'
+
+        return render_template('delete.html', doc=doc, read_status=read_status)
+
     elif request.method == 'POST':
         delete = request.form['delete']
         id = request.form['id']
+
         if delete == 'Cancel':
             flash("Item not deleted.")
             return return_to_previous()
 
         if delete == 'Delete':
-            # delete doc
-            doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).one()
+            try:
+                common.delete_item(id, current_user)
+            except NotUserDocException as e:
+                flash(e.message)
+                return redirect(url_for('main.index'))
 
-            # delete docs tags
-            for tag in doc.tags[:]:
-                doc.tags.remove(tag)
-
-            # delete docs authors
-            for author in doc.authors[:]:
-                doc.authors.remove(author)
-
-            # delete it
-            doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).delete()
-
-            db.session.commit()
             flash("Item deleted.")
             return return_to_previous()
 
     else:
         return redirect(url_for('main.index'))
+
 
 @native_bp.route('/import', methods=['GET', 'POST'])
 @login_required
