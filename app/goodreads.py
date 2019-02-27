@@ -8,10 +8,8 @@ from flask_login import login_required, current_user
 from requests_oauthlib import OAuth1Session
 
 from app import db
-from .common import add_tags_to_doc, add_authors_to_doc, \
-    remove_old_tags, remove_old_authors, send_simple_message
 from .models import Documents, Tokens
-
+from . import common
 
 # goodreads uses Oauth1, returns xml
 # source_id 2
@@ -103,7 +101,7 @@ def import_goodreads(update_type):
         to = 'whatyouveread@gmail.com'
         subject = 'Error updating Goodreads'
         text = 'An exception ({}) has occurred while attempting to update Goodreads.'.format(e)
-        send_simple_message(to, subject, text)
+        common.send_simple_message(to, subject, text)
         flash('An error has occurred while attempting to update the books on '
             'your Goodreads bookshelves. We will fix this as soon as possible.')
     return
@@ -241,7 +239,7 @@ def save_doc(book, shelf, existing_doc=""):
                 if shelf.get('name') == 'read' or shelf.get('name') == 'to-read':
                     continue
                 tags.append(shelf.get('name'))
-                doc = add_tags_to_doc(tags, doc)
+                doc = common.add_or_update_tags(tags, doc)
 
         # add authors to the document
         if book.find('book/authors/author/name') is not None:
@@ -255,7 +253,7 @@ def save_doc(book, shelf, existing_doc=""):
                 except IndexError:
                     authors.append({'first_name':'', 'last_name':new_name[0]})
 
-            doc = add_authors_to_doc(authors, doc)
+            doc = common.add_authors_to_doc(authors, doc)
 
     # updating
     else:
@@ -266,14 +264,9 @@ def save_doc(book, shelf, existing_doc=""):
                 continue
             tags.append(shelf.get('name'))
 
-        # remove_old_tags takes list of names, not tag objects, so:
-        old_tags = [tag.name for tag in doc.tags]
-        if old_tags:
-            doc, tags = remove_old_tags(old_tags, tags, doc)
-
-        # add any new tags to doc
+        # update tags to doc
         if tags:
-            doc = add_tags_to_doc(tags, doc)
+            doc = common.add_or_update_tags(current_user, tags, doc)
 
         # authors
         if book.find('book/authors/author/name') is not None:
@@ -294,10 +287,10 @@ def save_doc(book, shelf, existing_doc=""):
                         for author in doc.authors]
 
         if old_authors:
-            doc, authors = remove_old_authors(old_authors, authors, doc)
+            doc, authors = common.remove_old_authors(old_authors, authors, doc)
 
         if authors:
-            doc = add_authors_to_doc(authors, doc)
+            doc = common.add_authors_to_doc(authors, doc)
 
     db.session.commit()
 

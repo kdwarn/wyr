@@ -9,8 +9,7 @@ from werkzeug.routing import RequestRedirect
 
 from app import db
 from .models import Documents, Tokens, FileLinks
-from .common import add_tags_to_doc, add_authors_to_doc, \
-    remove_old_tags, remove_old_authors, force_deauthorize
+from . import common
 
 
 # Mendeley uses Oauth 2, returns json
@@ -139,7 +138,6 @@ def import_mendeley(update_type):
             else:
                 flash("{} items had been deleted in Mendeley and were removed.".format(len(delete_docs)))
 
-
     #now get current docs
     docs = get_docs(mendeley, update_type)
 
@@ -207,7 +205,7 @@ def get_docs(auth_object, type=''):
     except InvalidGrantError:
         ''' Something has gone wrong with authorization. Use RequestRedirect
         to directly return from this function.'''
-        force_deauthorize('Mendeley')
+        common.force_deauthorize('Mendeley')
         flash('There was an error with your Mendeley account. Please re-authorize it.')
         raise RequestRedirect(url_for('main.settings'))
 
@@ -282,11 +280,11 @@ def save_doc(m_doc, auth_object, existing_doc=""):
     # insert
     if not existing_doc:
         if 'tags' in m_doc: # to-read tag set later, if necessary
-            doc = add_tags_to_doc(m_doc['tags'], doc)
+            doc = common.add_or_update_tags(current_user, m_doc['tags'], doc)
         if 'authors' in m_doc:
-            doc = add_authors_to_doc(m_doc['authors'], doc)
+            doc = common.add_authors_to_doc(current_user, m_doc['authors'], doc)
         if 'editors' in m_doc:
-            doc = add_authors_to_doc(m_doc['editors'], doc)
+            doc = common.add_authors_to_doc(current_user, m_doc['editors'], doc)
         if files:
             for file in files:
                 new_filelink = FileLinks(doc.id, file['id'])
@@ -302,15 +300,9 @@ def save_doc(m_doc, auth_object, existing_doc=""):
         except KeyError:
             tags = ''
 
-        # remove_old_tags takes list of names, not tag objects, so:
-        old_tags = [tag.name for tag in doc.tags]
-
-        if old_tags:
-            doc, tags = remove_old_tags(old_tags, tags, doc)
-
-        # add any new tags to doc
+        # update tags
         if tags:
-            doc = add_tags_to_doc(tags, doc)
+            doc = common.add_or_update_tags(current_user, tags, doc)
 
         # authors
         try:
@@ -328,15 +320,9 @@ def save_doc(m_doc, auth_object, existing_doc=""):
         authors = authors + editors
 
 
-        old_authors = [{'first_name':author.first_name,
-                        'last_name':author.last_name}
-                        for author in doc.authors]
-
-        if old_authors:
-            doc, authors = remove_old_authors(old_authors, authors, doc)
-
         if authors: # authors and editors
-            doc = add_authors_to_doc(authors, doc)
+            authors = common.list_authors_to_namedtuple(authors)
+            common.add_or_update_authors(current_user, authors, doc)
 
         # files
         old_file_links = doc.file_links

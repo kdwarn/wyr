@@ -1,10 +1,7 @@
 '''
-TODO:
-    - test api.add_item and api.add
-    - implement api.edit next
     - user proper error response codes
         https://httpstatuses.com/
-    - various things for app developers: callback urls(?), ...
+    - various things for app developers:
 
     - list of error codes I'm using:
         1-10: db/account issues
@@ -57,7 +54,7 @@ def token_required(f):
 
         if request.method == 'GET':
             token = request.args.get('token')
-        elif request.method == 'POST':
+        elif request.method == 'POST' or request.method == 'PUT':
             if not request.is_json:
                 return jsonify({'message': 'Parameters must be submitted in json format.'})
             content = request.get_json()
@@ -124,19 +121,32 @@ def get(username, id):
     # no need to check valid username/user - will be caught in token_required
     user = User.query.filter_by(username=username).one()
 
-    doc = user.documents.filter(Documents.id==id).first()
-
-    if not doc:
+    try:
+        doc = user.documents.filter(Documents.id==id).one()
+    except NoResultFound:
         return jsonify({'message': 'Unable to locate document.', 'error': 2}), 404
 
+    if doc.tags:
+        tags = [tag.name for tag in doc.tags]
+    else:
+        tags = ''
+
+    if doc.authors:
+        authors = [author.last_name + ', ' + author.first_name for author in doc.authors]
+    else:
+        authors = ''
+
     return jsonify({'title': doc.title,
-                    'url': doc.link})
+                    'url': doc.link,
+                    'year': doc.year,
+                    'note': doc.note,
+                    'tags': tags,
+                    'authors': authors})
 
 
 @api_bp.route('/document', methods=['POST'])
 @token_required
 def add(username):
-    print(username)
     '''
     Add a document to user's account.
     *username* is passed in from @token_required, if user's token is authorized.
@@ -163,111 +173,36 @@ def add(username):
         return jsonify({'message': 'Success!'}), 200
 
 
-# @api_blueprint.route('document/<id>', methods=['PUT'])
-# @token_required
-# def edit():
-#     if request.method == 'GET':
-#         # check that doc is one of current_user's
-#         id = request.args.get('id', '')
 
-#         doc = current_user.documents.filter(Documents.id==id).first()
+@api_bp.route('/document/<id>', methods=['PUT'])
+@token_required
+def edit(username, id):
+    '''
+    Edit an existing doc.
+    *username* is passed in from @token_required, if user's token is authorized.
+    '''
 
-#         if doc:
-#             new_tags = ''
-#             new_authors_list = []
-#             new_authors = ''
+    if not request.is_json:
+        return jsonify({'message' : 'Error with receiving data. Is it in json format?',
+                        'error' : 90}), 400
 
-#             # have to format tags and authors for form
-#             if doc.tags:
-#                 # put names into list to sort
-#                 super_new_tag_list=[tag.name for tag in doc.tags]
-#                 super_new_tag_list.sort() # sort
-#                 for name in super_new_tag_list:
-#                     if name != super_new_tag_list[-1]:
-#                         new_tags += name + ', '
-#                     else:
-#                         new_tags += name
+    content = request.get_json()
+    content['id'] = id
 
-#             if doc.authors:
-#                 for author in doc.authors:
-#                     new_authors_list.append(author)
+    # no need to check valid username/user - will be caught in token_required
+    user = User.query.filter_by(username=username).one()
 
-#             for author in new_authors_list:
-#                 if author != new_authors_list[-1]:
-#                     new_authors += author.last_name + ', ' + author.first_name + '; '
-#                 else:
-#                     new_authors += author.last_name + ', ' + author.first_name
+    try:
+        common.edit_item(content, user)
+    except ex.NotUserDocException as e:
+        return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
+    except ex.NoTitleException as e:
+        return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
+    except ex.BadReadValueError as e:
+        return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
+    else:
+        return jsonify({'message': 'Success!'}), 200
 
-#             # also pass along all tags and authors for autocomplete
-#             all_tags = get_user_tag_names()
-#             all_authors = get_user_author_names()
-
-#             return render_template('add.html', edit=1, doc=doc, tags=new_tags,
-#                 all_tags=all_tags, all_authors=all_authors, authors=new_authors)
-#         else:
-#             return redirect(url_for('index'))
-
-#     elif request.method == 'POST':
-#         id = request.form['id']
-#         title = request.form['title']
-#         link = request.form['link']
-#         year = request.form['year']
-#         tags = request.form['tags']
-#         old_tags = request.form['old_tags']
-#         authors = request.form['authors']
-#         old_authors = request.form['old_authors']
-#         notes = request.form['notes']
-#         submit = request.form['submit']
-
-#         # validation
-#         if not title:
-#             flash('Please enter a title. It is the only required field.')
-#             return redirect(url_for('native.edit'))
-
-#         # update
-#         update_doc = current_user.documents.filter(Documents.source_id==3, Documents.id==id).first()
-#         update_doc.title = title
-
-#         # add http:// if not there or else will be relative link within site
-#         if link:
-#             if 'http://' not in link and 'https://' not in link:
-#                 link = 'http://' + link
-
-#         update_doc.link = link
-#         update_doc.year = year
-#         update_doc.note = notes
-
-#         # if change from to-read to read, updated created, delete last_modified
-#         if update_doc.read == 0 and submit == 'read':
-#             update_doc.created = datetime.now(pytz.utc)
-#             update_doc.last_modified = ''
-#         else:
-#             update_doc.last_modified = datetime.now(pytz.utc)
-
-#         update_doc.read = 0 if submit == 'unread' else 1
-
-#         # update tags
-#         # turn strings of tags into lists of tags
-#         tags = str_tags_to_list(tags)
-#         old_tags = str_tags_to_list(old_tags)
-#         # if there were old tags, remove those no longer associated with doc,
-#         # update the doc and also return updated list of tags
-#         if old_tags:
-#             update_doc, tags = remove_old_tags(old_tags, tags, update_doc)
-#         # add any new tags to doc
-#         if tags:
-#             update_doc = add_tags_to_doc(tags, update_doc)
-
-#         # update authors
-#         authors = str_authors_to_list(authors)
-#         old_authors = str_authors_to_list(old_authors)
-#         if old_authors:
-#             update_doc, authors = remove_old_authors(old_authors, authors,
-#                 update_doc)
-#         if authors:
-#             update_doc = add_authors_to_doc(authors, update_doc)
-
-#         db.session.commit()
 
 
 # @api_blueprint.route('/api/document/<id>', methods=['DELETE'])

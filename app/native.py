@@ -70,7 +70,7 @@ def add():
         content = request.form  # ImmutableDict, but functions much in the same way as json
 
         try:
-            common.add_item(content, current_user)
+            common.add_item(content, current_user, caller='native')
         except ex.NoTitleException as e:
             flash(e.message)
             return redirect(url_for('native.add'))
@@ -143,20 +143,17 @@ def edit():
         content = request.form
 
         try:
-            common.edit_item(content, current_user)
+            common.edit_item(content, current_user, caller='native')
         except ex.NotUserDocException as e:
             flash(e.message)
             return redirect(url_for('main.index'))
         except ex.NoTitleException as e:
             flash(e.message)
             return redirect(url_for('native.edit', id=e.doc_id))
-        except ex.DuplicateLinkException as e:
-            flash(e.message)
-            return redirect(url_for('native.edit', id=e.doc_id))
+        else:
+            flash('Item edited.')
 
-        flash('Item edited.')
-
-        return return_to_previous()
+            return return_to_previous()
 
     else:
         return redirect(url_for('main.index'))

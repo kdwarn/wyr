@@ -13,9 +13,9 @@ from .models import Tags, Authors, Documents, Tokens, document_tags, document_au
 from . import exceptions as ex
 
 
-##########################
-# TAG AND AUTHOR FUNCTIONS
-##########################
+###############
+# TAG FUNCTIONS
+###############
 
 def get_user_tags(user):
     '''Gets user's tags, as objects, in alphabeticcal order by tag.name.'''
@@ -27,6 +27,8 @@ def get_user_tags(user):
 
 def get_user_tag(user, tag_name):
     '''Get one tag object.'''
+
+    # TODO: change to one(), put in try/except block
 
     tag = Tags.query.join(document_tags).join(Documents).filter(Documents.user_id==user.id, Tags.name==tag_name).first()
 
@@ -42,8 +44,7 @@ def str_tags_to_list(tags):
     tags = tags.split(',')
 
     # strip whitespace
-    for i in range(len(tags[:])):
-        tags[i] = tags[i].strip()
+    tags = [tag.strip() for tag in tags]
 
     # delete empty tags
     for tag in tags[:]:
@@ -53,94 +54,85 @@ def str_tags_to_list(tags):
     return tags
 
 
-def add_tags_to_doc(user, tags, doc):
-    '''
-    *tags* is a list of all tags (names) associated with this doc, from source
-    *doc* is the database object
-    '''
+def remove_all_tags(doc):
+    '''Remove all tags associated with a document.'''
+    for tag in doc.tags[:]:
+        doc.tags.remove(tag)
 
-    #get user's existing tags to check if tags for this doc already exist
+
+def add_or_update_tags(user, tags, doc):
+
+    submitted_tags = [tag.strip() for tag in tags]  # names
+
+    doc_tag_names = [tag.name for tag in doc.tags]
+
+    # get all of the user's existing tags
     user_tags = get_user_tags(user)
 
-    # add user's existing tags (db object) to doc
-    # if the user doesn't have existing tags, we don't won't need to do this
-    if user_tags:
-        #append any user's existing tags to the document, remove from list tags
-        for user_tag in user_tags:
-            for tag in tags[:]:
-                # strip both of any non-alphanumeric characters, make them
-                # lower case, and check against each other.
-                # This avoids creating what are essentially duplicate tags.
-                if (''.join(ch for ch in tag.lower() if ch.isalnum())
-                    == ''.join(ch for ch in user_tag.name.lower() if ch.isalnum())):
-                    #get the tag object and append to new_doc.tags
-                    existing_tag = Tags.query.filter(Tags.id==user_tag.id).one()
-                    doc.tags.append(existing_tag)
-                    #now remove it, so we don't create a new tag object below
-                    tags.remove(tag)
+    user_tag_names = [tag.name for tag in user_tags]
 
-    #any tag left in tags list will be a new one that needs to be created
-    #create new tag objects for new tags, append to the doc
-    for tag in tags:
-        new_tag = Tags(tag)
-        doc.tags.append(new_tag)
+    # remove any tags associated with this doc if not in new tags submitted with edit
+    if doc.tags:
+        for associated_tag in doc.tags[:]:
+            if associated_tag.name not in submitted_tags:
+                doc.tags.remove(associated_tag)
 
-    #remove orphaned tags
-    #auto_delete_orphans(Documents.tags)
+    for submitted_tag in submitted_tags[:]:
+        # only do this if not already associated with doc
+        if submitted_tag not in doc_tag_names:
 
-    return doc
+            # not doing the duplicate check - could actually be a worse
+            # error if removing space from a tag results in a completely
+            # different tag/word
 
-def remove_old_tags(old_tags, tags, doc):
-    '''
-    remove tags previously associated with doc from doc
+            # check if user already uses this tag in another doc
+            if submitted_tag in user_tag_names:
+                # associate that user tag to this doc
+                existing_tag = get_user_tag(user, submitted_tag)
+                doc.tags.append(existing_tag)
+                # now remove from list, so we don't create a new tag object below
+                submitted_tags.remove(submitted_tag)
+            else:
+                # create a new tag and associate it to the doc
+                new_tag = Tags(submitted_tag)
+                doc.tags.append(new_tag)
 
-    *old tags* is list of old tags (names)
-    *tags* is list of tags (names)
-    *doc* is doc object
-    '''
-
-    # if no tags (user removed all tags from doc), just remove old tags
-    if not tags:
-        for old_tag in old_tags[:]:
-            #to get the right tag to remove, loop through all and match by name
-            for tag in doc.tags[:]:
-                if tag.name == old_tag:
-                    doc.tags.remove(tag)
-
-    # both old tags and new tags.
-    else:
-        # Remove old tags user no longer wants associated with this doc.
-        for old_tag in old_tags[:]:
-            if old_tag not in tags:
-                #to get the right tag to remove, loop through all and match by name
-                for tag in doc.tags[:]:
-                    if tag.name == old_tag:
-                        doc.tags.remove(tag)
-
-        # If tag was in old_tags, it's already associated with doc. So remove
-        # from tags list so we don't try to add it again later.
-        for tag in tags[:]:
-            if tag in old_tags:
-                tags.remove(tag)
-
-    return doc, tags
+    return
 
 
 def delete_orphaned_tags(user, tag):
 
     tags = Tags.query.join(document_tags).join(Documents).filter(Documents.user_id==user.id, Tags.id==tag.id).all()
 
-    # if not tags return, user has not other documents tagged with this tag,
-    # so safe to delete
+    # if no tags, user has no other documents tagged with this tag, so safe to delete
     if not tags:
         Tags.query.filter(Tags.id==tag.id).delete()
 
     return
 
+
+##################
+# AUTHOR FUNCTIONS
+##################
+
+Authors_nt = namedtuple('Authors_nt', ['last_name', 'first_name'])
+
+
 def get_user_authors(user):
     '''Get user's authors.'''
 
     authors = Authors.query.join(document_authors).join(Documents).filter(Documents.user_id==user.id).order_by(Authors.last_name).all()
+
+    return authors
+
+
+def get_user_author(user, first_name, last_name):
+    '''Get one of the user's authors.'''
+
+    # TODO: put in try/except block
+
+    authors = Authors.query.join(document_authors).join(Documents).filter(Documents.user_id==user.id, \
+                Authors.first_name==first_name, Authors.last_name==last_name).one()
 
     return authors
 
@@ -154,13 +146,11 @@ def str_authors_to_namedtuple(authors):
 
     list_of_authors = []
 
-    #now turn into list of dictionaries
     for author in authors[:].split(';'):
-        # split on commas, at most once
         author = author.split(',', maxsplit=1)
 
-        # author is now a list, w possibly 2 items. Turn into named_tuple, and
-        # strip whitespace, but only do if author[0] (last_name) is not empty
+        # TODO: does author[0] still exist if no commas in string?
+
         if author[0].strip():
             try:
                 a = Authors_nt(author[1].strip(), author[0].strip())
@@ -172,86 +162,77 @@ def str_authors_to_namedtuple(authors):
     return list_of_authors
 
 
-def add_authors_to_doc(user, authors, doc):
+def list_authors_to_namedtuple(authors):
+    ''' Input: list of (possibly comma-separated) authors
+        Output: list of namedtuples, stripped of empty authors and whitesapce
     '''
-    This does most of the work of adding authors to documents. Some additional
-    work is done by remove_old_authors().
+    authors_as_nt = []
 
-    *authors* is a list of all authors associated with this doc, from source
-    *doc* is the database object
+    for author in authors[:]:
+        author_names = author.split(',', maxsplit=1)
+
+        try:
+            if author_names[0].strip():
+                # if last name is not empty, try to use both last name and first name
+                a = (author_names[0].strip(), author_names[1].strip())
+            else:
+                # try to just use the first name as the last name
+                a = (author_names[1].strip(), '')
+        except IndexError: # only one name
+            try:
+                a = (author_names[0].strip(), '')
+            except IndexError:
+                a = (author_names[1].strip(), '')
+
+        authors_as_nt.append(Authors_nt(*a))
+
+    return authors_as_nt
+
+
+def remove_all_authors(doc):
+    for author in doc.authors[:]:
+        doc.authors.remove(author)
+
+
+def add_or_update_authors(user, authors, doc):
+    '''Add authors to doc or update authors associated with doc.
+
+    Input: **authors** is list of authors as namedtuple
+    Output: none, doc is updated.
     '''
 
-    # get user's existing authors to check if authors for this doc already exist
+    # whitespace has already been stripped
+
+    submitted_authors = [Authors_nt(author.last_name, author.first_name) for author in authors]
+
+    if doc.authors:
+        associated_authors = [Authors_nt(author.last_name, author.first_name) for author in doc.authors]
+
+    # get all of the user's existing authors
     user_authors = get_user_authors(user)
 
-    # append any of user's exsting authors to document, remove from list authors
     if user_authors:
-        for user_author in user_authors:
-            for author in authors[:]:
-                # if there's only one name, author.first_name will throw index error,
-                # but must try to match both first_name and last_name first
-                try:
-                    if (user_author.first_name == author.first_name
-                            and user_author.last_name == author.last_name):
-                        #get the author object and append to new_doc.authors
-                        existing_author = Authors.query.filter(Authors.id==user_author.id).one()
-                        doc.authors.append(existing_author)
-                        #now remove it, so we don't create a new author object below
-                        authors.remove(author)
-                except KeyError:
-                    if user_author.last_name == author.last_name:
-                        #get the author object and append to new_doc.authors
-                        existing_author = Authors.query.filter(Authors.id==user_author.id).one()
-                        doc.authors.append(existing_author)
-                        #now remove it, so we don't create a new author object below
-                        authors.remove(author)
+        user_authors = [Authors_nt(author.last_name, author.first_name) for author in user_authors]
 
-    # any author left in authors list will be a new one that needs to be created and appended to new_doc
-    for author in authors:
-        try:
-            new_author = Authors(author.first_name, author.last_name)
-        except KeyError:
-            new_author = Authors('', author.last_name)
+    # remove any authors associated with this doc if not in new authors submitted with edit
+    if doc.authors:
+        for author in associated_authors:
+            if author not in submitted_authors:
+                author_to_remove = get_user_author(user, author.first_name, author.last_name)
+                doc.authors.remove(author_to_remove)
 
-        doc.authors.append(new_author)
+    # add any new authors to this doc
+    for author in submitted_authors:
+        if author in user_authors:
+            # associate any authors user already has
+            author_to_associate = get_user_author(user, author.first_name, author.last_name)
+            doc.authors.append(author_to_associate)
+        else:
+            # create a new author for this user
+            new_author = Authors(author.first_name.strip(), author.last_name.strip())
+            doc.authors.append(new_author)
 
-    return doc
-
-def remove_old_authors(old_authors, authors, doc):
-    '''
-    remove authors no longer associated with doc from it
-
-    *authors* is list of author dicts
-    *old_authors* is list of old author dicts
-    *doc* is doc object
-    '''
-
-    # if no authors (user removed all authors from doc), just remove old authors
-    if not authors:
-        for old_author in old_authors[:]:
-            #to get the right author to remove, loop and match by name
-            for author in doc.authors[:]:
-                if (author.first_name == old_author.first_name
-                        and author.last_name == old_author.last_name):
-                    doc.authors.remove(author)
-
-    # both old authors and authors
-    else:
-        # Remove old authors user no longer wants associated with this doc
-        for old_author in old_authors[:]:
-            if old_author not in authors:
-                for author in doc.authors[:]:
-                    if (author.first_name == old_author.first_name
-                            and author.last_name == old_author.last_name):
-                        doc.authors.remove(author)
-
-        #remove old_authors from authors - would be a duplicate
-        for author in authors[:]:
-            if author in old_authors:
-                authors.remove(author)
-
-
-    return doc, authors
+    return
 
 
 def delete_orphaned_authors(user, author):
@@ -266,7 +247,11 @@ def delete_orphaned_authors(user, author):
     return
 
 
-def add_item(content, user):
+#############################
+# ADD, EDIT, AND DELETE ITEMS
+#############################
+
+def add_item(content, user, caller=''):
     '''Add document to database.'''
 
     title = content.get('title')
@@ -297,12 +282,16 @@ def add_item(content, user):
                     created=datetime.datetime.now(pytz.utc))
 
     if tags:
-        tags = str_tags_to_list(tags)
-        doc = add_tags_to_doc(user, tags, doc)
+        if caller == 'native':
+            tags = str_tags_to_list(tags)
+        add_or_update_tags(user, tags, doc)
 
     if authors:
-        authors = str_authors_to_namedtuple(authors)
-        doc = add_authors_to_doc(user, authors, doc)
+        if caller == 'native':
+            authors = str_authors_to_namedtuple(authors)
+
+        authors = list_authors_to_namedtuple(authors)
+        add_or_update_authors(user, authors, doc)
 
     user.documents.append(doc)
 
@@ -311,16 +300,14 @@ def add_item(content, user):
     return
 
 
-def edit_item(content, user):
+def edit_item(content, user, caller=''):
     '''Edit existing document.'''
 
     id = content.get('id')
     title = content.get('title')
     link = content.get('link')
     tags = content.get('tags')
-    old_tags = content.get('old_tags')
     authors = content.get('authors')
-    old_authors = content.get('old_authors')
     year = content.get('year')
     notes = content.get('notes')
     read = int(content.get('read')) if content.get('read') else 1 # default to read
@@ -354,28 +341,28 @@ def edit_item(content, user):
         else:
             doc_to_edit.last_modified = datetime.datetime.now(pytz.utc)
 
-        # update tags
-        # if there were old tags, remove those no longer associated with doc,
-        # update the doc and also return updated list of tags
-        old_tags = str_tags_to_list(old_tags)
-        tags = str_tags_to_list(tags)
-
-        if old_tags:
-            doc_to_edit, tags = remove_old_tags(old_tags, tags, doc_to_edit)
-
-        # add any new tags to doc
         if tags:
-            doc_to_edit = add_tags_to_doc(user, tags, doc_to_edit)
+            # if called by native.py, need to convert string of tags to list
+            if caller == 'native':
+                tags = str_tags_to_list(tags)
 
-        # update authers in same manner
-        old_authors = str_authors_to_namedtuple(old_authors)
-        authors = str_authors_to_namedtuple(authors)
-
-        if old_authors:
-            doc_to_edit, authors = remove_old_authors(old_authors, authors, doc_to_edit)
+            add_or_update_tags(user, tags, doc_to_edit)
+        else:
+            # remove all tags if there were any
+            if doc_to_edit.tags:
+                remove_all_tags(doc_to_edit)
 
         if authors:
-            doc_to_edit = add_authors_to_doc(user, authors, doc_to_edit)
+            if caller == 'native':
+                authors = str_authors_to_namedtuple(authors)
+            else:
+                authors = list_authors_to_namedtuple(authors)
+
+            authors = add_or_update_authors(user, authors, doc_to_edit)
+        else:
+            # remove all authors if there were any
+            if doc_to_edit.authors:
+                remove_all_authors(doc_to_edit)
 
         db.session.commit()
 
