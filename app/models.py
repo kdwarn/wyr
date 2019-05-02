@@ -8,8 +8,8 @@ from app import db, login
 # http://flask-sqlalchemy.pocoo.org/2.1/models/
 # and http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
 document_tags = db.Table('document_tags',
-                      db.Column('document_id', db.Integer, db.ForeignKey('documents.id'), primary_key=True),
-                      db.Column('tag_id', db.Integer, db.ForeignKey('tags.id'), primary_key=True))
+                      db.Column('document_id', db.Integer, db.ForeignKey('documents.id', ondelete='CASCADE'), primary_key=True),
+                      db.Column('tag_id', db.Integer, db.ForeignKey('tags.id', ondelete='CASCADE'), primary_key=True))
 
 
 document_authors = db.Table('document_authors',
@@ -89,7 +89,7 @@ class Documents(db.Model, UserMixin):
     starred = db.Column(db.Integer)
     year = db.Column(db.String(4))
     note = db.Column(db.Text)
-    native_doc_id = db.Column(db.String(50)) #need for Mendeley, maybe others
+    native_doc_id = db.Column(db.String(50))  # need for Mendeley and Goodreads
 
     #relationships
     tags = db.relationship('Tags', secondary=document_tags, lazy='joined', backref=db.backref('documents', cascade='all, delete'))

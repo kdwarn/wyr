@@ -7,7 +7,6 @@ from flask import Blueprint, render_template, request, redirect, url_for, \
     flash, session
 from flask_login import login_required, current_user
 from sqlalchemy.orm.exc import NoResultFound
-
 from app import db
 from .models import Documents
 from . import common
@@ -20,12 +19,36 @@ native_bp = Blueprint('native', __name__)
 # WYR NATIVE
 # source_id = 3
 
-def return_to_previous():
-    ''' redirect user back to last page prior to edit or delete (or cancel) '''
 
-    if 'return_to' in session:
-        return redirect(session['return_to'])
-    return redirect(url_for('main.index'))
+def str_tags_to_list(tags):
+    '''Convert string of comma separated tags to list, stripped of empty tags and whitespace.'''
+
+    tags = tags.split(',')
+
+    tags = [tag.strip() for tag in tags if tag.strip()]
+
+    return tags
+
+
+def format_authors(authors):
+    ''' Input: string of (possibly comma- and semi-colon-separated) authors
+        Output: list of dicts, stripped of empty authors and whitesapce
+    '''
+
+    list_of_authors = []
+
+    for author in authors[:].split(';'):
+        if any(char.isalnum() for char in author):
+            author = author.split(',', maxsplit=1)
+
+            try:
+                a = {'last_name': author[0].strip(), 'first_name': author[1].strip()}
+            except IndexError:
+                a = {'last_name': author[0].strip(), 'first_name': ''}
+
+            list_of_authors.append(a)
+
+    return list_of_authors
 
 
 @native_bp.route('/add', methods=['GET', 'POST'])
@@ -67,10 +90,23 @@ def add():
 
     elif request.method == 'POST':
 
-        content = request.form  # ImmutableDict, but functions much in the same way as json
+        content = {}
+        content['title'] = request.form.get('title')
+        content['link'] = request.form.get('link')
+        content['tags'] = request.form.get('tags')
+        content['authors'] = request.form.get('authors')
+        content['year'] = request.form.get('year')
+        content['notes'] = request.form.get('notes')
+        content['read'] = request.form.get('read')
+
+        if content['tags']:
+            content['tags'] = str_tags_to_list(content['tags'])
+
+        if content['authors']:
+            content['authors'] = format_authors(content['authors'])
 
         try:
-            common.add_item(content, current_user, caller='native')
+            common.add_item(content, current_user, source='native')
         except ex.NoTitleException as e:
             flash(e.message)
             return redirect(url_for('native.add'))
@@ -86,8 +122,6 @@ def add():
         if content.get('another'):
             return redirect(url_for('native.add'))
 
-        return redirect(url_for('main.index'))
-    else:
         return redirect(url_for('main.index'))
 
 
@@ -140,23 +174,39 @@ def edit():
 
     elif request.method == 'POST':
 
-        content = request.form
+        content = {}
+        content['id'] = request.form.get('id')
+        content['title'] = request.form.get('title')
+        content['link'] = request.form.get('link')
+        content['tags'] = request.form.get('tags')
+        content['authors'] = request.form.get('authors')
+        content['year'] = request.form.get('year')
+        content['notes'] = request.form.get('notes')
+        content['read'] = request.form.get('read')
+
+        if content['tags']:
+            content['tags'] = str_tags_to_list(content['tags'])
+
+        if content['authors']:
+            content['authors'] = format_authors(content['authors'])
 
         try:
-            common.edit_item(content, current_user, caller='native')
+            common.edit_item(content, current_user, source='native')
         except ex.NotUserDocException as e:
             flash(e.message)
             return redirect(url_for('main.index'))
         except ex.NoTitleException as e:
             flash(e.message)
             return redirect(url_for('native.edit', id=e.doc_id))
+        except ex.DuplicateLinkException as e:
+            flash(e.message)
+            return redirect(url_for('native.edit', id=e.doc_id))
         else:
             flash('Item edited.')
 
-            return return_to_previous()
+            return common.return_to_previous()
 
-    else:
-        return redirect(url_for('main.index'))
+
 
 @native_bp.route('/delete', methods=['GET', 'POST'])
 @login_required
@@ -183,7 +233,7 @@ def delete():
 
         if delete == 'Cancel':
             flash("Item not deleted.")
-            return return_to_previous()
+            return common.return_to_previous()
 
         if delete == 'Delete':
             try:
@@ -193,10 +243,7 @@ def delete():
                 return redirect(url_for('main.index'))
 
             flash("Item deleted.")
-            return return_to_previous()
-
-    else:
-        return redirect(url_for('main.index'))
+            return common.return_to_previous()
 
 
 @native_bp.route('/import', methods=['GET', 'POST'])

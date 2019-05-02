@@ -5,6 +5,11 @@ class WyrException(Exception):
 
 # API exceptions?
 
+# Login and authorization exceptions
+
+class IncorrectPasswordException(WyrException):
+    pass
+
 
 # Doc-related exceptions
 
@@ -19,6 +24,7 @@ class NoTitleException(WyrException):
         self.error = 10
         self.http_status = 400
 
+
 class DuplicateLinkException(WyrException):
     def __init__(self, doc_id=''):
         self.doc_id = doc_id
@@ -26,11 +32,6 @@ class DuplicateLinkException(WyrException):
         self.error = 11
         self.http_status = 400
 
-class BadReadValueError(WyrException, ValueError):
-    def __init__(self):
-        self.message = 'Value of <read> must be 0 (to-read) or 1 (read).'
-        self.error = 12
-        self.http_status = 400
 
 class NotUserDocException(WyrException):
     def __init__(self):
@@ -41,6 +42,11 @@ class NotUserDocException(WyrException):
 
 # Tag- and Bunch-related Exceptions
 
+class NoBunchException(WyrException):
+    def __init__(self):
+        self.message = 'No bunch with that name found.'
+        self.error = 12
+        self.http_status = 400
 
 
 # Author-related Exceptions

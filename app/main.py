@@ -14,25 +14,13 @@ import stripe
 
 from app import db, cache
 from .models import User, Documents, Tags, Bunches, Authors
-from .exceptions import NoDocsException
+from . import exceptions as ex
 from . import mendeley
 from . import goodreads
 from . import common
 
 
 bp = Blueprint('main', __name__)
-
-
-# TODO: use this function for other calls to documents
-def get_docs(user, read_status=None):
-    if read_status is None:
-        docs = user.documents.order_by(desc(Documents.created)).all()
-    else:
-        docs = user.documents.filter_by(read=read_status).order_by(desc(Documents.created)).all()
-
-    if not docs:
-        raise NoDocsException
-    return docs
 
 
 ###########################
@@ -49,7 +37,7 @@ def index():
     '''
 
     if current_user.is_authenticated:
-        # set var for returning to proper page after edit or delete native doc
+        # set var for returning to proper page
         session['return_to'] = url_for('main.index')
 
         one_week_ago = datetime.datetime.now() - datetime.timedelta(days=7)
@@ -67,10 +55,7 @@ def index():
         if current_user.goodreads == 1 and current_user.goodreads_update < one_week_ago:
             goodreads.import_goodreads('normal')
 
-        try:
-            docs = get_docs(current_user)
-        except NoDocsException:
-            docs = ''  # deal with this in template
+        docs = common.get_docs(current_user)
 
         return render_template('read.html', docs=docs, read_status='all')
 
@@ -83,13 +68,10 @@ def index():
 def read():
     ''' Return all read items.'''
 
-    # set var for returning to proper page after edit or delete native doc
+    # set var for returning to proper page
     session['return_to'] = url_for('main.read')
 
-    try:
-        docs = get_docs(current_user, read_status=1)
-    except NoDocsException:
-        docs = ''  # deal with this in the template
+    docs = common.get_docs(current_user, read_status='read')
 
     return render_template('read.html', docs=docs, read_status='read')
 
@@ -100,13 +82,10 @@ def read():
 def to_read():
     ''' Return all unread items.'''
 
-    # set var for returning to proper page after edit or delete native doc
+    # set var for returning to proper page
     session['return_to'] = url_for('main.to_read')
 
-    try:
-        docs = get_docs(current_user, read_status=0)
-    except NoDocsException:
-        docs = '' # deal with this in the template
+    docs = common.get_docs(current_user, read_status='to-read')
 
     return render_template('read.html', docs=docs, read_status='to-read')
 
@@ -120,6 +99,7 @@ def tags():
 
     if not tags:
         grouped_tags = ''
+        flash("You do not have any tags yet. Your list of tags will appear here once you have added tags to documents.")
     else:
         # group tags by their first letter, to enable jumping down page
         grouped_tags = OrderedDict()
@@ -147,21 +127,19 @@ def tags():
 def docs_by_tag(read_status, tag):
     ''' Return all user's documents tagged <tag>. '''
 
-    # set var for returning to proper page after edit or delete native doc
-    session['return_to'] = url_for('main.docs_by_tag', tag=tag, read_status=read_status)
+    docs = common.get_docs(current_user, read_status=read_status, tag=tag)
 
-    if read_status == 'read' or read_status == 'to-read':
+    if not docs:
         if read_status == 'read':
-            status = 1
-        if read_status == 'to-read':
-            status = 0
+            flash("Sorry, you have no read documents with that tag.")
+        elif read_status == 'to-read':
+            flash("Sorry, you have no to-read documents with that tag.")
+        else:
+            flash("Sorry, you have no documents with that tag.")
+        return common.return_to_previous()
 
-        #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
-        docs = current_user.documents.filter_by(read=status).filter(Documents.tags.any(name=tag)).order_by(desc(Documents.created)).all()
-
-    else:
-        #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
-        docs = current_user.documents.filter(Documents.tags.any(name=tag)).order_by(desc(Documents.created)).all()
+    # set var for returning to proper page
+    session['return_to'] = url_for('main.docs_by_tag', tag=tag, read_status=read_status)
 
     return render_template('read.html', docs=docs, tagpage=tag, read_status=read_status) #tagpage is used for header
 
@@ -172,38 +150,29 @@ def docs_by_tag(read_status, tag):
 def bunch(read_status, name):
     ''' Display docs from saved bunch '''
 
-    # set var for returning to proper page after edit or delete native doc
-    session['return_to'] = url_for('main.bunch', read_status=read_status, name=name)
+    try:
+        docs = common.get_docs(current_user, read_status=read_status, bunch=name)
+    except ex.NoBunchException:
+        flash(f'No bunch named {name} found.')
+        return common.return_to_previous()
+    else:
+        if not docs:
+            if read_status == 'all':
+                flash(f'There are no documents in the bunch {name}.')
+            else:
+                flash(f'There are no {read_status} documents in the bunch {name}.')
+            return common.return_to_previous()
 
-    # get the name, tags, read_stuats, and selector for this bunch
-    bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==name).one()
+        # set var for returning to proper page
+        session['return_to'] = url_for('main.bunch', read_status=read_status, name=name)
 
-    if read_status == 'all':
-        docs = current_user.documents.filter(Documents.tags.any(Tags.id.in_([t.id for t in bunch.tags]))).order_by(desc(Documents.created)).all()
+        user_bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==name).one()
 
-    if read_status == 'read':
-        docs = current_user.documents.filter(Documents.read==1, Documents.tags.any(Tags.id.in_([t.id for t in bunch.tags]))).order_by(desc(Documents.created)).all()
-
-
-    if read_status == 'to-read':
-        docs = current_user.documents.filter(Documents.read==0, Documents.tags.any(Tags.id.in_([t.id for t in bunch.tags]))).order_by(desc(Documents.created)).all()
-
-    if bunch.selector == 'and':
-        # couldn't figure out how to do this in one query, so this is probably inefficient, but...
-        # take the query above (which get the "or" scenario), and
-        # go through docs and eliminate them if they don't have every tag in tags
-        for doc in docs[:]:
-            for tag in bunch.tags:
-                if tag.id not in [each.id for each in doc.tags]:
-                    docs.remove(doc)
-                    break
-
-    #in this view, I could just return bunch=bunch, but bunches uses bunch_tag_names and selector
-    return render_template('read.html', docs=docs,
-                           bunch_tag_names=[tag.name for tag in bunch.tags],
-                           bunch_name=name,
-                           read_status=read_status,
-                           selector=bunch.selector)
+        return render_template('read.html', docs=docs,
+                               bunch_tag_names=[tag.name for tag in user_bunch.tags],
+                               bunch_name=name,
+                               read_status=read_status,
+                               selector=user_bunch.selector)
 
 
 @bp.route('/bunches', methods=['GET', 'POST'])
@@ -221,6 +190,9 @@ def bunches():
         else:
             bunches = Bunches.query.filter(Bunches.user_id==current_user.id).all()
 
+            # set var for returning to proper page
+            session['return_to'] = url_for('main.bunches')
+
         return render_template('bunches.html', tags=tags, bunches=bunches)
 
     # maybe turn this into a function? (most of it will be repeated for bunch()
@@ -232,21 +204,15 @@ def bunches():
             flash("You didn't choose any tags.")
             return redirect(url_for('main.bunches'))
 
+        filter = []
+
         if selector == 'or':
-            docs = current_user.documents.filter(Documents.tags.any(Tags.id.in_([t for t in bunch_tags]))).order_by(desc(Documents.created)).all()
+            filter.append(Documents.tags.any(Tags.id.in_([t for t in bunch_tags])))
+        else:  # selector defaults to 'and'
+            for tag in bunch_tags:
+                filter.append(Documents.tags.any(id=tag.id))
 
-        #selector defaults to 'and'
-        else:
-            #couldn't figure out how to do this in one query, so this is probably inefficient, but...
-            #first get the docs that have any of the tags chosen
-            docs = current_user.documents.filter(Documents.tags.any(Tags.id.in_([t for t in bunch_tags]))).order_by(desc(Documents.created)).all()
-
-            # now go through docs and eliminate them if they don't have every tag in tags
-            for doc in docs[:]:
-                for tag in bunch_tags:
-                    if int(tag) not in [each.id for each in doc.tags]:
-                        docs.remove(doc)
-                        break
+        docs = current_user.documents.filter(*filters).order_by(desc(Documents.created)).all()
 
         #get tag names and put in list
         bunch_tag_names = []
@@ -287,7 +253,7 @@ def bunch_save():
 
     db.session.commit()
 
-    flash("New bunch saved.")
+    flash(f'New bunch {bunch_name} saved.')
     return redirect(url_for('main.bunches'))
 
 
@@ -375,8 +341,7 @@ def bunch_delete():
         bunch_name = request.form['bunch_name']
 
         #should do a try/except here
-        bunch = Bunches.query.filter(Bunches.user_id==current_user.id,
-            Bunches.name==bunch_name).one()
+        bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==bunch_name).one()
 
         db.session.delete(bunch)
         db.session.commit()
@@ -394,8 +359,8 @@ def authors():
 
     if not authors:
         grouped_authors = ''
+        flash("You do not have any authors yet. Your list of authors will appear here once you have added authors to documents.")
     else:
-
         # group authors by first letter of last name, to enable jumping down page
         grouped_authors = OrderedDict()
 
@@ -422,29 +387,8 @@ def authors():
 def docs_by_author(read_status, author_id):
     ''' Return all documents by particular author. '''
 
-    # set var for returning to proper page after edit or delete native doc
-    session['return_to'] = url_for('main.docs_by_author', author_id=author_id, read_status=read_status)
+    docs = common.get_docs(current_user, read_status=read_status, author_id=author_id)
 
-    #author = Authors.id=id.one()
-    author = Authors.query.filter_by(id=author_id).one()
-
-    if read_status == 'read' or read_status == 'to-read':
-        if read_status == 'read':
-            status = 1
-        if read_status == 'to-read':
-            status = 0
-
-        #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
-        docs = current_user.documents.filter_by(read=status).filter(Documents.authors.any(id=author_id)).\
-            order_by(desc(Documents.created)).all()
-
-    else:
-        #http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
-        docs = current_user.documents.filter(Documents.authors.any(id=author_id)).\
-            order_by(desc(Documents.created)).all()
-
-    # only return docs author info if user has docs by that author
-    # this ensures one user can't type in an id and see an author another user has
     if not docs:
         if read_status == 'read':
             flash("Sorry, you have no read documents by that author.")
@@ -452,9 +396,14 @@ def docs_by_author(read_status, author_id):
             flash("Sorry, you have no to-read documents by that author.")
         else:
             flash("Sorry, you have no documents by that author.")
-        return redirect(url_for('main.authors'))
+        return common.return_to_previous()
 
     else:
+        # set var for returning to proper page
+        session['return_to'] = url_for('main.docs_by_author', author_id=author_id, read_status=read_status)
+
+        author = Authors.query.filter_by(id=author_id).one()
+
         #authorpage, first_name, last_name used for header
         return render_template('read.html', docs=docs, authorpage=1, \
             author=author, first_name=author.first_name, last_name=author.last_name, read_status=read_status)
@@ -473,6 +422,10 @@ def last_month():
 
     docs = Documents.query.filter(Documents.user_id==current_user.id, Documents.read==1,
                                   Documents.created >= one_month_ago).order_by(Documents.created).all()
+
+    if not docs:
+        flash("You have no read items in the last month.")
+        return common.return_to_previous()
 
     return render_template('read.html', docs=docs, read_status='read', last_month=1)
 
@@ -510,9 +463,10 @@ def deauthorize():
     if request.method == 'GET':
         return render_template('deauthorize.html', name=request.args.get('name'))
     elif request.method == 'POST':
-        #what are they trying to deauthorize?
+
         source = request.form['name']
         confirm = request.form['deauthorize']
+
         if confirm == 'Yes':
             common.force_deauthorize(source)
             message = '{} has been deauthorized.'.format(source)
@@ -556,8 +510,13 @@ def refresh():
 @bp.route('/u/<username>')
 @login_required
 def show_user_profile(username):
-    ''' show the user profile for that user '''
-    return 'Hello {}'.format(username)
+    ''' show the user profile for the current user.'''
+
+    if username != current_user.username:
+        flash('Sorry, you cannot view that page.')
+        return redirect(url_for('main.index'))
+    else:
+        return 'Hello {}'.format(username)
 
 
 @bp.route('/sign_up', methods=['GET', 'POST'])
@@ -652,7 +611,7 @@ def activate():
 
         # use passlib to encrypt password
         myctx = CryptContext(schemes=['pbkdf2_sha256'])
-        hashed_password = myctx.encrypt(password)
+        hashed_password = myctx.hash(password)
 
         # create a salt
         alphabet = string.ascii_letters + string.digits
@@ -680,11 +639,11 @@ def login():
         remember = request.form.getlist('remember')
         next = request.form['next']
 
-        #first see if username exists
-        if User.query.filter_by(username=username).count() == 1:
-            #get their encrypted pass and check it
-            user = User.query.filter_by(username=username).first()
-
+        try:
+            user = User.query.filter_by(username=username).one()
+        except NoResultFound:
+            flash('Username does not exist.')
+        else:
             myctx = CryptContext(schemes=['pbkdf2_sha256'])
             if myctx.verify(password, user.password) == True:
                 if remember:
@@ -695,13 +654,11 @@ def login():
                 flash('Welcome back, {}.'.format(username))
 
             else:
+                # raise ex.IncorrectPasswordException
                 flash('Sorry, the password is incorrect.')
 
-        else:
-            flash('Username does not exist.')
-
-        if next:
-            return redirect('https://www.whatyouveread.com' + next)
+            if next:
+                return redirect('https://www.whatyouveread.com' + next)
 
         return redirect(url_for('main.index'))
 
@@ -739,13 +696,13 @@ def settings():
         if current_user.include_g_unread == 0 and old_include_g_unread == '1':
             common.remove_to_read(2)
 
-        # if user is change pref to include to-read items in Mendeley, set var
-        # do a full update (not limit to recent items)
+        # if user changed pref to include to-read items in Mendeley, set var
+        # do a full update (not limited to recent items)
         if current_user.include_m_unread == 1 and old_include_m_unread == '0':
             mendeley.import_mendeley('unread_update')
 
-        # if user is change pref to include to-read items in Mendeley, set var
-        # do a full update (not limit to recent items)
+        # if user changed pref to include to-read items in Mendeley, set var
+        # do a full update (not limited to recent items)
         if current_user.include_g_unread == 1 and old_include_g_unread == '0':
             goodreads.import_goodreads('unread_update')
 
@@ -784,7 +741,7 @@ def change_password():
             else:
                 #use passlib to encrypt password
                 myctx = CryptContext(schemes=['pbkdf2_sha256'])
-                hash = myctx.encrypt(new_password)
+                hash = myctx.hash(new_password)
 
                 current_user.password = hash
                 db.session.commit()
@@ -923,7 +880,7 @@ def reset_password():
             else:
                 #use passlib to encrypt password and then update it
                 myctx = CryptContext(schemes=['pbkdf2_sha256'])
-                hashed_password = myctx.encrypt(password)
+                hashed_password = myctx.hash(password)
                 user.password = hashed_password
                 db.session.commit()
 
@@ -1111,6 +1068,11 @@ def delete_account():
             if myctx.verify(current_password, current_user.password) == True:
                 User.query.filter_by(id=current_user.id).delete()
                 db.session.commit()
+
+                common.delete_orphaned_tags()
+                common.delete_orphaned_authors()
+                db.session.commit()
+
                 flash('Account deleted. Sorry to see you go!')
                 return redirect(url_for('main.index'))
             else:
@@ -1123,12 +1085,32 @@ def delete_account():
         return redirect(url_for('main.index'))
 
 
+def get_stripe_info():
+    '''Get user's Stripe info.'''
+    if current_user.stripe_id is not None:
+        donor = stripe.Customer.retrieve(current_user.stripe_id)
+
+        #simplify object a bit, see if user has current subscription to plan
+        try:
+            subscription = donor.subscriptions['data'][0]
+        except IndexError:
+            subscription = ''
+
+        #drop everything else from donor
+        #to do
+
+    else:
+        donor = ''
+        subscription = ''
+
+    return donor, subscription
+
 @bp.route('/donate')
 @login_required
 def donate():
     stripe_keys = current_app.config['STRIPE_KEYS']
     ''' get user stripe info and send to donate page'''
-    donor, subscription = common.get_stripe_info()
+    donor, subscription = get_stripe_info()
 
     return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
 
@@ -1145,7 +1127,7 @@ def cancel_donation():
 
     if request.method == 'POST':
         #get user stripe info
-        donor, subscription = common.get_stripe_info()
+        donor, subscription = get_stripe_info()
 
         #otherwise process form
         if request.form['cancel_next_donation'] == 'Yes':
@@ -1158,7 +1140,7 @@ def cancel_donation():
             flash('Your scheduled donation has NOT been cancelled.')
 
         #get user stripe info
-        donor, subscription = common.get_stripe_info()
+        donor, subscription = get_stripe_info()
 
         return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
 
@@ -1233,7 +1215,7 @@ def charge():
         flash("""Thanks for the donation. A receipt will be emailed to you.
             If you do not get it, contact me.""")
 
-    donor, subscription = common.get_stripe_info()
+    donor, subscription = get_stripe_info()
 
     return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
 

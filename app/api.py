@@ -10,7 +10,7 @@
         10-20: field issues
             10: title not supplied, but required
             11: link already exists in attempted added item
-            12: read status not within parameters (0-1)
+            12: No bunch by that name.
             13: not one of the user's items.
         90-99: authorization/submitted json issues
             90: Parameters not submitted in json format
@@ -48,9 +48,6 @@ def token_required(f):
 
     @wraps(f)
     def wrapper(*args, **kwargs):
-        # if coming from WYR forms, no need to check token
-        # if current_user.is_authenticated:
-        #     return f(current_user.username, *args, **kwargs)
 
         if request.method == 'GET':
             token = request.args.get('token')
@@ -162,16 +159,13 @@ def add(username):
     user = User.query.filter_by(username=username).one()
 
     try:
-        common.add_item(content, user)
+        common.add_item(content, user, source='api')
     except ex.NoTitleException as e:
         return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
     except ex.DuplicateLinkException as e:
         return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
-    except ex.BadReadValueError as e:
-        return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
     else:
         return jsonify({'message': 'Success!'}), 200
-
 
 
 @api_bp.route('/document/<id>', methods=['PUT'])
@@ -193,12 +187,10 @@ def edit(username, id):
     user = User.query.filter_by(username=username).one()
 
     try:
-        common.edit_item(content, user)
+        common.edit_item(content, user, source='api')
     except ex.NotUserDocException as e:
         return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
     except ex.NoTitleException as e:
-        return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
-    except ex.BadReadValueError as e:
         return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
     else:
         return jsonify({'message': 'Success!'}), 200

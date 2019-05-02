@@ -92,10 +92,10 @@ def refresh_token():
     returns 0auth object, which can then be used to query docs
     '''
 
-    #get existing tokens from Tokens table
+    # get existing tokens from Tokens table
     tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=1).first()
 
-    #put token info into dict
+    # put token info into dict
     token = {'access_token':tokens.access_token,
              'refresh_token':tokens.refresh_token,
              'expires_in': -30}
@@ -127,18 +127,18 @@ def import_mendeley(update_type):
 
     # remove any items from db that were deleted in Mendeley
     if update_type != 'initial':
-        delete_docs = get_docs(mendeley, 'delete')
+        docs_to_delete = get_docs(mendeley, 'delete')
 
-        if delete_docs:
-            for doc in delete_docs:
+        if docs_to_delete:
+            for doc in docs_to_delete:
                 Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).delete()
             db.session.commit()
-            if len(delete_docs) == 1:
+            if len(docs_to_delete) == 1:
                 flash("1 item had been deleted in Mendeley and was removed.")
             else:
-                flash("{} items had been deleted in Mendeley and were removed.".format(len(delete_docs)))
+                flash("{} items had been deleted in Mendeley and were removed.".format(len(docs_to_delete)))
 
-    #now get current docs
+    # now get current docs
     docs = get_docs(mendeley, update_type)
 
     # set a count var to let user know how many items updated if "unread_update"
@@ -149,18 +149,18 @@ def import_mendeley(update_type):
         # go through each doc, and see if we need to insert or update it
         for doc in docs:
 
-            #skip unread items if user doesn't want them
+            # skip unread items if user doesn't want them
             if current_user.include_m_unread == 0 and doc['read'] == 0:
                 continue
 
-            #skip read items if this is an "unread_update"
+            # skip read items if this is an "unread_update"
             if update_type == 'unread_update' and doc['read'] == 1:
                 continue
             if update_type == 'unread_update' and doc['read'] == 0:
                 count += 1
 
             if update_type != 'initial':
-                #see if the doc is already in the db
+                # see if the doc is already in the db
                 check_doc = Documents.query.filter_by(user_id=current_user.id, source_id=1, native_doc_id=doc['id']).first()
                 save_doc(doc, mendeley, check_doc)
             else:
@@ -203,23 +203,23 @@ def get_docs(auth_object, type=''):
     try:
         r = auth_object.get('https://api.mendeley.com/documents', params=payload)
     except InvalidGrantError:
-        ''' Something has gone wrong with authorization. Use RequestRedirect
-        to directly return from this function.'''
+        # Something has gone wrong with authorization. Use RequestRedirect
+        # to directly return from this function.
         common.force_deauthorize('Mendeley')
         flash('There was an error with your Mendeley account. Please re-authorize it.')
         raise RequestRedirect(url_for('main.settings'))
 
     docs = r.json()
 
-    #if no docs found, return empty docs variable
+    # if no docs found, return empty docs variable
     if r.status_code != 200:
         docs = ''
 
     # get the docs
     else:
-        #If multiple pages of docs, Mendeley provides a "next" link - this code
-        #pulls that out of .headers['link'], strips out non-link characters,
-        #and calls it
+        # If multiple pages of docs, Mendeley provides a "next" link - this code
+        # pulls that out of .headers['link'], strips out non-link characters,
+        # and calls it
         if 'link' in r.headers:
             while 'rel="next"' in r.headers['link']:
                 mendeley_link = r.headers['link'].split('>')
@@ -231,7 +231,7 @@ def get_docs(auth_object, type=''):
 
     return docs
 
-def save_doc(m_doc, auth_object, existing_doc=""):
+def save_doc(m_doc, auth_object, existing_doc=''):
     '''
     Save doc (insert or update in db).
 
@@ -241,7 +241,7 @@ def save_doc(m_doc, auth_object, existing_doc=""):
     '''
 
     if not existing_doc: # inserting, create Document object
-        doc = Documents(1, m_doc['title'])
+        doc = Documents(current_user, 1, m_doc['title'])
         current_user.documents.append(doc)
     else: # updating, Document object already exists
         doc = existing_doc
@@ -252,11 +252,8 @@ def save_doc(m_doc, auth_object, existing_doc=""):
     doc.starred=m_doc['starred']
     doc.native_doc_id=m_doc['id']
     doc.read = int(m_doc['read'])
-
-    if 'year' in m_doc:
-        doc.year = m_doc['year']
-    if 'last_modified' in m_doc:
-        doc.last_modified=m_doc['last_modified'] #already in UTC
+    doc.year = m_doc.get('year')
+    doc.last_modified = m_doc.get('last_modified')  # already in UTC
     if 'websites' in m_doc:
         doc.link = m_doc['websites'][0] # only include first link
 
@@ -277,14 +274,18 @@ def save_doc(m_doc, auth_object, existing_doc=""):
     db.session.add(doc)
     db.session.commit()
 
+    print(doc.title)
+
     # insert
     if not existing_doc:
         if 'tags' in m_doc: # to-read tag set later, if necessary
-            doc = common.add_or_update_tags(current_user, m_doc['tags'], doc)
+            common.add_or_update_tags(current_user, m_doc['tags'], doc)
         if 'authors' in m_doc:
-            doc = common.add_authors_to_doc(current_user, m_doc['authors'], doc)
+            # no need to format, already in list of dict with keys last_name and first_name
+            common.add_or_update_authors(current_user, m_doc['authors'], doc)
         if 'editors' in m_doc:
-            doc = common.add_authors_to_doc(current_user, m_doc['editors'], doc)
+            # same as authors
+            common.add_or_update_authors(current_user, m_doc['editors'], doc)
         if files:
             for file in files:
                 new_filelink = FileLinks(doc.id, file['id'])
@@ -293,7 +294,6 @@ def save_doc(m_doc, auth_object, existing_doc=""):
 
     # update
     else:
-        # tags  (to-read tag set later, if necessary)
         # set tags variable so it can be used below, even if empty
         try:
             tags = m_doc['tags']
@@ -321,7 +321,7 @@ def save_doc(m_doc, auth_object, existing_doc=""):
 
 
         if authors: # authors and editors
-            authors = common.list_authors_to_namedtuple(authors)
+            # no need to format, already in list of dict with keys last_name and first_name
             common.add_or_update_authors(current_user, authors, doc)
 
         # files
@@ -334,7 +334,7 @@ def save_doc(m_doc, auth_object, existing_doc=""):
                 doc.file_links.remove(old_file_link)
 
         if files:
-            #create list of file_ids to check against
+            # create list of file_ids to check against
             file_ids = [file['id'] for file in files]
 
             # check old file list against files submitted after edit, remove any no longer there

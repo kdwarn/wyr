@@ -7,7 +7,7 @@
         <p class="center">You may now import your items from {{source}}.</p>
 
 
-        <form name="verify_authorization" action="{{ url_for('common.verify_authorization', source=source) }}" method="post">
+        <form name="verify_authorization" action="{{ url_for('main.verify_authorization', source=source) }}" method="post">
             <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}"/>
             <label for="include_m_unread">Would you like to include unread items? (You can include or exclude them later.)</label><br><br>
 

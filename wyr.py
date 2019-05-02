@@ -1,24 +1,14 @@
 import datetime
 from random import random
 import re
-import time
 
-from flask import session, url_for, request, redirect, g
+from flask import session, url_for, request, redirect
 from jinja2 import evalcontextfilter, Markup, escape
 
 from app import create_app
 
 
 wyr_app = create_app()
-
-
-####################################
-# CHANGE JINJA CACHING TO DICTIONARY
-####################################
-
-# https://blog.socratic.org/the-one-weird-trick-that-cut-our-flask-page-load-time-by-70-87145335f679
-
-#wyr_app.jinja_env.cache = {}
 
 
 ################
