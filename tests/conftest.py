@@ -1,11 +1,15 @@
 import pytest
 from passlib.context import CryptContext
 
-from wyr import datetimeformat, nl2br, generate_csrf_token
+from app import datetimeformat, nl2br, generate_csrf_token
 from app import create_app, models, db
-from config import TestConfig
 from app import common
 
+class TestConfig():
+    TESTING = True
+    SECRET_KEY = 'thisissecret'
+    SECURITY_PASSWORD_SALT = 'alsosecret'
+    SQLALCHEMY_DATABASE_URI = 'sqlite://'
 
 '''
 User fixtures:

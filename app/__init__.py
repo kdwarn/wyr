@@ -1,11 +1,43 @@
-from flask import Flask
+import datetime
+from random import random
+import re
+
+from flask import Flask, session
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_misaka import Misaka
 from flask_caching import Cache
+from jinja2 import evalcontextfilter, Markup, escape
 
-from config import Config
+##################################################
+# START-UP FUNCTIONS USED IN WYR.APP AND TESTING #
+##################################################
 
+def generate_csrf_token():
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = random()
+    return session['_csrf_token']
+
+
+def datetimeformat(value, format='%B %d, %Y'):
+    ''' display datetime like May 1, 1886'''
+    value = datetime.datetime.fromtimestamp(value)
+    return value.strftime(format)
+
+
+@evalcontextfilter
+def nl2br(eval_ctx, value):
+    ''' New lines to breaks. '''
+    _paragraph_re = re.compile(r'(?:\r\n|\r|\n){2,}')
+    result = u'\n\n'.join(u'<p>%s</p>' % p.replace('\n', Markup('<br>\n'))
+                          for p in _paragraph_re.split(escape(value)))
+    if eval_ctx.autoescape:
+        result = Markup(result)
+    return result
+
+###################################
+# INIT EVERYTHING AND APP FACTORY #
+###################################
 
 db = SQLAlchemy()
 login = LoginManager()
@@ -16,7 +48,7 @@ md = Misaka(autolink='true', underline='true', strikethrough='true', html='false
 cache = Cache(config={'CACHE_TYPE': 'simple'})
 
 
-def create_app(config_class=Config):
+def create_app(config_class):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
@@ -38,33 +70,6 @@ def create_app(config_class=Config):
     app.register_blueprint(mendeley_bp)
     app.register_blueprint(goodreads_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
-
-    # if not app.debug and not app.testing:
-    #     if app.config['MAIL_SERVER']:
-    #         auth = None
-    #         if app.config['MAIL_USERNAME'] or app.config['MAIL_PASSWORD']:
-    #             auth = (app.config['MAIL_USERNAME'],
-    #                     app.config['MAIL_PASSWORD'])
-    #         secure = None
-    #         if app.config['MAIL_USE_TLS']:
-    #             secure = ()
-    #         mail_handler = SMTPHandler(
-    #             mailhost=(app.config['MAIL_SERVER'], app.config['MAIL_PORT']),
-    #             fromaddr='no-reply@' + app.config['MAIL_SERVER'],
-    #             toaddrs=app.config['ADMINS'], subject='Microblog Failure',
-    #             credentials=auth, secure=secure)
-    #         mail_handler.setLevel(logging.ERROR)
-    #         app.logger.addHandler(mail_handler)
-
-    #     if not os.path.exists('logs'):
-    #         os.mkdir('logs')
-    #     file_handler = RotatingFileHandler('logs/microblog.log',
-    #                                       maxBytes=10240, backupCount=10)
-    #     file_handler.setFormatter(logging.Formatter(
-    #         '%(asctime)s %(levelname)s: %(message)s '
-    #         '[in %(pathname)s:%(lineno)d]'))
-    #     file_handler.setLevel(logging.INFO)
-    #     app.logger.addHandler(file_handler)
 
     return app
 

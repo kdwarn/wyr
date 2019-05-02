@@ -160,6 +160,10 @@ def add_or_update_authors(user, submitted_authors, doc):
 
     # add any new authors to this doc
     for submitted_author in submitted_authors:
+        # add in empty values for keys if they are missing
+        submitted_author['first_name'] = submitted_author.get('first_name', '')
+        submitted_author['last_name'] = submitted_author.get('last_name', '')
+
         if submitted_author not in [{'last_name': author.last_name, 'first_name': author.first_name} for author in doc.authors]:
             try:
                 existing_author = get_user_author(user, submitted_author['first_name'], submitted_author['last_name'])
