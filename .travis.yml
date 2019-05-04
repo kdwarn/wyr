@@ -1,11 +1,10 @@
 language: python
 python:
   - "3.6"
-  - "3.7"
 # command to install dependencies
-  - pip install -r requirements.txt
+  - pip3 install -r requirements.txt
 # command to run tests
-script: python -m pytest
+script: python -m pytest --cov=app tests/ -p no:warnings
 branches:
   only:
     - master
