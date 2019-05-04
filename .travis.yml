@@ -5,7 +5,7 @@ python:
 install:
   - pip install -r requirements.txt
 # command to run tests
-script: python -m pytest --cov=app tests/ -p no:warnings
+script: python -m pytest tests/ 
 branches:
   only:
     - master
