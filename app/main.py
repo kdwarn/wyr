@@ -179,14 +179,18 @@ def bunch(read_status, name):
 @login_required
 #@cache.cached(timeout=3600)
 def bunches():
-    '''Let user select multiple tags and display the docs that fit the criteria.
-    Include link to save the bunch, which takes place through bunch_save().'''
+    '''
+    Let user select multiple tags and display the docs that fit the criteria.
+    Include link to save the bunch, which takes place through bunch_save().
+    '''
+    
     if request.method == 'GET':
         tags = common.get_user_tags(current_user)
 
         if not tags:
             tags = ''
             bunches = ''
+            flash("You do not yet have any tags to sort into bunches.")
         else:
             bunches = Bunches.query.filter(Bunches.user_id==current_user.id).all()
 
@@ -195,38 +199,37 @@ def bunches():
 
         return render_template('bunches.html', tags=tags, bunches=bunches)
 
-    # maybe turn this into a function? (most of it will be repeated for bunch()
-    else:
+    elif request.method == 'POST':
         selector = request.form['selector'] # "and" or "or"
         bunch_tags = request.form.getlist('bunch_tags') # these are ids of chosen tags
 
         if not bunch_tags:
-            flash("You didn't choose any tags.")
+            flash("You did not choose any tags.")
             return redirect(url_for('main.bunches'))
 
-        filter = []
+        filters = []
 
         if selector == 'or':
-            filter.append(Documents.tags.any(Tags.id.in_([t for t in bunch_tags])))
-        else:  # selector defaults to 'and'
+            filters.append(Documents.tags.any(Tags.id.in_([t for t in bunch_tags])))
+        elif selector == 'and':
             for tag in bunch_tags:
-                filter.append(Documents.tags.any(id=tag.id))
+                filters.append(Documents.tags.any(id=tag))
 
         docs = current_user.documents.filter(*filters).order_by(desc(Documents.created)).all()
 
-        #get tag names and put in list
+        if not docs:
+            flash("Sorry, no items matched your tag choices.")
+            return redirect(url_for('main.bunches'))
+        
+        # store tag ids in session var to use in save_bunch (list var won't travel through form)
+        session['bunch_tags'] = bunch_tags
+
+        # get tag names and put in list
         bunch_tag_names = []
 
         for tag in bunch_tags:
             tag = Tags.query.filter(Tags.id==tag).one()
             bunch_tag_names.append(tag.name)
-
-        # store tag ids in session var to use in save_bunch (list var won't travel through form)
-        session['bunch_tags'] = bunch_tags
-
-        if not docs:
-            flash("Sorry, no items matched your tag choices.")
-            return redirect(url_for('main.bunches'))
 
         #return docs as well as list of tags and how they were chosen
         return render_template('read.html', docs=docs,
@@ -260,7 +263,7 @@ def bunch_save():
 @bp.route('/bunch/edit', methods=['GET', 'POST'])
 @login_required
 def bunch_edit():
-    ''' Let user add or remove tags from saved bunches.'''
+    '''Edit a bunch.'''
 
     #show page to edit bunch name, selector, and tags
     if request.method == 'GET':
@@ -325,14 +328,12 @@ def bunch_edit():
 @bp.route('/bunch/delete', methods=['GET', 'POST'])
 @login_required
 def bunch_delete():
-    ''' Let user add or remove tags from saved bunches.'''
+    '''Delete a bunch.'''
 
     if request.method == 'GET':
         name = request.args.get('name', '')
         bunch_name = request.args.get('bunch_name')
         return render_template('bunch_delete.html', bunch_name=name)
-
-    # maybe turn this into a function? (most of it will be repeated for bunch()
     else:
         if request.form['submit'] == 'cancel':
             flash('Deletion canceled.')
@@ -354,7 +355,7 @@ def bunch_delete():
 @login_required
 #@cache.cached(timeout=3600)
 def authors():
-    ''' Display all authors for user's documents. '''
+    '''Display all authors for user's documents.'''
     authors = common.get_user_authors(current_user)
 
     if not authors:
@@ -385,7 +386,7 @@ def authors():
 @login_required
 #@cache.cached(timeout=3600)
 def docs_by_author(read_status, author_id):
-    ''' Return all documents by particular author. '''
+    '''Return all documents by particular author.'''
 
     docs = common.get_docs(current_user, read_status=read_status, author_id=author_id)
 
@@ -413,7 +414,7 @@ def docs_by_author(read_status, author_id):
 @login_required
 #@cache.cached(timeout=3600)
 def last_month():
-    ''' Return all read items from last month, in chronological order'''
+    '''Return all read items from last month, in chronological order.'''
 
     # set var for returning to proper page after edit or delete native doc
     session['return_to'] = url_for('main.last_month')

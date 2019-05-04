@@ -18,7 +18,7 @@ User fixtures:
     - user2: 4 documents, not logged in
     - user3: 4 documents, hashed pass, not logged in
     - user4: 4 documents, hashed pass, logged in
-    - user5: 5 documents, hashed pass, logged in (added another doc for bunch testing)
+    - user5: 5 documents, with 2 bunches, hashed pass, logged in,
     - user6: no documents, hashed pass, logged in
 '''
 
@@ -133,9 +133,7 @@ def user4(client, four_items):
 def user5(client, five_items):
     '''
     Create a user with hashed password and salt, as in the registration
-    process, with five items, and log them in.
-
-    Set this one up to test a bunch using the "and" selector.
+    process, with five items and two bunches, and log them in.
     '''
 
     myctx = CryptContext(schemes=['pbkdf2_sha256'])
@@ -148,6 +146,63 @@ def user5(client, five_items):
     for item in five_items:
         common.add_item(item, user5)
 
+    # create a bunch for this user, using "or" to combine tags
+    # (four documents meet this criteria, 2 read and 2 to-read)
+    selector = 'or'
+    bunch_name = 'bunch 1'
+    bunch_tags = [1, 3]  # tag4 and tag6
+
+    new_bunch = models.Bunches(user5.id, selector, bunch_name)
+    db.session.add(new_bunch)
+    db.session.commit()
+
+    for tag in bunch_tags:
+        existing_tag = models.Tags.query.filter(models.Tags.id==tag).one()
+        new_bunch.tags.append(existing_tag)    
+
+    # create a second bunch, using "and" to combine tags
+    # (2 documents meet this criteria, 1 read and 1 to-read)
+    selector = 'and'
+    bunch_name = 'bunch 2'
+    bunch_tags = [1, 3]  # tag4 and tag6
+
+    new_bunch = models.Bunches(user5.id, selector, bunch_name)
+    db.session.add(new_bunch)
+    db.session.commit()
+
+    for tag in bunch_tags:
+        existing_tag = models.Tags.query.filter(models.Tags.id==tag).one()
+        new_bunch.tags.append(existing_tag)
+
+    # create a third bunch, using "and" to combine tags
+    # (1 unread document meets this criteria)
+    selector = 'and'
+    bunch_name = 'bunch 3'
+    bunch_tags = [4, 5]  # tag7 and tag7
+
+    new_bunch = models.Bunches(user5.id, selector, bunch_name)
+    db.session.add(new_bunch)
+    db.session.commit()
+
+    for tag in bunch_tags:
+        existing_tag = models.Tags.query.filter(models.Tags.id==tag).one()
+        new_bunch.tags.append(existing_tag)
+
+    # create a fourt bunch, using "and" to combine tags
+    # (1 read document meets this criteria)
+    selector = 'and'
+    bunch_name = 'bunch 4'
+    bunch_tags = [1, 2]  # tag4 and tag5
+
+    new_bunch = models.Bunches(user5.id, selector, bunch_name)
+    db.session.add(new_bunch)
+    db.session.commit()
+
+    for tag in bunch_tags:
+        existing_tag = models.Tags.query.filter(models.Tags.id==tag).one()
+        new_bunch.tags.append(existing_tag)
+
+    # log user in
     client.post('/login', data=dict(
         wyr_username='tester5',
         wyr_password='testing5',
@@ -215,7 +270,7 @@ def four_items():
                     'year': '2019',
                     'notes': 'This is also a note.',
                     'read': '0'})
-    items.append({'title': 'Test',
+    items.append({'title': 'Fourth user doc',
                     'link': '',
                     'tags': [],
                     'authors': [],
@@ -229,7 +284,7 @@ def four_items():
 def five_items():
     '''Only tag 4 overlaps with four_items.'''
     items = []
-    items.append({'title': 'Test',
+    items.append({'title': 'First user doc',
                     'link': 'http://whatyouveread.com/1',
                     'tags': ['tag4', 'tag5'],
                     'authors': [
@@ -240,7 +295,7 @@ def five_items():
                     'year': '2018',
                     'notes': 'This is a note.',
                     'read': '1'})
-    items.append({'title': 'Test',
+    items.append({'title': 'Second user doc',
                     'link': 'http://whatyouveread.com/2',
                     'tags': ['tag6', 'tag7', 'tag8'],
                     'authors': [
@@ -250,7 +305,7 @@ def five_items():
                     'year': '2017',
                     'notes': 'This is also a note.',
                     'read': '0'})
-    items.append({'title': 'Test',
+    items.append({'title': 'Third user doc',
                     'link': 'http://whatyouveread.com/3',
                     'tags': ['tag4', 'tag6'],
                     'authors': [
@@ -260,7 +315,7 @@ def five_items():
                     'year': '2019',
                     'notes': 'This is also a note.',
                     'read': '0'})
-    items.append({'title': 'Test',
+    items.append({'title': 'Fourth user doc',
                     'link': 'http://whatyouveread.com/4',
                     'tags': ['tag4', 'tag6'],
                     'authors': [
@@ -270,7 +325,7 @@ def five_items():
                     'year': '2019',
                     'notes': 'This is also a note.',
                     'read': '1'})
-    items.append({'title': 'Test',
+    items.append({'title': 'Fifth user doc',
                     'link': '',
                     'tags': [],
                     'authors': [],

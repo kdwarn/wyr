@@ -639,27 +639,6 @@ def test_get_docs_by_tag5(client, user4, user5):
     assert len(docs) == 1
 
 
-def test_get_docs_by_bunch1(client, user4):
-
-    # create a bunch for this user
-    selector = 'or'
-    bunch_name = 'two tags'
-    bunch_tags = [1, 3]  # tag0 and tag2
-
-    new_bunch = models.Bunches(user4.id, selector, bunch_name)
-    db.session.add(new_bunch)
-    db.session.commit()
-
-    #get each tag object and append to new_bunch.tags
-    for tag in bunch_tags:
-        existing_tag = models.Tags.query.filter(models.Tags.id==tag).one()
-        new_bunch.tags.append(existing_tag)
-
-    docs = common.get_docs(user4, bunch=bunch_name)
-
-    assert len(docs) == 3
-
-
 def test_get_docs_by_author1(client, user4):
     docs = common.get_docs(user4, author_id=1)
     assert len(docs) == 1
@@ -676,24 +655,17 @@ def test_get_docs_by_author3(client, user4, user5):
     assert not docs
 
 
+
+def test_get_docs_by_bunch1(client, user5):
+
+    docs = common.get_docs(user5, bunch="bunch 1")
+
+    assert len(docs) == 4
+
+
 def test_get_docs_by_bunch2(client, user5):
 
-    # create a bunch for this user
-    selector = 'and'
-    bunch_name = 'two tags with and'
-    bunch_tags = [1, 3]  # tag4 and tag6
-
-    new_bunch = models.Bunches(user5.id, selector, bunch_name)
-    db.session.add(new_bunch)
-    db.session.commit()
-
-    #get each tag object and append to new_bunch.tags
-    for tag in bunch_tags:
-        existing_tag = models.Tags.query.filter(models.Tags.id==tag).one()
-        new_bunch.tags.append(existing_tag)
-
-    docs = common.get_docs(user5, bunch=bunch_name)
-
+    docs = common.get_docs(user5, bunch="bunch 2")
     assert len(docs) == 2
 
 

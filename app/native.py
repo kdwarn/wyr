@@ -238,7 +238,7 @@ def delete():
         if delete == 'Delete':
             try:
                 common.delete_item(id, current_user)
-            except NotUserDocException as e:
+            except ex.NotUserDocException as e:
                 flash(e.message)
                 return redirect(url_for('main.index'))
 
