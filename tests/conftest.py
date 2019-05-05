@@ -10,6 +10,7 @@ class TestConfig():
     SECRET_KEY = 'thisissecret'
     SECURITY_PASSWORD_SALT = 'alsosecret'
     SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 '''
 User fixtures:
