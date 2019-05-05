@@ -42,9 +42,6 @@ def nl2br(eval_ctx, value):
 db = SQLAlchemy()
 login = LoginManager()
 login.login_view = 'main.login'
-# md = Misaka(autolink='true', underline='true', strikethrough='true', html='false',
-#             no_html='true', highlight='true', hardwrap='true', wrap='true',
-#             fenced_code='true')
 md = Misaka(autolink=True, underline=True, strikethrough=True, no_html=True, 
              highlight=True, hard_wrap=True, fenced_code=True)
 
