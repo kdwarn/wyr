@@ -402,3 +402,16 @@ def test_bunches8(client, user5):
         bunch_tags=[2, 3]
     ), follow_redirects=True)
     assert (b'Sorry, no items matched your tag choices.' in response.data)
+
+
+# bunches - save bunch
+
+def test_bunch_save1(client, user5):
+
+    response = client.post('/bunch/save', data=dict(
+        selector='and',
+        bunch_name='bunch5',
+        bunch_tag_ids='3,5'
+    ), follow_redirects=True)
+
+    assert b'New bunch bunch5 saved' in response.data

@@ -141,7 +141,7 @@ def docs_by_tag(read_status, tag):
     # set var for returning to proper page
     session['return_to'] = url_for('main.docs_by_tag', tag=tag, read_status=read_status)
 
-    return render_template('read.html', docs=docs, tagpage=tag, read_status=read_status) #tagpage is used for header
+    return render_template('read.html', docs=docs, tagpage=tag, read_status=read_status)  #tagpage is used for header
 
 
 @bp.route('/<read_status>/bunch/<name>') #, defaults={'read_status':'all'})
@@ -220,9 +220,6 @@ def bunches():
         if not docs:
             flash("Sorry, no items matched your tag choices.")
             return redirect(url_for('main.bunches'))
-        
-        # store tag ids in session var to use in save_bunch (list var won't travel through form)
-        session['bunch_tags'] = bunch_tags
 
         # get tag names and put in list
         bunch_tag_names = []
@@ -231,9 +228,13 @@ def bunches():
             tag = Tags.query.filter(Tags.id==tag).one()
             bunch_tag_names.append(tag.name)
 
-        #return docs as well as list of tags and how they were chosen
+        # convert bunch_tags into string for hidden input in form
+        bunch_tag_ids = ','.join(bunch_tags)
+
+        # return docs as well as list of tags and how they were chosen
         return render_template('read.html', docs=docs,
                                 bunch_tag_names=bunch_tag_names,
+                                bunch_tag_ids=bunch_tag_ids,
                                 selector=selector)
 
 
@@ -244,13 +245,14 @@ def bunch_save():
 
     selector = request.form['selector']
     bunch_name = request.form['bunch_name']
+    bunch_tag_ids = request.form['bunch_tag_ids']
 
     new_bunch = Bunches(current_user.id, selector, bunch_name)
     db.session.add(new_bunch)
     db.session.commit()
 
-    #get each tag object and append to new_bunch.tags
-    for tag in session['bunch_tags']:
+    # get each tag object and append to new_bunch.tags
+    for tag in bunch_tag_ids.split(','):
         existing_tag = Tags.query.filter(Tags.id==tag).one()
         new_bunch.tags.append(existing_tag)
 
@@ -281,13 +283,13 @@ def bunch_edit():
         old_bunch_name = request.form['old_bunch_name']
         new_bunch_name = request.form['new_bunch_name']
         selector = request.form['selector']
-        bunch_tags = request.form.getlist('bunch_tags') #ids
+        bunch_tags = request.form.getlist('bunch_tags')  # ids
 
         if not bunch_tags:
             flash("You didn't choose any tags.")
             return redirect(url_for('main.bunches'))
 
-        #try/except here
+        # try/except here
         try:
             bunch = Bunches.query.filter(Bunches.user_id==current_user.id,
                 Bunches.name==old_bunch_name).one()
@@ -295,7 +297,7 @@ def bunch_edit():
             flash('Sorry, there was an error fetching the bunch.')
             return redirect(url_for('main.bunches'))
 
-        #check that name isn't duplicate
+        # check that name isn't duplicate
         if old_bunch_name != new_bunch_name:
             if Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==new_bunch_name).first() != None:
                 flash("You already have a bunch named " + new_bunch_name + ".")
@@ -304,7 +306,7 @@ def bunch_edit():
         bunch.selector = selector
         bunch.name = new_bunch_name
 
-        #get tag ids of tags currently in bunch
+        # get tag ids of tags currently in bunch
         old_bunch_tags = [tag.id for tag in bunch.tags]
 
         # add new tags
@@ -341,7 +343,7 @@ def bunch_delete():
 
         bunch_name = request.form['bunch_name']
 
-        #should do a try/except here
+        # should do a try/except here
         bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==bunch_name).one()
 
         db.session.delete(bunch)
@@ -1218,7 +1220,8 @@ def charge():
 
     donor, subscription = get_stripe_info()
 
-    return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
+    return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, 
+                           subscription=subscription)
 
 
 @bp.route('/donate_paypal')

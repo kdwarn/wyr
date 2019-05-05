@@ -18,7 +18,7 @@ User fixtures:
     - user2: 4 documents, not logged in
     - user3: 4 documents, hashed pass, not logged in
     - user4: 4 documents, hashed pass, logged in
-    - user5: 5 documents, with 2 bunches, hashed pass, logged in,
+    - user5: 5 documents, with 4 bunches, hashed pass, logged in,
     - user6: no documents, hashed pass, logged in
 '''
 
