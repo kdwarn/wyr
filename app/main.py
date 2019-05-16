@@ -270,7 +270,8 @@ def bunch_edit():
     # show page to edit bunch name, selector, and tags
     if request.method == 'GET':
         bunch_name = request.args.get('name', '')
-        bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==bunch_name).one()
+        bunch = Bunches.query.filter(Bunches.user_id==current_user.id, 
+                                     Bunches.name==bunch_name).one()
         tags = common.get_user_tags(current_user)
         return render_template('bunch_edit.html', bunch=bunch, tags=tags)
 
