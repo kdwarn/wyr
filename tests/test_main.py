@@ -134,6 +134,12 @@ def test_tags3(client, user6):
     assert b'You do not have any tags yet.' in response.data
 
 
+def test_tags4(client, user5):
+    '''tags() includes group for tags starting with a number.'''
+    response = client.get('/tags', follow_redirects=True)
+    assert b'#' in response.data
+
+
 def test_docs_by_tag1(client, user4):
     '''docs_by_tag() displays appropriate docs if user logged in.'''
     response = client.get('/all/tag/tag0', follow_redirects=True)

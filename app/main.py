@@ -267,14 +267,14 @@ def bunch_save():
 def bunch_edit():
     '''Edit a bunch.'''
 
-    #show page to edit bunch name, selector, and tags
+    # show page to edit bunch name, selector, and tags
     if request.method == 'GET':
         bunch_name = request.args.get('name', '')
         bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==bunch_name).one()
         tags = common.get_user_tags(current_user)
         return render_template('bunch_edit.html', bunch=bunch, tags=tags)
 
-    #process
+    # process
     else:
         if request.form['submit'] == 'cancel':
             flash('Edit canceled.')
@@ -289,7 +289,6 @@ def bunch_edit():
             flash("You didn't choose any tags.")
             return redirect(url_for('main.bunches'))
 
-        # try/except here
         try:
             bunch = Bunches.query.filter(Bunches.user_id==current_user.id,
                 Bunches.name==old_bunch_name).one()
@@ -300,7 +299,7 @@ def bunch_edit():
         # check that name isn't duplicate
         if old_bunch_name != new_bunch_name:
             if Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==new_bunch_name).first() != None:
-                flash("You already have a bunch named " + new_bunch_name + ".")
+                flash(f'You already have a bunch named {new_bunch_name}.')
                 return redirect(url_for('main.bunch_edit', name=bunch.name))
 
         bunch.selector = selector
@@ -407,7 +406,7 @@ def docs_by_author(read_status, author_id):
 
         author = Authors.query.filter_by(id=author_id).one()
 
-        #authorpage, first_name, last_name used for header
+        # authorpage, first_name, last_name used for header
         return render_template('read.html', docs=docs, authorpage=1, \
             author=author, first_name=author.first_name, last_name=author.last_name, read_status=read_status)
 
@@ -829,7 +828,8 @@ def reset_password():
     # changing their email address
     if request.method == 'GET':
         if request.args.get('code'):
-            return render_template('reset_password.html', hash=request.args.get('code'), untimed='true')
+            return render_template('reset_password.html', hash=request.args.get('code'), 
+                    untimed='true')
         return redirect(url_for('main.index'))
 
     # process the password reset request
@@ -1115,7 +1115,8 @@ def donate():
     ''' get user stripe info and send to donate page'''
     donor, subscription = get_stripe_info()
 
-    return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
+    return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, 
+            subscription=subscription)
 
 
 @bp.route('/cancel_donation', methods=['GET', 'POST'])
@@ -1145,7 +1146,8 @@ def cancel_donation():
         #get user stripe info
         donor, subscription = get_stripe_info()
 
-        return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, subscription=subscription)
+        return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, 
+                subscription=subscription)
 
 
 @bp.route('/charge', methods=['GET', 'POST'])

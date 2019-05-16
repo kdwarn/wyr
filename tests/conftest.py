@@ -318,7 +318,7 @@ def five_items():
                     'read': '0'})
     items.append({'title': 'Fourth user doc',
                     'link': 'http://whatyouveread.com/4',
-                    'tags': ['tag4', 'tag6'],
+                    'tags': ['tag4', 'tag6', '7even'],
                     'authors': [
                                 {'last_name': 'Smith', 'first_name': 'Jane'},
                                 {'last_name': 'Johnson', 'first_name': 'Jane'}
