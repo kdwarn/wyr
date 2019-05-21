@@ -8,13 +8,13 @@ from app import db, login
 # http://flask-sqlalchemy.pocoo.org/2.1/models/
 # and http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
 document_tags = db.Table('document_tags',
-                         db.Column('document_id', 
-                                   db.Integer, 
-                                   db.ForeignKey('documents.id', ondelete='CASCADE'), 
+                         db.Column('document_id',
+                                   db.Integer,
+                                   db.ForeignKey('documents.id', ondelete='CASCADE'),
                                    primary_key=True),
-                         db.Column('tag_id', 
-                                   db.Integer, 
-                                   db.ForeignKey('tags.id', ondelete='CASCADE'), 
+                         db.Column('tag_id',
+                                   db.Integer,
+                                   db.ForeignKey('tags.id', ondelete='CASCADE'),
                                    primary_key=True)
                         )
 
@@ -24,13 +24,13 @@ document_authors = db.Table('document_authors',
                         db.Column('document_id', db.ForeignKey('documents.id'), primary_key=True))
 
 bunch_tags = db.Table('bunch_tags',
-                      db.Column('bunch_id', 
-                                db.Integer, 
-                                db.ForeignKey('bunches.id'), 
+                      db.Column('bunch_id',
+                                db.Integer,
+                                db.ForeignKey('bunches.id'),
                                 primary_key=True),
-                      db.Column('tag_id', 
-                                db.Integer, 
-                                db.ForeignKey('tags.id'), 
+                      db.Column('tag_id',
+                                db.Integer,
+                                db.ForeignKey('tags.id'),
                                 primary_key=True)
                      )
 
@@ -53,8 +53,8 @@ class User(db.Model, UserMixin):
     markdown = db.Column(db.Integer)
 
     # relationships
-    documents = db.relationship('Documents', 
-                                lazy='dynamic', 
+    documents = db.relationship('Documents',
+                                lazy='dynamic',
                                 backref=db.backref('user', cascade='all, delete')
                                )
 
@@ -80,7 +80,7 @@ def user_loader(user_id):
 # SOURCES AND SOURCE TOKENS #
 #############################
 
-class Sources(db.Model, UserMixin):
+class Sources(db.Model):
     '''
     Source of documents. Can be:
         1 - Mendeley
@@ -91,9 +91,9 @@ class Sources(db.Model, UserMixin):
     name = db.Column(db.String(25), unique=True)
 
 
-class Tokens(db.Model, UserMixin):
+class Tokens(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, 
+    user_id = db.Column(db.Integer,
                         db.ForeignKey('user.id', onupdate='CASCADE', ondelete='CASCADE')
                         )
     source_id = db.Column(db.Integer, db.ForeignKey('sources.id'))
@@ -106,9 +106,9 @@ class Tokens(db.Model, UserMixin):
 # DOCUMENT DATA #
 #################
 
-class Documents(db.Model, UserMixin):
+class Documents(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, 
+    user_id = db.Column(db.Integer,
                         db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE")
                        )  # can/should the onupdate can be deleted?
     source_id = db.Column(db.Integer, db.ForeignKey('sources.id'))
@@ -123,19 +123,19 @@ class Documents(db.Model, UserMixin):
     native_doc_id = db.Column(db.String(50))  # needed for Mendeley and Goodreads
 
     # relationships
-    tags = db.relationship('Tags', 
-                           secondary=document_tags, 
-                           lazy='joined', 
+    tags = db.relationship('Tags',
+                           secondary=document_tags,
+                           lazy='joined',
                            backref=db.backref('documents', cascade='all, delete')
                           )
-    authors = db.relationship('Authors', 
-                              secondary=document_authors, 
-                              lazy='joined', 
+    authors = db.relationship('Authors',
+                              secondary=document_authors,
+                              lazy='joined',
                               backref=db.backref('documents', cascade='all, delete')
                              )
-    file_links = db.relationship('FileLinks', 
-                                 lazy="joined", 
-                                 backref="documents", 
+    file_links = db.relationship('FileLinks',
+                                 lazy="joined",
+                                 backref="documents",
                                  cascade="all, delete, delete-orphan"
                                 )
 
@@ -150,7 +150,7 @@ class Documents(db.Model, UserMixin):
         self.note = note
 
 
-class Tags(db.Model, UserMixin):
+class Tags(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
 
@@ -158,7 +158,7 @@ class Tags(db.Model, UserMixin):
         self.name = name
 
 
-class Authors(db.Model, UserMixin):
+class Authors(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(100))
     last_name = db.Column(db.String(100))
@@ -168,9 +168,9 @@ class Authors(db.Model, UserMixin):
         self.last_name = last_name
 
 
-class FileLinks(db.Model, UserMixin):
+class FileLinks(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    document_id = db.Column(db.Integer, 
+    document_id = db.Column(db.Integer,
                             db.ForeignKey('documents.id', onupdate="CASCADE", ondelete="CASCADE")
                            )
     file_link = db.Column(db.String(500))
@@ -181,18 +181,18 @@ class FileLinks(db.Model, UserMixin):
         self.file_link = file_link
 
 
-class Bunches(db.Model, UserMixin):
+class Bunches(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, 
+    user_id = db.Column(db.Integer,
                         db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE")
                        )
     selector = db.Column(db.String(4))  # "and" or "or"
     name = db.Column(db.String(100))
 
     # relationships
-    tags = db.relationship('Tags', 
-                           secondary=bunch_tags, 
-                           lazy='joined', 
+    tags = db.relationship('Tags',
+                           secondary=bunch_tags,
+                           lazy='joined',
                            backref=db.backref('bunches', cascade='all, delete')
                           )
 
