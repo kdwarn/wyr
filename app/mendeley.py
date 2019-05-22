@@ -92,7 +92,7 @@ def refresh_token():
     returns 0auth object, which can then be used to query docs
     '''
 
-    # get existing tokens from Tokens table
+    # get existing tokens from Source Tokens table
     tokens = SourceToken.query.filter_by(user_id=current_user.id, source_id=1).first()
 
     # put token info into dict
