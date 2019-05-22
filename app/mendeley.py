@@ -8,7 +8,7 @@ from requests_oauthlib import OAuth2Session
 from werkzeug.routing import RequestRedirect
 
 from app import db
-from .models import Documents, Tokens, FileLinks
+from .models import Documents, SourceToken, FileLinks
 from . import common
 
 
@@ -66,7 +66,7 @@ def mendeley_authorize():
         return redirect(url_for('main.settings'))
 
     # save token in db
-    db_token = Tokens(user_id=current_user.id,
+    db_token = SourceToken(user_id=current_user.id,
                    source_id=1,
                    access_token=token['access_token'],
                    refresh_token=token['refresh_token'])
@@ -79,7 +79,7 @@ def mendeley_authorize():
     return redirect(url_for('main.verify_authorization', source='Mendeley'))
 
 def update_token(new_token):
-    token = Tokens.query.filter_by(user_id=current_user.id, source_id=1).first()
+    token = SourceToken.query.filter_by(user_id=current_user.id, source_id=1).first()
     token.access_token = new_token['access_token']
     token.refresh_token = new_token['refresh_token']
     db.session.commit()
@@ -93,7 +93,7 @@ def refresh_token():
     '''
 
     # get existing tokens from Tokens table
-    tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=1).first()
+    tokens = SourceToken.query.filter_by(user_id=current_user.id, source_id=1).first()
 
     # put token info into dict
     token = {'access_token':tokens.access_token,

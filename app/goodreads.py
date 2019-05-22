@@ -9,8 +9,9 @@ from requests_oauthlib import OAuth1Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
-from .models import Documents, Tokens
+from .models import Documents, SourceToken
 from . import common
+from . import exceptions as ex
 
 # goodreads uses Oauth1, returns xml
 # https://www.goodreads.com/api
@@ -81,10 +82,10 @@ def goodreads_authorize():
         current_user.goodreads = 1
 
         # save token in Tokens table
-        tokens = Tokens(user_id=current_user.id,
-                        source_id=2,
-                        access_token=access_token,
-                        access_token_secret=access_token_secret)
+        tokens = SourceToken(user_id=current_user.id,
+                             source_id=2,
+                             access_token=access_token,
+                             access_token_secret=access_token_secret)
 
         db.session.add(tokens)
         db.session.commit()
@@ -103,7 +104,7 @@ def import_goodreads(update_type):
     goodreads_config = current_app.config['GOODREADS_CONFIG']
 
     # get tokens from Tokens table
-    tokens = Tokens.query.filter_by(user_id=current_user.id, source_id=2).first()
+    tokens = SourceToken.query.filter_by(user_id=current_user.id, source_id=2).first()
 
     # get Oauth object
     auth_object = OAuth1Session(goodreads_config['client_id'],

@@ -8,7 +8,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
-from .models import Tags, Authors, Documents, Bunches, Tokens, document_tags, document_authors
+from .models import Tags, Authors, Documents, Bunches, SourceToken, document_tags, document_authors
 from . import exceptions as ex
 
 
@@ -369,7 +369,7 @@ def remove_to_read(source):
 
 def force_deauthorize(source):
     '''
-    Manually deauthorize - or force deauthorization if tokens are corrupted - and
+    Manually deauthorize - or force deauthorization if source tokens are corrupted - and
     delete all documents associated with that source.
     '''
 
@@ -380,8 +380,8 @@ def force_deauthorize(source):
     if source == 'Mendeley':
         Documents.query.filter_by(user_id=current_user.id, source_id=1).delete()
 
-        # delete tokens
-        Tokens.query.filter_by(user_id=current_user.id, source_id=1).delete()
+        # delete source tokens
+        SourceToken.query.filter_by(user_id=current_user.id, source_id=1).delete()
 
         # unset flags
         current_user.mendeley = 0
@@ -390,8 +390,8 @@ def force_deauthorize(source):
     if source == 'Goodreads':
         Documents.query.filter_by(user_id=current_user.id, source_id=2).delete()
 
-        # delete tokens
-        Tokens.query.filter_by(user_id=current_user.id, source_id=2).delete()
+        # delete source tokens
+        SourceToken.query.filter_by(user_id=current_user.id, source_id=2).delete()
 
         # unset flags
         current_user.goodreads = 0

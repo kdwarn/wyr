@@ -1,4 +1,9 @@
+import uuid
+
+from authlib.flask.oauth2.sqla import OAuth2ClientMixin
+from authlib.flask.oauth2.sqla import OAuth2TokenMixin
 from flask_login import UserMixin
+
 
 from app import db, login
 
@@ -68,6 +73,12 @@ class User(db.Model, UserMixin):
         self.auto_close = 0
         self.markdown = 1
 
+'''   
+    # for authlib Oauth 2 provider
+    def get_user_id(self):
+        return self.id
+'''
+
 @login.user_loader
 def user_loader(user_id):
     user = User.query.filter_by(id=user_id)
@@ -91,7 +102,7 @@ class Sources(db.Model):
     name = db.Column(db.String(25), unique=True)
 
 
-class Tokens(db.Model):
+class SourceToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer,
                         db.ForeignKey('user.id', onupdate='CASCADE', ondelete='CASCADE')
@@ -200,3 +211,23 @@ class Bunches(db.Model):
         self.user_id = user_id
         self.selector = selector
         self.name = name
+
+#######
+# API #
+#######
+'''
+# using Authlib's Flask Oauth 2.0 Server
+# https://docs.authlib.org/en/latest/flask/2/index.html
+
+class Client(db.Model, OAuth2ClientMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
+    user = db.relationship('User')
+
+
+
+class APIToken(db.Model, OAuth2TokenMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
+    user = db.relationship('User')
+'''
