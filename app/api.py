@@ -1,4 +1,10 @@
 '''
+TODO: 
+    - combine add() and edit() (and delete(), not yet implmemented) into one endpoint
+    - create login page for clients, ability to edit info
+'''
+
+'''
     - user proper error response codes
         https://httpstatuses.com/
     - various things for app developers:
@@ -19,9 +25,6 @@
             93: Expired token
             94: Decode json/manipulated token error
             99: Other authorization/json issue
-
-
-TODO: combine add() and edit() (and delete(), not yet implmemented) into one endpoint
 
 '''
 import datetime
@@ -94,7 +97,7 @@ def token_required(f):
     return wrapper
 
 
-@api_bp.route('register_client', methods=['GET', 'POST'])
+@api_bp.route('/register_client', methods=['GET', 'POST'])
 def register_client():
     '''
     TODO: check that wyr.py is properly including this in csrf protection (added exclusion for 
@@ -104,30 +107,35 @@ def register_client():
         return render_template('register_client.html')
     
     submit = request.form['submit']
-
+    
     if submit == 'register':
-        id = uuid.uuid4().hex
-        name = request.form['name']
-        description = request.form['description']
-        callback_url = request.form['callback_url']
-        home_url = request.form['home_url']
         
-        if not all([id, name, description, callback_url]):
+        name = request.form.get('name')
+        description = request.form.get('description')
+        callback_url = request.form.get('callback_url')
+        home_url = request.form.get('home_url')
+        
+        if not all([name, description, callback_url]):
             flash("Please complete all required fields.")
             return render_template('register_client.html')
 
-        # check that id is unique
+        # create id, check that it is unique
+        id = uuid.uuid4().hex
         clients = Client.query.all()
         if clients:
-            client_ids = [client.id for client in clients]
+            client_ids = [client.client_id for client in clients]
             while id in client_ids:
                 id = uuid.uuid4().hex
 
-        client = Client(id, name, 'public', description, callback_url, home_url)
+        client = Client(id, 'public', name, description, callback_url, home_url=home_url)
+        db.session.add(client)
         db.session.commit()
+        flash("Client registered.")
+        
     else:
         flash("Client registration canceled.")
-        return render_template('register_client.html')
+    
+    return render_template('register_client.html')
 
 
 @api_bp.route('/authorize', methods=['GET', 'POST'])
@@ -151,8 +159,6 @@ def authorize():
     return redirect(url_for('main.index'))
 
 
-
-
 @api_bp.route('/token', methods=['POST'])
 # @login_required
 def token():
@@ -161,8 +167,6 @@ def token():
     grant_type = ''
     code = ''
     redirect_uri = ''
-
-    
 
     expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
     token = jwt.encode({'username': current_user.username, 'exp': expiration}, current_user.salt)

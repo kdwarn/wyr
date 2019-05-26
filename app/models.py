@@ -43,7 +43,7 @@ bunch_tags = db.Table('bunch_tags',
                                 primary_key=True)
                      )
 
-user_clients = db.table('user_clients',
+user_clients = db.Table('user_clients',
                         db.Column('user_id',
                                   db.Integer,
                                   db.ForeignKey('user.id', ondelete='CASCADE'),
@@ -79,7 +79,7 @@ class User(db.Model, UserMixin):
                                )
     clients = db.relationship('Client',
                               secondary=user_clients,
-                              lazy='joined',
+                              lazy='dynamic',
                               backref=db.backref('user', cascade='all, delete')
                              )
 
@@ -231,7 +231,7 @@ class Bunches(db.Model):
 # API #
 #######
 
-class Client():
+class Client(db.Model):
     client_id = db.Column(db.String(32), unique=True, primary_key=True)  
     client_type = db.Column(db.String(12))  # only allowing 'public' for now
     name = db.Column(db.String(50))    
