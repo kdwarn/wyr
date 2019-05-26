@@ -27,9 +27,9 @@ def https_redirect():
 @wyr_app.before_request
 def csrf_protect():
 
-    # don't add csrf protection for the API - authorizaton handled by JWT token,
-    # and csrf token not required
-    if request.blueprint == 'api':
+    # don't add csrf protection for API calls, except authorizing and registering a client
+    if (request.blueprint == 'api' and 
+            request.endpoint not in ['api.authorize', 'api.register_client']): 
         return
 
     if request.method == "POST":

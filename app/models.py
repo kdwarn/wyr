@@ -1,9 +1,13 @@
+'''
+TODO: 
+    - create client and user_clients table in db
+    - consider create a salt for each client/user combo
+
+'''
+
 import uuid
 
-from authlib.flask.oauth2.sqla import OAuth2ClientMixin
-from authlib.flask.oauth2.sqla import OAuth2TokenMixin
 from flask_login import UserMixin
-
 
 from app import db, login
 
@@ -39,6 +43,17 @@ bunch_tags = db.Table('bunch_tags',
                                 primary_key=True)
                      )
 
+user_clients = db.table('user_clients',
+                        db.Column('user_id',
+                                  db.Integer,
+                                  db.ForeignKey('user.id', ondelete='CASCADE'),
+                                  primary_key=True),
+                        db.Column('client_id',
+                                  db.Integer,
+                                  db.ForeignKey('client.client_id', ondelete='CASCADE'),
+                                  primary_key=True)
+                        )
+                                
 # main user table
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -62,6 +77,11 @@ class User(db.Model, UserMixin):
                                 lazy='dynamic',
                                 backref=db.backref('user', cascade='all, delete')
                                )
+    clients = db.relationship('Client',
+                              secondary=user_clients,
+                              lazy='joined',
+                              backref=db.backref('user', cascade='all, delete')
+                             )
 
     def __init__(self, username, password, salt, email):
         self.username = username
@@ -73,11 +93,6 @@ class User(db.Model, UserMixin):
         self.auto_close = 0
         self.markdown = 1
 
-'''   
-    # for authlib Oauth 2 provider
-    def get_user_id(self):
-        return self.id
-'''
 
 @login.user_loader
 def user_loader(user_id):
@@ -215,19 +230,19 @@ class Bunches(db.Model):
 #######
 # API #
 #######
-'''
-# using Authlib's Flask Oauth 2.0 Server
-# https://docs.authlib.org/en/latest/flask/2/index.html
 
-class Client(db.Model, OAuth2ClientMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
-    user = db.relationship('User')
+class Client():
+    client_id = db.Column(db.String(32), unique=True, primary_key=True)  
+    client_type = db.Column(db.String(12))  # only allowing 'public' for now
+    name = db.Column(db.String(50))    
+    description = db.Column(db.String(150))
+    callback_url = db.Column(db.String(100))
+    home_url = db.Column(db.String(100))
 
-
-
-class APIToken(db.Model, OAuth2TokenMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
-    user = db.relationship('User')
-'''
+    def __init__(self, client_id, client_type, name, description, callback_url, home_url=''):
+        self.client_id = client_id
+        self.client_type = client_type
+        self.name = name
+        self.description = description
+        self.callback_url = callback_url
+        self.home_url = home_url

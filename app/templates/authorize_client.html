@@ -1,0 +1,14 @@
+{% extends 'header.html' %}
+{% block title %} - Authorize Client {% endblock %}
+{% block content %}
+<div id="main">
+    <div class="block-center">
+        <h2>Authorize Client</h2>
+        <form name="login" action="{{ url_for('api.authorize') }}" method="post">
+            <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+            <button type="submit" name="submit" value="Submit">Submit</button>&nbsp;
+            <button type="submit" name="submit" value="Cancel">Cancel</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

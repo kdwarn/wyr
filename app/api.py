@@ -21,18 +21,22 @@
             99: Other authorization/json issue
 
 
+TODO: combine add() and edit() (and delete(), not yet implmemented) into one endpoint
+
 '''
 import datetime
 from functools import wraps
+import uuid
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
 import jwt
 from sqlalchemy.orm.exc import NoResultFound
 
+from app import db
 from . import common
 from . import exceptions as ex
-from .models import Documents, User
+from .models import Documents, User, Client
 
 
 api_bp = Blueprint('api', __name__)  # url prefix of /api set in init
@@ -90,10 +94,76 @@ def token_required(f):
     return wrapper
 
 
-@api_bp.route('/get_token', methods=['GET'])
+@api_bp.route('register_client', methods=['GET', 'POST'])
+def register_client():
+    '''
+    TODO: check that wyr.py is properly including this in csrf protection (added exclusion for 
+        this and api.authorize)
+    '''
+    if request.method == 'GET':
+        return render_template('register_client.html')
+    
+    submit = request.form['submit']
+
+    if submit == 'register':
+        id = uuid.uuid4().hex
+        name = request.form['name']
+        description = request.form['description']
+        callback_url = request.form['callback_url']
+        home_url = request.form['home_url']
+        
+        if not all([id, name, description, callback_url]):
+            flash("Please complete all required fields.")
+            return render_template('register_client.html')
+
+        # check that id is unique
+        clients = Client.query.all()
+        if clients:
+            client_ids = [client.id for client in clients]
+            while id in client_ids:
+                id = uuid.uuid4().hex
+
+        client = Client(id, name, 'public', description, callback_url, home_url)
+        db.session.commit()
+    else:
+        flash("Client registration canceled.")
+        return render_template('register_client.html')
+
+
+@api_bp.route('/authorize', methods=['GET', 'POST'])
 @login_required
-def get_token():
+def authorize():
+    '''
+    Allow a user to authorize a client.
+    TODO: check that wyr.py is properly including this in csrf protection (added exclusion for 
+        this and api.authorize)
+    '''
+
+    if request.method == 'GET':
+        return render_template('authorize_client.html')
+    
+    submit = request.form['submit']
+
+    if submit == 'Yes':
+        pass  # add record in user_clients (table)
+
+    flash("Authorization not granted to Client.")
+    return redirect(url_for('main.index'))
+
+
+
+
+@api_bp.route('/token', methods=['POST'])
+# @login_required
+def token():
     '''Authenticates user and provides authorization token.'''
+    client_id = ''
+    grant_type = ''
+    code = ''
+    redirect_uri = ''
+
+    
+
     expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
     token = jwt.encode({'username': current_user.username, 'exp': expiration}, current_user.salt)
     return jsonify({'token': token.decode('UTF-8')})
@@ -195,44 +265,5 @@ def edit(username, id):
     else:
         return jsonify({'message': 'Success!'}), 200
 
-
-
-# @api_blueprint.route('/api/document/<id>', methods=['DELETE'])
-# @token_required
-# def delete():
-#     if request.method == 'GET':
-#         # check that doc is one of current_user's
-#         id = request.args.get('id', '')
-#         doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).first()
-
-#         if doc:
-#             read_status = 'to-read' if doc.read == 0 else 'read'
-
-#             return render_template('delete.html', doc=doc, read_status=read_status)
-#         else:
-#             return redirect(url_for('index'))
-#     elif request.method == 'POST':
-#         delete = request.form['delete']
-#         id = request.form['id']
-#         if delete == 'Cancel':
-#             flash("Item not deleted.")
-#             return return_to_previous()
-
-#         if delete == 'Delete':
-#             # delete doc
-#             doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).one()
-
-#             # delete docs tags
-#             for tag in doc.tags:
-#                 doc.tags.remove(tag)
-
-#             # delete docs authors
-#             for author in doc.authors:
-#                 doc.authors.remove(author)
-
-#             # delete it
-#             doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).delete()
-
-#             db.session.commit()
 
 

@@ -1,0 +1,29 @@
+{% extends 'header.html' %}
+{% block title %} - Register Client {% endblock %}
+{% block content %}
+<div id="main">
+    <div class="block-center">
+        <h2>Register Client</h2>
+        <p>Please provide the information requested about your client below. A client_id and 
+            client_secret will be provided upon registration.
+        </p>
+        <form name="login" action="{{ url_for('api.register_client') }}" method="post">
+            <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+            <label class="sr-only" for="name"></label>
+            <input class="login_form" type="text" size="50" id="name" name="name"
+                placeholder="Name"><br>
+            <label class="sr-only" for="description"></label>
+            <input class="login_form" type="text" size="150" id="description" name="description"
+                placeholder="Description of your client"><br>
+            <label class="sr-only" for="callback_url"></label>
+            <input class="login_form" type="text" size="100" id="callback_url" name="callback_url"
+                placeholder="Callback URL"><br>
+            <label class="sr-only" for="home_url"></label>
+            <input class="login_form" type="text" size="40" id="home_url" name="home_url"
+                placeholder="Homepage URL (if applicable)"><br>
+            <button type="submit" name="submit" value="register">Register</button>&nbsp;
+            <button type="submit" name="submit" value="cancel">Cancel</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,3 +1,5 @@
+# TODO: create function to revoke authorized clients
+
 from collections import OrderedDict
 import datetime
 import secrets
