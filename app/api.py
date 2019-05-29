@@ -1,7 +1,13 @@
 '''
 TODO: 
+    - NEXT: start working on authorizing an app - I think I have client set up at least minimally
+      done.
+    - send email notification to WYR that client registered
+    - check that wyr.py is properly including register_client() and authorize() in CSRF
+      protection (excluded these endpoints in the skipping of api blueprint)
     - combine add() and edit() (and delete(), not yet implmemented) into one endpoint
-    - create login page for clients, ability to edit info
+    - allow developers to edit details of app
+    - move api/clients to dev/clients?
 '''
 
 '''
@@ -97,14 +103,16 @@ def token_required(f):
     return wrapper
 
 
-@api_bp.route('/register_client', methods=['GET', 'POST'])
-def register_client():
+@api_bp.route('/clients', methods=['GET', 'POST'])
+@login_required
+def clients():
+    '''View developer's clients and register a client.
+    Only registered and logged-in users can create clients.
     '''
-    TODO: check that wyr.py is properly including this in csrf protection (added exclusion for 
-        this and api.authorize)
-    '''
+    
     if request.method == 'GET':
-        return render_template('register_client.html')
+        clients = Client.query.filter_by(user_id=current_user.id).all()
+        return render_template('clients.html', clients=clients)
     
     submit = request.form['submit']
     
@@ -117,7 +125,11 @@ def register_client():
         
         if not all([name, description, callback_url]):
             flash("Please complete all required fields.")
-            return render_template('register_client.html')
+            return redirect(url_for('api.clients'))
+
+        if not callback_url.startswith('https'):
+            flash("The callback URL must use HTTPS.")
+            return redirect(url_for('api.clients'))
 
         # create id, check that it is unique
         id = uuid.uuid4().hex
@@ -127,7 +139,7 @@ def register_client():
             while id in client_ids:
                 id = uuid.uuid4().hex
 
-        client = Client(id, 'public', name, description, callback_url, home_url=home_url)
+        client = Client(id, current_user.id, name, description, callback_url, home_url=home_url)
         db.session.add(client)
         db.session.commit()
         flash("Client registered.")
@@ -135,17 +147,13 @@ def register_client():
     else:
         flash("Client registration canceled.")
     
-    return render_template('register_client.html')
+    return render_template('clients.html')
 
 
 @api_bp.route('/authorize', methods=['GET', 'POST'])
 @login_required
 def authorize():
-    '''
-    Allow a user to authorize a client.
-    TODO: check that wyr.py is properly including this in csrf protection (added exclusion for 
-        this and api.authorize)
-    '''
+    '''Allow a user to authorize a client.'''
 
     if request.method == 'GET':
         return render_template('authorize_client.html')

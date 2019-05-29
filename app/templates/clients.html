@@ -1,13 +1,25 @@
 {% extends 'header.html' %}
-{% block title %} - Register Client {% endblock %}
+{% block title %} - Clients {% endblock %}
 {% block content %}
 <div id="main">
     <div class="block-center">
-        <h2>Register Client</h2>
+        <h2>Clients</h2>
+        {% if clients %}
+            {% for client in clients %}
+            <p>
+            <b>{{client.name}}</b><br>
+            Description: {{client.description}}<br>
+            Callback URL: {{client.callback_url}}
+            </p>
+            {% endfor %}
+        {% else %}
+            <p>You currently have no clients.</p>
+        {% endif %}
+        <h2>Register New Client</h2>
         <p>Please provide the information requested about your client below. A client_id and 
             client_secret will be provided upon registration.
         </p>
-        <form name="login" action="{{ url_for('api.register_client') }}" method="post">
+        <form name="login" action="{{ url_for('api.clients') }}" method="post">
             <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
             <label class="sr-only" for="name"></label>
             <input class="login_form" type="text" size="50" id="name" name="name"

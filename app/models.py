@@ -233,15 +233,19 @@ class Bunches(db.Model):
 
 class Client(db.Model):
     client_id = db.Column(db.String(32), unique=True, primary_key=True)  
+    user_id = db.Column(db.Integer,
+                        db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE")
+                       )  # can/should the onupdate can be deleted?
     client_type = db.Column(db.String(12))  # only allowing 'public' for now
     name = db.Column(db.String(50))    
     description = db.Column(db.String(150))
     callback_url = db.Column(db.String(100))
     home_url = db.Column(db.String(100))
 
-    def __init__(self, client_id, client_type, name, description, callback_url, home_url=''):
+    def __init__(self, client_id, user_id, name, description, callback_url, home_url=''):
         self.client_id = client_id
-        self.client_type = client_type
+        self.user_id = user_id
+        self.client_type = 'public'
         self.name = name
         self.description = description
         self.callback_url = callback_url

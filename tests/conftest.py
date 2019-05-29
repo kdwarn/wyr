@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from passlib.context import CryptContext
 
@@ -236,6 +238,40 @@ def user6(client):
     ), follow_redirects=True)
 
     return user6
+
+
+@pytest.fixture
+def developer1(client):
+    '''
+    Create a user with hashed password and salt, as in the registration
+    process, with one third-party app, and log them in.
+    '''
+
+    myctx = CryptContext(schemes=['pbkdf2_sha256'])
+    hashed_password = myctx.hash('developer123')
+
+    developer1 = models.User('developer1', hashed_password, 'testing123', 'test6@whatyouveread.com')
+    db.session.add(developer1)
+    db.session.commit()
+
+    client_id = uuid.uuid4().hex
+    name = 'Tester App'
+    description = 'Testing app development'
+    callback_url = 'https://example.com'
+
+    app_client = models.Client(client_id, developer1.id, name, description, callback_url)
+    db.session.add(app_client)
+    db.session.commit()
+
+    # log user in
+    client.post('/login', data=dict(
+        wyr_username='developer1',
+        wyr_password='developer123',
+        remember='',
+        next=''
+    ), follow_redirects=True)
+
+    return developer1
 
 
 @pytest.fixture
