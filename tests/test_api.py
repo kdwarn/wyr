@@ -33,6 +33,11 @@ from app import models
 #     assert (json_data['status'] == 'Ok' and
 #             json_data['message'] == 'Success! The token works.')
 
+
+###################
+# CLIENT CREATION #
+###################
+
 valid_client_vars = {'submit': 'register', 
                      'name': 'Tester App', 
                      'description': 'This is a test client app',
@@ -50,7 +55,7 @@ def test_create_client_app1(client, user4):
 
 
 def test_create_client_redirect_log_in_page(client, user3):
-    '''Client registration takes user to main page if user not logged in.'''
+    '''Client registration takes developer to main page if not logged in (as regular WYR user).'''
     response = client.post('/api/clients',
                            data=valid_client_vars,
                            follow_redirects=True)
@@ -79,7 +84,7 @@ def test_create_client_cancelled(client, user4):
                           ('Mobile WYR', 'a simple app', ''),
                           ])
 def test_create_client_error1(client, user4, name, description, callback_url):
-    ''' User returned to registration page if any form data missing.'''
+    ''' Developer returned to registration page if any form data missing.'''
     response = client.post('/api/clients',
                            data=dict(submit='register',
                                      name=name,
@@ -106,5 +111,10 @@ def test_create_client_app_error2(client, user4):
 
 def test_developer_has_client(client, developer1):
     response = client.get('/api/clients')
-    # print(response.data)
     assert b'Tester App' in response.data
+
+
+#############################
+# USER AUTHORIZATION OF APP #
+#############################
+
