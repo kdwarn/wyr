@@ -155,12 +155,18 @@ def authorize():
     '''Allow a user to authorize an app.'''
 
     if request.method == 'GET':
-        return render_template('authorize_app.html')
+        client_id = request.form.get('client_id')
+        try:
+            client = Client.query.filter(client_id=client_id).one()
+        except NoResultFound:
+            flash("No third-party app found matching request.")
+            return redirect(url_for('main.index'))
+        return render_template('authorize_app.html', client_name=client.name)
     
     submit = request.form['submit']
 
     if submit == 'Yes':
-        pass  # add record in user_clients (table)
+        pass  # add record in user_apps (table)
 
     flash("Authorization not granted to App.")
     return redirect(url_for('main.index'))

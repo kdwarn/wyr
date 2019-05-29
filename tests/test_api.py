@@ -1,6 +1,5 @@
 '''
     TODO:
-        - test created clients in settings
         - disable email to WYR about client registration unless explicitly enabled? (to avoid
           emails while testing)
 '''
