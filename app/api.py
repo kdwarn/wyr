@@ -13,7 +13,6 @@ TODO:
 '''
     - user proper error response codes
         https://httpstatuses.com/
-    - various things for app developers:
 
     - list of error codes I'm using:
         1-10: db/account issues
@@ -153,17 +152,17 @@ def clients():
 @api_bp.route('/authorize', methods=['GET', 'POST'])
 @login_required
 def authorize():
-    '''Allow a user to authorize a client.'''
+    '''Allow a user to authorize an app.'''
 
     if request.method == 'GET':
-        return render_template('authorize_client.html')
+        return render_template('authorize_app.html')
     
     submit = request.form['submit']
 
     if submit == 'Yes':
         pass  # add record in user_clients (table)
 
-    flash("Authorization not granted to Client.")
+    flash("Authorization not granted to App.")
     return redirect(url_for('main.index'))
 
 
