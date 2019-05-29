@@ -100,12 +100,12 @@
     <br>
     <div class="box">
         <h2>Thirdy Party Apps</h2>
-        {% if current_user.clients: %}
-            {% for client in current_user.clients %}
-                {{ client.name }}<br>>
+        {% if current_user.apps: %}
+            {% for app in current_user.apps %}
+                {{ app.name }}<br>>
             {% endfor %}
         {% else %}
-            You haven't authorized any third-party clients.
+            You haven't authorized any third-party apps.
         {% endif %}
     </div>
     <br>
