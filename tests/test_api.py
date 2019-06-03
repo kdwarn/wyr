@@ -4,9 +4,14 @@
           emails while testing)
 '''
 
+import datetime
+import time
+
+import jwt
 import pytest
 
 from app import models
+from app import api
 
 
 # def get_user_token(client, user):
@@ -117,3 +122,124 @@ def test_developer_has_client(client, developer1):
 # USER AUTHORIZATION OF APP #
 #############################
 
+
+def test_create_token(user6, developer1):
+    dev_client = models.Client.query.first()
+
+    expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+    code = api.create_token(user6, dev_client.client_id, expiration)
+
+    assert 1 == 2
+
+
+def test_decode_token1(user6, developer1):
+    dev_client = models.Client.query.first()
+
+    code = api.create_token(user6, dev_client.client_id)
+
+    decoded = jwt.decode(code, user6.salt)
+
+    assert decoded['username'] == 'tester6'
+
+
+
+
+def test_decode_token_raises_ex_with_bad_salt(user6, developer1):
+    dev_client = models.Client.query.first()
+    code = api.create_token(user6, dev_client.client_id)
+
+    with pytest.raises(jwt.exceptions.InvalidSignatureError):
+        decoded = jwt.decode(code, 'bad_salt')
+
+
+def test_authorization1(client, user6, developer1):
+    ''' callback_url and code and state passed into redirect'''
+    dev_client = models.Client.query.first()
+    
+    response = client.post('/api/authorize',
+                           data=dict(submit="Yes",
+                                     client_id=dev_client.client_id,
+                                     state='xyz'),
+                           follow_redirects=False)
+    
+    
+    assert (dev_client.callback_url in response.headers['Location'] and
+        'code' in response.headers['Location'] and 
+        'state' in response.headers['Location'])
+
+
+def test_get_token1(client, user6, developer1):
+    ''' Testing getting a token, directly creating authorization code here.'''
+
+    dev_client = models.Client.query.first()
+    
+    code = api.create_token(user6, dev_client.client_id)
+
+    response = client.post('/api/token',
+                           data=dict(client_id=dev_client.client_id, 
+                                     grant_type='authorization_code',
+                                     code=code),
+                           follow_redirects=True)
+                           
+    # access_token = jwt.decode(response.get_json()['access_token'], user6.salt)
+    print(response.status)
+    print(response.status_code)
+    print(response.headers)
+    print(response.mimetype)
+    print(response.get_json())
+    # access_token = jwt.decode(response.get_json()['access_token'], user6.salt)
+    # assert access_token['username'] == user6.username
+    assert 1 == 2
+
+def test_get_token_error1(client, user6, developer1):
+    ''' grant_type has to be authorization_code '''
+
+    dev_client = models.Client.query.first()
+    
+    code = api.create_token(user6, dev_client.client_id)
+
+    response = client.post('/api/token',
+                           data=dict(client_id=dev_client.client_id, 
+                                     grant_type='authorizationcode',
+                                     code=code),
+                           follow_redirects=True)
+
+    assert b'grant_type must be set to' in response.data
+
+
+def test_get_token_error2(client, user6, developer1):
+    ''' Code can't be manipulated.'''
+
+    dev_client = models.Client.query.first()
+
+    code = "this is a bad code"
+
+    response = client.post('/api/token',
+                            data=dict(client_id=dev_client.client_id, 
+                                        grant_type='authorization_code',
+                                        code=code),
+                            follow_redirects=True)
+
+    json = response.get_json()
+
+    assert json['error'] == 94
+
+
+def test_get_token_error4(client, user6, developer1):
+    ''' Code cannot be expired '''
+    # because I don't know how to get it from the redirect
+
+    dev_client = models.Client.query.first()
+
+    expiration = datetime.datetime.utcnow() + datetime.timedelta(seconds=-2)
+    code = api.create_token(user6, dev_client.client_id, expiration)
+
+    response = client.post('/api/token',
+                            data=dict(client_id=dev_client.client_id, 
+                                        grant_type='authorization_code',
+                                        code=code),
+                            follow_redirects=True)
+
+    json = response.get_json()
+
+    assert json['error'] == 93

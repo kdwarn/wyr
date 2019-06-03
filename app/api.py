@@ -1,7 +1,6 @@
 '''
 TODO: 
-    - NEXT: start working on authorizing an app - I think I have client set up at least minimally
-      done.
+    - NEXT: test what i have so far; 
     - send email notification to WYR that client registered
     - check that wyr.py is properly including register_client() and authorize() in CSRF
       protection (excluded these endpoints in the skipping of api blueprint)
@@ -17,7 +16,8 @@ TODO:
     - list of error codes I'm using:
         1-10: db/account issues
             1: can't locate user
-            2: can't locate document
+            2: can't locate client
+            3: can't locate document
         10-20: field issues
             10: title not supplied, but required
             11: link already exists in attempted added item
@@ -34,11 +34,14 @@ TODO:
 '''
 import datetime
 from functools import wraps
+import random
+import string
 import uuid
 
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
 import jwt
+import requests
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
@@ -48,6 +51,19 @@ from .models import Documents, User, Client
 
 
 api_bp = Blueprint('api', __name__)  # url prefix of /api set in init
+
+
+def create_token(user, client_id, expiration=''):
+    ''' Create token for authorization code and access token.'''
+    if not expiration:
+        expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+
+    token = jwt.encode({'client_id': client_id, 
+                        'username': user.username, 
+                        'exp': expiration,
+                        }, 
+                        user.salt).decode('utf-8')
+    return token
 
 
 def token_required(f):
@@ -74,16 +90,16 @@ def token_required(f):
 
         # get the username - to then get user's salt, to verify signature below
         try:
-            payload = jwt.decode(token, verify=False)
+            unverified_token = jwt.decode(token, verify=False) 
         except jwt.exceptions.DecodeError as e:
             return jsonify({'message' : str(e), 'error': 94}), 400
+        else:
+            try:
+                user = User.query.filter_by(username=unverified_token['username']).one()
+            except NoResultFound:
+                return jsonify({'message' : 'User could not be located.', 'error': 1}), 404
 
-        try:
-            user = User.query.filter_by(username=payload['username']).one()
-        except NoResultFound:
-            return jsonify({'message' : 'User could not be located.', 'error': 1}), 404
-
-        # verify jwt with user's salt
+        # verify token with user's salt
         try:
             jwt.decode(token, user.salt)
         except jwt.exceptions.InvalidSignatureError as e:
@@ -113,10 +129,9 @@ def clients():
         clients = Client.query.filter_by(user_id=current_user.id).all()
         return render_template('clients.html', clients=clients)
     
-    submit = request.form['submit']
-    
-    if submit == 'register':
-        
+    if request.form['submit'] != 'register':
+        flash("Client registration canceled.")
+    else:  
         name = request.form.get('name')
         description = request.form.get('description')
         callback_url = request.form.get('callback_url')
@@ -143,9 +158,6 @@ def clients():
         db.session.commit()
         flash("Client registered.")
         
-    else:
-        flash("Client registration canceled.")
-    
     return render_template('clients.html')
 
 
@@ -155,35 +167,100 @@ def authorize():
     '''Allow a user to authorize an app.'''
 
     if request.method == 'GET':
-        client_id = request.form.get('client_id')
+        client_id = request.args.get('client_id')
+        response_type = request.args.get('response_type')
+        state = request.args.get('state')
+
+        if response_type != 'code':
+            flash("Query parameter response_type must be set to 'code'. Authorization failed.")
+            return redirect(url_for('main.index'))
+        
         try:
             client = Client.query.filter(client_id=client_id).one()
         except NoResultFound:
-            flash("No third-party app found matching request.")
+            flash("No third-party app found matching request. Authorization failed.")
             return redirect(url_for('main.index'))
-        return render_template('authorize_app.html', client_name=client.name)
+        
+        return render_template('authorize_app.html', 
+                               client_name=client.name, 
+                               client_id=client.id,
+                               state=state)
     
-    submit = request.form['submit']
+    if request.form['submit'] != 'Yes':
+        flash("Authorization not granted to app.")
+        return redirect(url_for('main.index'))
+    
+    client_id = request.form['client_id']
+    state = request.form['state']
+    
+    try:
+        client = Client.query.filter_by(client_id=client_id).one()
+    except NoResultFound:
+        flash("No third-party app found matching request.")
+        return redirect(url_for('main.index'))
+    
+    expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+    code = create_token(current_user, client_id, expiration) 
+    
+    redirect_url = client.callback_url + '?code=' + code
 
-    if submit == 'Yes':
-        pass  # add record in user_apps (table)
-
-    flash("Authorization not granted to App.")
-    return redirect(url_for('main.index'))
-
+    if state:
+        redirect_url += '&state=' + state
+    
+    return redirect(redirect_url, code=307)
+        
 
 @api_bp.route('/token', methods=['POST'])
-# @login_required
 def token():
-    '''Authenticates user and provides authorization token.'''
-    client_id = ''
-    grant_type = ''
-    code = ''
-    redirect_uri = ''
+    '''Provide authorization token to client.'''
+    client_id = request.form['client_id']
+    grant_type = request.form['grant_type']
+    code = request.form['code']
 
+    if grant_type != 'authorization_code':
+        #TODO: choose correct http response
+        return jsonify({'message' : 'grant_type must be set to "authorization_code"'}), 403
+
+    # decode code without verifying signature, to get user and their salt for verification
+    try:
+        unverified_code = jwt.decode(code, verify=False) 
+    except jwt.exceptions.DecodeError as e:
+        return jsonify({'message' : str(e), 'error': 94}), 400
+    
+    if unverified_code['client_id'] != client_id:
+        return jsonify({'message': 'Unable to locate client.', 'error': 2}), 404
+
+    try:
+        user = User.query.filter(User.username==unverified_code['username']).one()
+    except NoResultFound:
+        return jsonify({'message': 'Unable to locate user.', 'error': 1}), 404
+
+    # now verify signature
+    try:
+        jwt.decode(code, user.salt)
+    except jwt.exceptions.InvalidSignatureError as e:
+        return jsonify({'message' : str(e), 'error': 92}), 403
+    except jwt.exceptions.ExpiredSignatureError as e:
+        return jsonify({'message' : str(e), 'error': 93}), 403
+    except jwt.exceptions.DecodeError as e:
+        return jsonify({'message' : str(e), 'error': 94}), 400
+    except Exception as e:
+        return jsonify({'message' : str(e), 'error': 99}), 403
+    
     expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
-    token = jwt.encode({'username': current_user.username, 'exp': expiration}, current_user.salt)
-    return jsonify({'token': token.decode('UTF-8')})
+    token = create_token(user, client_id, expiration)
+
+    client = Client.query.filter_by(client_id=client_id).one()
+    user.apps.append(client)
+
+    # return jsonify({'access_token': token, 'token_type': 'bearer'}), 200
+    response = jsonify({'access_token': token, 
+                        'token_type': 'bearer'})
+    # response.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['Pragma'] = 'no-cache'
+    return response, 200
+ 
 
 
 @api_bp.route('/check_token', methods=['GET'])
@@ -208,7 +285,7 @@ def get(username, id):
     try:
         doc = user.documents.filter(Documents.id==id).one()
     except NoResultFound:
-        return jsonify({'message': 'Unable to locate document.', 'error': 2}), 404
+        return jsonify({'message': 'Unable to locate document.', 'error': 3}), 404
 
     if doc.tags:
         tags = [tag.name for tag in doc.tags]
@@ -232,6 +309,7 @@ def get(username, id):
 @token_required
 def add(username):
     '''
+    Test
     Add a document to user's account.
     *username* is passed in from @token_required, if user's token is authorized.
     '''

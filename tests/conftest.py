@@ -250,14 +250,14 @@ def developer1(client):
     myctx = CryptContext(schemes=['pbkdf2_sha256'])
     hashed_password = myctx.hash('developer123')
 
-    developer1 = models.User('developer1', hashed_password, 'testing123', 'test6@whatyouveread.com')
+    developer1 = models.User('developer1', hashed_password, 'testing123', 'dev1@whatyouveread.com')
     db.session.add(developer1)
     db.session.commit()
 
     client_id = uuid.uuid4().hex
     name = 'Tester App'
     description = 'Testing app development'
-    callback_url = 'https://example.com'
+    callback_url = 'https://www.whatyouveread.com/example'
 
     app_client = models.Client(client_id, developer1.id, name, description, callback_url)
     db.session.add(app_client)

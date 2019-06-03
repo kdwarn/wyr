@@ -43,17 +43,31 @@ bunch_tags = db.Table('bunch_tags',
                                 primary_key=True)
                      )
 
-user_clients = db.Table('user_clients',
-                        db.Column('user_id',
-                                  db.Integer,
-                                  db.ForeignKey('user.id', ondelete='CASCADE'),
-                                  primary_key=True),
-                        db.Column('client_id',
-                                  db.Integer,
-                                  db.ForeignKey('client.client_id', ondelete='CASCADE'),
-                                  primary_key=True)
-                        )
-                                
+user_apps = db.Table('user_apps',
+                     db.Column('user_id',
+                               db.Integer,
+                               db.ForeignKey('user.id', ondelete='CASCADE'),
+                               primary_key=True),
+                     db.Column('client_id',
+                               db.Integer,
+                               db.ForeignKey('client.client_id', ondelete='CASCADE'),
+                               primary_key=True),
+                    )
+
+# this is an Association Object, rather than a simple association table, because we want to 
+# include an additional column aside from the foreign keys
+# see: https://docs.sqlalchemy.org/en/13/orm/basic_relationships.html#association-object
+# class UserApp(db.Model):
+#     user_id = db.Column(db.Integer,
+#                         db.ForeignKey('user.id', ondelete='CASCADE'),
+#                         primary_key=True)
+#     client_id = db.Column(db.Integer,
+#                           db.ForeignKey('client.client_id', ondelete='CASCADE'),
+#                           primary_key=True)
+#     code = db.Column(db.String(12))
+#     code_created = db.Column(db.DateTime)
+
+
 # main user table
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -77,11 +91,11 @@ class User(db.Model, UserMixin):
                                 lazy='dynamic',
                                 backref=db.backref('user', cascade='all, delete')
                                )
-    clients = db.relationship('Client',
-                              secondary=user_clients,
-                              lazy='dynamic',
-                              backref=db.backref('user', cascade='all, delete')
-                             )
+    apps = db.relationship('Client',
+                           secondary=user_apps,
+                           lazy='joined',
+                           backref=db.backref('user', cascade='all, delete')
+                          )
 
     def __init__(self, username, password, salt, email):
         self.username = username
