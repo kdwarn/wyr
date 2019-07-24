@@ -7,6 +7,12 @@ from app import datetimeformat, nl2br, generate_csrf_token
 from app import create_app, models, db
 from app import common
 
+'''
+    NOTE: Although the Flask testing documentation uses "client" for the testing app instance, 
+          it's confusing with the use of "client" as third-party apps, which is the term
+          used in Oauth2. So I've used "flask_client" to referring to the testing app fixture.
+'''
+
 class TestConfig():
     TESTING = True
     SECRET_KEY = 'thisissecret'
@@ -26,9 +32,9 @@ User fixtures:
 '''
 
 @pytest.fixture
-def client():
+def flask_client():
     test_app = create_app(TestConfig)
-    client = test_app.test_client()
+    flask_client = test_app.test_client()
 
     with test_app.app_context():
         db.create_all()
@@ -40,17 +46,17 @@ def client():
         test_app.jinja_env.filters['datetime'] = datetimeformat
         test_app.jinja_env.filters['nl2br'] = nl2br
 
-        yield client
+        yield flask_client
 
         db.session.remove()
         db.drop_all()
 
 
 @pytest.fixture
-def user0(client):
+def user0(flask_client):
     '''Create a user with no documents.'''
 
-    user0 = models.User('tester0', 'testing0', 'testing123', 'test0@whatyouveread.com')
+    user0 = models.User('tester0', 'testing0', 'salt0', 'test0@whatyouveread.com')
     db.session.add(user0)
     db.session.commit()
 
@@ -58,10 +64,10 @@ def user0(client):
 
 
 @pytest.fixture
-def user1(client, four_items):
+def user1(flask_client, four_items):
     '''Create a user with four documents.'''
 
-    user1 = models.User('tester1', 'testing', 'testing123', 'test1@whatyouveread.com')
+    user1 = models.User('tester1', 'testing', 'salt1', 'test1@whatyouveread.com')
     db.session.add(user1)
     db.session.commit()
 
@@ -72,10 +78,10 @@ def user1(client, four_items):
 
 
 @pytest.fixture
-def user2(client, four_items):
+def user2(flask_client, four_items):
     '''Create a separate user with four documents.'''
 
-    user2 = models.User('tester2', 'testing2', 'testing1234', 'test2@whatyouveread.com')
+    user2 = models.User('tester2', 'testing2', 'salt2', 'test2@whatyouveread.com')
     db.session.add(user2)
     db.session.commit()
 
@@ -86,7 +92,7 @@ def user2(client, four_items):
 
 
 @pytest.fixture
-def user3(client, four_items):
+def user3(flask_client, four_items):
     '''
     Create a user with hashed password and salt, as in the registration
     process.
@@ -95,7 +101,7 @@ def user3(client, four_items):
     myctx = CryptContext(schemes=['pbkdf2_sha256'])
     hashed_password = myctx.hash('testing3')
 
-    user3 = models.User('tester3', hashed_password, 'testing123', 'test3@whatyouveread.com')
+    user3 = models.User('tester3', hashed_password, 'salt3', 'test3@whatyouveread.com')
     db.session.add(user3)
     db.session.commit()
 
@@ -106,7 +112,7 @@ def user3(client, four_items):
 
 
 @pytest.fixture
-def user4(client, four_items):
+def user4(flask_client, four_items):
     '''
     Create a user with hashed password and salt, as in the registration
     process, with four items, and log them in.
@@ -115,25 +121,25 @@ def user4(client, four_items):
     myctx = CryptContext(schemes=['pbkdf2_sha256'])
     hashed_password = myctx.hash('testing4')
 
-    user4 = models.User('tester4', hashed_password, 'testing123', 'test4@whatyouveread.com')
+    user4 = models.User('tester4', hashed_password, 'salt4', 'test4@whatyouveread.com')
     db.session.add(user4)
     db.session.commit()
 
     for item in four_items:
         common.add_item(item, user4)
 
-    client.post('/login', data=dict(
-        wyr_username='tester4',
-        wyr_password='testing4',
-        remember='',
-        next=''
-    ), follow_redirects=True)
+    flask_client.post('/login', 
+                      data=dict(wyr_username='tester4',
+                                wyr_password='testing4',
+                                remember='',
+                                next=''), 
+                      follow_redirects=True)
 
     return user4
 
 
 @pytest.fixture
-def user5(client, five_items):
+def user5(flask_client, five_items):
     '''
     Create a user with hashed password and salt, as in the registration
     process, with five items and two bunches, and log them in.
@@ -142,7 +148,7 @@ def user5(client, five_items):
     myctx = CryptContext(schemes=['pbkdf2_sha256'])
     hashed_password = myctx.hash('testing5')
 
-    user5 = models.User('tester5', hashed_password, 'testing123', 'test5@whatyouveread.com')
+    user5 = models.User('tester5', hashed_password, 'salt5', 'test5@whatyouveread.com')
     db.session.add(user5)
     db.session.commit()
 
@@ -191,7 +197,7 @@ def user5(client, five_items):
         existing_tag = models.Tags.query.filter(models.Tags.id==tag).one()
         new_bunch.tags.append(existing_tag)
 
-    # create a fourt bunch, using "and" to combine tags
+    # create a fourth bunch, using "and" to combine tags
     # (1 read document meets this criteria)
     selector = 'and'
     bunch_name = 'bunch 4'
@@ -206,18 +212,18 @@ def user5(client, five_items):
         new_bunch.tags.append(existing_tag)
 
     # log user in
-    client.post('/login', data=dict(
-        wyr_username='tester5',
-        wyr_password='testing5',
-        remember='',
-        next=''
-    ), follow_redirects=True)
+    flask_client.post('/login', 
+                      data=dict(wyr_username='tester5',
+                                wyr_password='testing5',
+                                remember='',
+                                next='',), 
+                      follow_redirects=True)
 
     return user5
 
 
 @pytest.fixture
-def user6(client):
+def user6(flask_client):
     '''
     Create a user with hashed password and salt, as in the registration
     process, with no items, and log them in.
@@ -226,52 +232,65 @@ def user6(client):
     myctx = CryptContext(schemes=['pbkdf2_sha256'])
     hashed_password = myctx.hash('testing6')
 
-    user6 = models.User('tester6', hashed_password, 'testing123', 'test6@whatyouveread.com')
+    user6 = models.User('tester6', hashed_password, 'salt6', 'test6@whatyouveread.com')
     db.session.add(user6)
     db.session.commit()
 
-    client.post('/login', data=dict(
-        wyr_username='tester6',
-        wyr_password='testing6',
-        remember='',
-        next=''
-    ), follow_redirects=True)
+    flask_client.post('/login', 
+                      data=dict(wyr_username='tester6',
+                                wyr_password='testing6',
+                                remember='',
+                                next='',), 
+                      follow_redirects=True)
 
     return user6
 
 
 @pytest.fixture
-def developer1(client):
+def developer1(flask_client):
     '''
     Create a user with hashed password and salt, as in the registration
-    process, with one third-party app, and log them in.
+    process, and log them in.
+
+    The only difference between this user and any other user is that this account
+    is used to register an app via the dev_app fixture.
     '''
 
     myctx = CryptContext(schemes=['pbkdf2_sha256'])
     hashed_password = myctx.hash('developer123')
 
-    developer1 = models.User('developer1', hashed_password, 'testing123', 'dev1@whatyouveread.com')
+    developer1 = models.User('developer1', hashed_password, 'salt8', 'dev1@whatyouveread.com')
     db.session.add(developer1)
     db.session.commit()
 
+    flask_client.post('/login', 
+                      data=dict(wyr_username='developer1',
+                                wyr_password='developer123',
+                                remember='',
+                                next='',), 
+                      follow_redirects=True)
+
+    return developer1
+
+
+@pytest.fixture
+def dev_app(flask_client, developer1):
+    '''
+    This creates dev_app, registered to developer1. For use in testing the app from the perspective
+    of a user of it, not the developer.
+    '''
+
     client_id = uuid.uuid4().hex
-    name = 'Tester App'
+    name = 'Tester App 1'
     description = 'Testing app development'
     callback_url = 'https://www.whatyouveread.com/example'
 
-    app_client = models.Client(client_id, developer1.id, name, description, callback_url)
-    db.session.add(app_client)
+    dev_app = models.Client(client_id, developer1.id, name, description, callback_url)
+    db.session.add(dev_app)
     db.session.commit()
 
-    # log user in
-    client.post('/login', data=dict(
-        wyr_username='developer1',
-        wyr_password='developer123',
-        remember='',
-        next=''
-    ), follow_redirects=True)
+    return dev_app
 
-    return developer1
 
 
 @pytest.fixture

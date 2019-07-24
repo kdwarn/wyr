@@ -189,18 +189,18 @@ def test_three_authors(three_authors):
 
 # adding docs
 
-def test_add1(client, user4):
+def test_add1(flask_client, user4):
     '''Adding item with only a title works.'''
 
     content = {'title': 'Test'}
 
-    response = client.post('/add', data=content, follow_redirects=True)
+    response = flask_client.post('/add', data=content, follow_redirects=True)
 
     docs = common.get_docs(user4)
 
     assert (b'Item added.' in response.data and len(docs) == 5)
 
-def test_add2(client, user4):
+def test_add2(flask_client, user4):
     '''Adding item with all form variables works.'''
 
     content = {'title': 'Test',
@@ -211,37 +211,37 @@ def test_add2(client, user4):
                'notes': 'This is a note',
                'read': '1'}
 
-    response = client.post('/add', data=content, follow_redirects=True)
+    response = flask_client.post('/add', data=content, follow_redirects=True)
 
     docs = common.get_docs(user4)
 
     assert (b'Item added.' in response.data and len(docs) == 5)
 
 
-def test_add3(client, user4):
+def test_add3(flask_client, user4):
     '''Attempting to add item without title gives user error message.'''
 
     content = {'title': ''}
 
-    response = client.post('/add', data=content, follow_redirects=True)
+    response = flask_client.post('/add', data=content, follow_redirects=True)
 
     assert b'Title not submitted but is required.' in response.data
 
 
-def test_add4(client, user4):
+def test_add4(flask_client, user4):
     '''Attempting to add item with duplicate link gives user error message.'''
 
     content = {'title': 'Test',
                'link': 'http://whatyouveread.com/1'}
 
-    response = client.post('/add', data=content, follow_redirects=True)
+    response = flask_client.post('/add', data=content, follow_redirects=True)
 
     assert b'That link is already in your collection.' in response.data
 
 
 # editing docs
 
-def test_edit1(client, user4):
+def test_edit1(flask_client, user4):
     '''Editing every part of item works.'''
 
     content = {'id': '1',
@@ -253,23 +253,23 @@ def test_edit1(client, user4):
                'notes': 'This is an edited note.',
                'read': '0'}
 
-    response = client.post('/edit', data=content, follow_redirects=True)
+    response = flask_client.post('/edit', data=content, follow_redirects=True)
 
     assert (b'Item edited.' in response.data)
 
 
-def test_edit2(client, user4):
+def test_edit2(flask_client, user4):
     '''Not including title in edit gives user erorr message.'''
 
     content = {'id': '1',
                'title': ''}
 
-    response = client.post('/edit', data=content, follow_redirects=True)
+    response = flask_client.post('/edit', data=content, follow_redirects=True)
 
     assert b'Title not submitted but is required.' in response.data
 
 
-def test_edit3(client, user4):
+def test_edit3(flask_client, user4):
     '''Duplicate link in edit gives user erorr message.'''
 
     content = {'id': '1',
@@ -277,18 +277,18 @@ def test_edit3(client, user4):
                'link': 'http://whatyouveread.com/2',
                }
 
-    response = client.post('/edit', data=content, follow_redirects=True)
+    response = flask_client.post('/edit', data=content, follow_redirects=True)
 
     assert b'That link is already in your collection.' in response.data
 
 
-def test_edit4(client, user5, user4):
+def test_edit4(flask_client, user5, user4):
     '''Can't edit another user's doc.'''
 
     content = {'id': '5',
                'title': 'Test'}
 
-    response = client.post('/edit', data=content, follow_redirects=True)
+    response = flask_client.post('/edit', data=content, follow_redirects=True)
 
     assert b'That document was not found in your collection.' in response.data
 

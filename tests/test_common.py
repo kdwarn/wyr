@@ -443,7 +443,7 @@ def test_edit_add_author_no_previous_authors(user0, three_items_authors_only):
 
 
 
-def test_delete_orphaned_authors1(client, user1):
+def test_delete_orphaned_authors1(flask_client, user1):
     '''Orphaned authors are deleted when item is deleted.'''
 
     doc = user1.documents.first()
@@ -549,7 +549,7 @@ def test_edit_clear_all_but_title(user1):
             doc.read == 0)
 
 
-def test_db_is_empty_after_previous_tests(client):
+def test_db_is_empty_after_previous_tests(flask_client):
     docs = models.Documents.query.all()
     assert not docs
 
@@ -575,7 +575,7 @@ def test_delete_not_user_doc_raises_ex(user1, user2):
         common.delete_item(5, user1)
 
 
-def test_delete_doc_that_does_not_exist_raises_ex(client, user4):
+def test_delete_doc_that_does_not_exist_raises_ex(flask_client, user4):
     '''delete_item() raises exception when trying to delete doc that doesn't exist.'''
 
     with pytest.raises(ex.NotUserDocException):
@@ -586,90 +586,90 @@ def test_delete_doc_that_does_not_exist_raises_ex(client, user4):
 # GETTING DOCS #
 ################
 
-def test_get_all_docs1(client, user4):
+def test_get_all_docs1(flask_client, user4):
     docs = common.get_docs(user4)
     assert len(docs) == 4
 
 
-def test_get_all_docs2(client, user0):
+def test_get_all_docs2(flask_client, user0):
     docs = common.get_docs(user0)
     assert not docs
 
 
-def test_get_all_docs3(client, user0, user4):
+def test_get_all_docs3(flask_client, user0, user4):
     '''get_docs() only gets docs for user we pass in function.'''
     docs = common.get_docs(user0)
     assert not docs
 
 
-def test_get_read_docs(client, user4):
+def test_get_read_docs(flask_client, user4):
     docs = common.get_docs(user4, read_status='read')
     assert len(docs) == 1
 
 
-def test_get_to_read_docs(client, user4):
+def test_get_to_read_docs(flask_client, user4):
     docs = common.get_docs(user4, read_status='to-read')
     assert len(docs) == 3
 
 
-def test_get_docs_by_tag1(client, user4):
+def test_get_docs_by_tag1(flask_client, user4):
     docs = common.get_docs(user4, read_status='read', tag='tag0')
     assert len(docs) == 1
 
 
-def test_gets_docs_by_tag2(client, user4):
+def test_gets_docs_by_tag2(flask_client, user4):
     docs = common.get_docs(user4, read_status='to-read', tag='tag2')
     assert len(docs) == 2
 
 
-def test_get_docs_by_tag3(client, user4):
+def test_get_docs_by_tag3(flask_client, user4):
     docs = common.get_docs(user4, tag='tag0')
     assert len(docs) == 2
 
 
-def test_get_docs_by_tag4(client, user4):
+def test_get_docs_by_tag4(flask_client, user4):
     '''get_docs returns no docs if user has no docs with that tag.'''
     docs = common.get_docs(user4, tag='tag5')
     assert not docs
 
 
-def test_get_docs_by_tag5(client, user4, user5):
+def test_get_docs_by_tag5(flask_client, user4, user5):
     '''Only docs for passed user are returned (tag4 in both user4 and user5 docs).'''
     docs = common.get_docs(user4, tag='tag4')
     assert len(docs) == 1
 
 
-def test_get_docs_by_author1(client, user4):
+def test_get_docs_by_author1(flask_client, user4):
     docs = common.get_docs(user4, author_id=1)
     assert len(docs) == 1
 
 
-def test_get_docs_by_author2(client, user4):
+def test_get_docs_by_author2(flask_client, user4):
     docs = common.get_docs(user4, author_id=3)
     assert len(docs) == 1
 
 
-def test_get_docs_by_author3(client, user4, user5):
+def test_get_docs_by_author3(flask_client, user4, user5):
     '''Can't access other user's authors.'''
     docs = common.get_docs(user4, author_id=5)
     assert not docs
 
 
 
-def test_get_docs_by_bunch1(client, user5):
+def test_get_docs_by_bunch1(flask_client, user5):
 
     docs = common.get_docs(user5, bunch="bunch 1")
 
     assert len(docs) == 4
 
 
-def test_get_docs_by_bunch2(client, user5):
+def test_get_docs_by_bunch2(flask_client, user5):
 
     docs = common.get_docs(user5, bunch="bunch 2")
     assert len(docs) == 2
 
 
-def test_get_docs_by_bunch3(client, user5):
+def test_get_docs_by_bunch3(flask_client, user5):
     "Undefined bunch."
 
     with pytest.raises(ex.NoBunchException):
