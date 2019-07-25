@@ -33,6 +33,7 @@ TODO:
             94: Decode json/manipulated token error
             95: Username not supplied in API request
             96: Username in token does not match username supplied
+            97: response_type must be set to authorization_code
             99: Other authorization/json issue
 
 '''
@@ -63,9 +64,10 @@ from .models import Documents, User, Client
 
 api_bp = Blueprint('api', __name__)  # url prefix of /api set in init
 
+
 def get_doc_content(id, content):
     '''
-    Return the fields from request that are for docs (not auth-related fields).
+    Return the doc fields from request (not auth-related fields).
     '''
     
     doc_content = {}
@@ -136,7 +138,7 @@ def token_required(f):
 
         # check that token sent is for the username sent
         if user.username != username:
-            return jsonify({'message': 'Token is not for user supplied.', 'error': 96}), 403
+            return jsonify({'message': 'Token does not match user.', 'error': 96}), 403
 
         # verify token with user's salt
         try:
@@ -152,21 +154,6 @@ def token_required(f):
 
         return f(user, *args, **kwargs)
     return wrapper
-
-
-@api_bp.route('/check_token', methods=['GET'])
-@token_required
-def check_token(user):
-    '''
-    Verification that the token works. (Token and username are fetched from request and 
-    validated via the @token_required decorator). All errors caught there. @t_r also returns *user*,
-    which is not used here but is why it is include in function parameters.
-
-    This is for developer testing only - not used in auth process otherwise.
-    '''
-
-    return jsonify({'message' : 'Success! The token works.',
-                    'status': 'Ok'}), 200
 
 
 @api_bp.route('/clients', methods=['GET', 'POST'])
@@ -213,6 +200,21 @@ def clients():
         flash("Client registered.")
         
     return redirect(url_for('api.clients'))
+
+
+@api_bp.route('/check_token', methods=['GET'])
+@token_required
+def check_token(user):
+    '''
+    Verification that the token works. (Token and username are fetched from request and 
+    validated via the @token_required decorator). All errors caught there. @t_r also returns *user*,
+    which is not used here but is why it is include in function parameters.
+
+    This is for developer testing only - not used in auth process otherwise.
+    '''
+
+    return jsonify({'message' : 'Success! The token works.',
+                    'status': 'Ok'}), 200
 
 
 @api_bp.route('/authorize', methods=['GET', 'POST'])
@@ -298,7 +300,8 @@ def token():
     code = request.form['code']
 
     if grant_type != 'authorization_code':
-        return jsonify({'message' : 'grant_type must be set to "authorization_code"'}), 400
+        return jsonify({'message' : 'grant_type must be set to "authorization_code"',
+                        'error': 97}), 400
 
     # decode code without verifying signature, to get user and their salt for verification
     try:

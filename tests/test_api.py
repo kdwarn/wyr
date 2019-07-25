@@ -386,7 +386,7 @@ def test_get_access_token_error1(flask_client, user6, dev_app):
     
     json_data = response.get_json()
     
-    assert (response.status_code == 400 and json_data['error'] == 400)
+    assert (response.status_code == 400 and json_data['error'] == 97)
 
 
 def test_get_access_token_error2(flask_client, user6, dev_app):
