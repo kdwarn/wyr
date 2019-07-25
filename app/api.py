@@ -9,6 +9,7 @@ TODO:
       protection (excluded these endpoints in the skipping of api blueprint)
     - allow developers to edit details of app
     - move api/clients to dev/clients?
+    - make sure json response message/status/error messages are consistent
 '''
 
 '''
@@ -116,7 +117,7 @@ def token_required(f):
     def wrapper(*args, **kwargs):
         if not request.is_json:
             return jsonify({'message': 'Parameters must be submitted in json format.',
-                            'error': 90})  # TODO: add html response code
+                            'error': 90}), 400
         content = request.get_json()
         token = content.get('token')
         username = content.get('username')
@@ -131,7 +132,7 @@ def token_required(f):
         try:
             unverified_token = jwt.decode(token, verify=False) 
         except jwt.exceptions.DecodeError as e:
-            return jsonify({'message' : str(e), 'error': 94}), 400
+            return jsonify({'message' : str(e), 'error': 94}), 403
         else:
             try:
                 user = User.query.filter_by(username=unverified_token['username']).one()
@@ -150,7 +151,7 @@ def token_required(f):
         except jwt.exceptions.ExpiredSignatureError as e:
             return jsonify({'message' : str(e), 'error': 93}), 403
         except jwt.exceptions.DecodeError as e:
-            return jsonify({'message' : str(e), 'error': 94}), 400
+            return jsonify({'message' : str(e), 'error': 94}), 403
         except Exception as e:
             return jsonify({'message' : str(e), 'error': 99}), 403
 
@@ -170,7 +171,7 @@ def check_token(user):
     '''
 
     return jsonify({'message' : 'Success! The token works.',
-                    'status': 'Ok'})
+                    'status': 'Ok'}), 200
 
 
 @api_bp.route('/clients', methods=['GET', 'POST'])
@@ -309,7 +310,7 @@ def token():
     try:
         unverified_code = jwt.decode(code, verify=False) 
     except jwt.exceptions.DecodeError as e:
-        return jsonify({'message' : str(e), 'error': 94}), 400
+        return jsonify({'message' : str(e), 'error': 94}), 403
     
     if unverified_code['client_id'] != client_id:
         return jsonify({'message': 'Unable to locate client.', 'error': 2}), 404
@@ -431,7 +432,7 @@ def documents(user):
         except ex.DuplicateLinkException as e:
             return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
         else:
-            return jsonify({'message': 'Item added.'}), 200
+            return jsonify({'message': 'Item added.'}), 201
 
     # get all documents
     if request.method == 'GET':

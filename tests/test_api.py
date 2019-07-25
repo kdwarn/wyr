@@ -70,9 +70,10 @@ def test_check_token1(flask_client, user4, dev_app):
 
     json_data = response.get_json()
     
-    assert (json_data['status'] == 'Ok' and
+    assert (response.status_code == 200 and
+            json_data['status'] == 'Ok' and
             json_data['message'] == 'Success! The token works.')
-
+            
 
 def test_check_token_returns_error1(flask_client):
     ''' If token not provided in call to check_token(), error provided to client. '''
@@ -83,7 +84,7 @@ def test_check_token_returns_error1(flask_client):
 
     json_data = response.get_json()
     
-    assert json_data['error'] == 91
+    assert (response.status_code == 403 and json_data['error'] == 91)
 
 
 def test_check_token_returns_error2(flask_client):
@@ -95,7 +96,7 @@ def test_check_token_returns_error2(flask_client):
 
     json_data = response.get_json()
     
-    assert json_data['error'] == 95
+    assert (response.status_code == 403 and json_data['error'] == 95)
 
 
 def test_check_token_returns_error3(flask_client, user4, user1, dev_app):
@@ -111,9 +112,8 @@ def test_check_token_returns_error3(flask_client, user4, user1, dev_app):
                                 follow_redirects=True)
 
     json_data = response.get_json()
-    print(json_data)
     
-    assert json_data['error'] == 96
+    assert (response.status_code == 403 and json_data['error'] == 96)
 
 
 def test_check_token_returns_error4(flask_client):
@@ -128,7 +128,7 @@ def test_check_token_returns_error4(flask_client):
 
     json_data = response.get_json()
     
-    assert json_data['error'] == 94
+    assert (response.status_code == 403 and json_data['error'] == 94)
 
 
 # access token testing
@@ -182,7 +182,7 @@ def test_get_access_token_error2(flask_client, user6, dev_app):
 
     json = response.get_json()
 
-    assert json['error'] == 94
+    assert (response.status_code == 403 and json['error'] == 94)
 
 
 def test_get_access_token_error4(flask_client, user6, dev_app):
@@ -199,7 +199,7 @@ def test_get_access_token_error4(flask_client, user6, dev_app):
 
     json = response.get_json()
 
-    assert json['error'] == 93
+    assert (response.status_code == 403 and json['error'] == 93)
 
 
 ###################
@@ -400,6 +400,7 @@ def test_app_authorization_post1(flask_client, user6, dev_app):
 ###############################
 
 def test_document_get1(flask_client, user4, dev_app):
+    ''' A successful item get.'''
 
     # get user's first document
     doc = user4.documents.first()
@@ -423,8 +424,27 @@ def test_document_get1(flask_client, user4, dev_app):
            json_data['note'] == 'This is a note.')
 
 
-def test_document_put1(flask_client, user4, dev_app):
+def test_document_get1(flask_client, user4, dev_app):
+    ''' If username provided doesn't match username in token, give error. '''
     
+    # get user's first document
+    doc = user4.documents.first()
+
+    token = api.create_token(user4, dev_app.client_id)
+
+    response = flask_client.get('/api/documents/' + str(doc.id),
+                                json={'token': token,
+                                      'username': 'different_user'})
+    
+    json_data = response.get_json()
+    
+    assert (response.status_code == 403 and
+            json_data['error'] == 96)
+
+
+def test_document_put1(flask_client, user4, dev_app):
+    ''' A successful item edit. '''
+
     token = api.create_token(user4, dev_app.client_id)
 
     response = flask_client.put('/api/documents/1',
@@ -454,7 +474,30 @@ def test_document_put1(flask_client, user4, dev_app):
             doc1.note == 'This is a note.')
 
 
+def test_document_put_error1(flask_client, user4, dev_app):
+    ''' If username provided doesn't match username in token, give error. '''
+
+    token = api.create_token(user4, dev_app.client_id)
+
+    response = flask_client.put('/api/documents/1',
+                                json={'token': token,
+                                      'username': 'different_user',
+                                      'title': 'new title',  # only change
+                                      'link': 'http://whatyouveread.com/1',
+                                      'tags': ['tag0', 'tag1'],
+                                      'authors': [{'last_name': 'Smith', 'first_name': 'Joe'},
+                                                  {'last_name': 'Smith', 'first_name': 'Jane'}],
+                                      'year': '2018',
+                                      'notes': 'This is a note.',
+                                      'read': '1'})
+
+    json_data = response.get_json()
+
+    assert json_data['error'] == 96
+
+
 def test_document_delete1(flask_client, user4, dev_app):
+    ''' A successful item deletion. '''
 
     # get user's first document
     doc = user4.documents.first()
@@ -473,3 +516,20 @@ def test_document_delete1(flask_client, user4, dev_app):
     assert (response.status_code == 200 and 
             json_data['message'] == 'Item deleted.' and
             len(docs) == 3)
+
+
+def test_document_delete_error1(flask_client, user4, dev_app):
+    ''' If username provided doesn't match username in token, give error. '''
+    
+    # get user's first document
+    doc = user4.documents.first()
+
+    token = api.create_token(user4, dev_app.client_id)
+
+    response = flask_client.delete('/api/documents/' + str(doc.id),
+                                json={'token': token,
+                                      'username': 'different_user'})
+    
+    json_data = response.get_json()
+
+    assert json_data['error'] == 96
