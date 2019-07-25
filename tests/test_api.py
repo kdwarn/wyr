@@ -1,5 +1,6 @@
 '''
     TODO:
+        - test error cases for current API functions implemented
         - disable email to WYR about client registration unless explicitly enabled? (to avoid
           emails while testing) (haven't set this up yet in api.py)
         - testing editing client info
@@ -12,6 +13,7 @@ import time
 import jwt
 import pytest
 
+from app import db
 from app import models
 from app import api
 
@@ -327,7 +329,7 @@ def test_app_authorization_get1(flask_client, user1):
 
 
 def test_app_authorization_get2(flask_client, user6):
-    ''' **code** must be passed set to 'code' '''
+    ''' **response_type** passed must be set to 'code' '''
     response = flask_client.get('/api/authorize',
                           query_string={'client_id': '1',
                                         'response_type': 'not_code'},
@@ -337,17 +339,7 @@ def test_app_authorization_get2(flask_client, user6):
 
 
 def test_app_authorization_get3(flask_client, user6):
-    ''' **code** must be passed set to 'code' '''
-    response = flask_client.get('/api/authorize',
-                          query_string={'client_id': '1',
-                                        'response_type': 'not_code'},
-                          follow_redirects=True)
-    
-    assert b'Query parameter response_type must be set to ' in response.data
-
-
-def test_app_authorization_get4(flask_client, user6):
-    ''' **code** must be passed set to 'code' '''
+    ''' **response_type** passed must be set to 'code' '''
     response = flask_client.get('/api/authorize',
                           query_string={'client_id': '1',
                                         'response_type': ''},
@@ -356,11 +348,8 @@ def test_app_authorization_get4(flask_client, user6):
     assert b'Query parameter response_type must be set to ' in response.data
 
 
-def test_app_authorization_get5(flask_client, user6, dev_app):
-    ''' 
-    *client_id* must be id of a registered client.
-     
-    '''
+def test_app_authorization_get4(flask_client, user6, dev_app):
+    ''' *client_id* must be id of a registered client. '''
     response = flask_client.get('/api/authorize',
                           query_string={'client_id': '500',
                                         'response_type': 'code'},
@@ -369,11 +358,8 @@ def test_app_authorization_get5(flask_client, user6, dev_app):
     assert b'No third-party app found matching request. Authorization failed.' in response.data
 
 
-def test_app_authorization_get6(flask_client, user6, dev_app):
-    ''' 
-    *client_id* must be id of a registered client.
-     
-    '''
+def test_app_authorization_get5(flask_client, user6, dev_app):
+    ''' *client_id* must be id of a registered client. '''
     response = flask_client.get('/api/authorize',
                           query_string={'client_id': '',
                                         'response_type': 'code'},
@@ -384,9 +370,15 @@ def test_app_authorization_get6(flask_client, user6, dev_app):
 
 # TODO: do the client_id and code have to match up? figure this out and test those cases if so
 
-def test_app_authorization_get7(flask_client, user6, dev_app):
+def test_app_authorization_get6(flask_client, user6, dev_app):
     ''' User presented with authorization form if all checks pass. '''
-    assert False
+    
+    response = flask_client.get('/api/authorize',
+                          query_string={'client_id': dev_app.client_id,
+                                        'response_type': 'code'},
+                          follow_redirects=True)
+    
+    assert b'Authorize App' in response.data
 
 
 def test_app_authorization_post1(flask_client, user6, dev_app):
@@ -397,7 +389,6 @@ def test_app_authorization_post1(flask_client, user6, dev_app):
                                      client_id=dev_app.client_id,
                                      state='xyz'),
                            follow_redirects=False)
-    
     
     assert (dev_app.callback_url in response.headers['Location'] and
         'code' in response.headers['Location'] and 
@@ -421,7 +412,8 @@ def test_document_get1(flask_client, user4, dev_app):
     
     json_data = response.get_json()
     
-    assert (json_data['title'] == 'First user doc' and  
+    assert (response.status_code == 200 and 
+            json_data['title'] == 'First user doc' and  
            json_data['url'] ==  'http://whatyouveread.com/1' and 
            json_data['year'] == '2018' and 
            'Smith, Joe' in json_data['authors'] and 
@@ -429,3 +421,55 @@ def test_document_get1(flask_client, user4, dev_app):
            'tag0' in json_data['tags'] and
            'tag1' in json_data['tags'] and
            json_data['note'] == 'This is a note.')
+
+
+def test_document_put1(flask_client, user4, dev_app):
+    
+    token = api.create_token(user4, dev_app.client_id)
+
+    response = flask_client.put('/api/documents/1',
+                                json={'token': token,
+                                      'username': 'tester4',
+                                      'title': 'new title',  # only change
+                                      'link': 'http://whatyouveread.com/1',
+                                      'tags': ['tag0', 'tag1'],
+                                      'authors': [{'last_name': 'Smith', 'first_name': 'Joe'},
+                                                  {'last_name': 'Smith', 'first_name': 'Jane'}],
+                                      'year': '2018',
+                                      'notes': 'This is a note.',
+                                      'read': '1'})
+
+    json_data = response.get_json()
+
+    # have to do it this way because session is no longer available
+    doc1 = models.Documents.query.filter_by(id=1).one()
+
+    assert (response.status_code == 200 and 
+            json_data['message'] == 'Item edited.' and
+            doc1.title == 'new title' and  
+            doc1.link ==  'http://whatyouveread.com/1' and 
+            doc1.year == '2018' and 
+            len(doc1.authors) == 2 and 
+            len(doc1.tags) == 2 and
+            doc1.note == 'This is a note.')
+
+
+def test_document_delete1(flask_client, user4, dev_app):
+
+    # get user's first document
+    doc = user4.documents.first()
+
+    token = api.create_token(user4, dev_app.client_id)
+
+    response = flask_client.delete('/api/documents/' + str(doc.id),
+                                json={'token': token,
+                                      'username': 'tester4'})
+    
+    json_data = response.get_json()
+
+    # have to do it this way because session is no longer available
+    docs = models.Documents.query.filter_by(user_id=1).all()
+
+    assert (response.status_code == 200 and 
+            json_data['message'] == 'Item deleted.' and
+            len(docs) == 3)

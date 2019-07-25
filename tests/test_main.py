@@ -395,6 +395,7 @@ def test_bunches7(flask_client, user5):
         selector='or',
         bunch_tags=[2, 4]
     ), follow_redirects=True)
+    
     assert (b'First user doc' in response.data and 
             b'Second user doc' in response.data and 
             b'Third user doc' not in response.data and

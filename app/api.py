@@ -1,7 +1,7 @@
 '''
 TODO: 
-    - I'm not sure if have @token_required set up right with respect to the checks on is_json - I think
-        all methods have to use this, although I'm checking for url paramters in the GET calls
+    - create helper function to verify fields for documents/put them into *content* so that it 
+        matches with the common.edit function and common.add function
     - work on document() and documents()
     - paginate results for documents()
     - send email notification to WYR that client registered
@@ -63,6 +63,23 @@ from .models import Documents, User, Client
 
 
 api_bp = Blueprint('api', __name__)  # url prefix of /api set in init
+
+def get_doc_content(id, content):
+    '''
+    Return the content from request that is for documents (not the auth related).
+    '''
+    
+    doc_content = {}
+    doc_content['id'] = id
+    doc_content['title'] = content.get('title')
+    doc_content['link'] = content.get('link')  # note the difference
+    doc_content['tags'] = content.get('tags')
+    doc_content['authors'] = content.get('authors')
+    doc_content['year'] = content.get('year')
+    doc_content['notes'] = content.get('notes')
+    doc_content['read'] = content.get('read')
+
+    return doc_content
 
 
 def create_token(user, client_id, expiration=''):
@@ -338,9 +355,6 @@ def document(user, id):
     returns *user* to this function. 
     '''
     
-    # I'm not sure I want to do this - maybe require that @token_required returns the username/user
-    # user = User.query.filter_by(username=request.args.get('username')).one()
-    
     if not id:
         return jsonify({'message': 'ID of document not included in request.', 
                             'error': 14}), 404  # TODO: check HTTP response
@@ -349,8 +363,6 @@ def document(user, id):
         doc = user.documents.filter(Documents.id==id).one()
     except NoResultFound:
         return jsonify({'message': 'Unable to locate document.', 'error': 3}), 404
-    
-    content = request.get_json()
 
     # get a document
     if request.method == 'GET':
@@ -370,23 +382,31 @@ def document(user, id):
                         'year': doc.year,
                         'note': doc.note,
                         'tags': tags,
-                        'authors': authors})
+                        'authors': authors}), 200
     
     # edit a document
     if request.method == 'PUT':
 
+        doc_content = get_doc_content(id, request.get_json())
+
         try:
-            common.edit_item(content, user, source='api')
+            common.edit_item(doc_content, user, source='api')
         except ex.NotUserDocException as e:
             return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
         except ex.NoTitleException as e:
             return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
         else:
-            return jsonify({'message': 'Success!'}), 200
+            return jsonify({'message': 'Item edited.'}), 200
 
     # delete document
     if request.method == 'DELETE':
-        pass
+        
+        try:
+            common.delete_item(id, user)
+        except ex.NotUserDocException as e:
+            return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
+        else:
+            return jsonify({'message': 'Item deleted.'}), 200
 
 
 @api_bp.route('/documents', methods=['GET', 'POST'])
@@ -399,22 +419,19 @@ def documents(user):
     returns *user* to this function.
     '''
 
-    # user = User.query.filter_by(username=request.args.get('username')).one()
-    
-    content = request.get_json()
-
     # add a document
     if request.method == 'POST':
 
-        # this is the code for adding a document
+        doc_content = get_doc_content(id, request.get_json())
+
         try:
-            common.add_item(content, user, source='api')
+            common.add_item(doc_content, user, source='api')
         except ex.NoTitleException as e:
             return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
         except ex.DuplicateLinkException as e:
             return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
         else:
-            return jsonify({'message': 'Success!'}), 200
+            return jsonify({'message': 'Item added.'}), 200
 
     # get all documents
     if request.method == 'GET':
