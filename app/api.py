@@ -1,7 +1,5 @@
 '''
 TODO: 
-    - create helper function to verify fields for documents/put them into *content* so that it 
-        matches with the common.edit function and common.add function
     - work on document() and documents()
     - paginate results for documents()
     - send email notification to WYR that client registered
@@ -67,7 +65,7 @@ api_bp = Blueprint('api', __name__)  # url prefix of /api set in init
 
 def get_doc_content(id, content):
     '''
-    Return the content from request that is for documents (not the auth related).
+    Return the fields from request that are for docs (not auth-related fields).
     '''
     
     doc_content = {}
@@ -84,11 +82,8 @@ def get_doc_content(id, content):
 
 
 def create_token(user, client_id, expiration=''):
-    ''' 
-    Helper function to create both authorization code (in authorize()) and access token (in 
-    token()).
-    
-    '''
+    ''' Create both authorization code (in authorize()) and access token (in token()). '''
+
     if not expiration:
         expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
 
@@ -102,13 +97,13 @@ def create_token(user, client_id, expiration=''):
 
 def token_required(f):
     '''
-    Decorator for routes requiring token authorization.
+    Decorator for routes requiring tokens.
 
     First checks that request is in json format and returns error if not.
 
-    If not able to authorize token, returns error. 
+    If not able to authenticate token, returns error. 
     
-    Otherwise, returns username and any *args and **kwargs passed from function being decorated.
+    Otherwise, returns calling function with user object and any *args and **kwargs passed.
     
     Based on https://prettyprinted.com/blog/9857/authenicating-flask-api-using-json-web-tokens
     '''
@@ -164,8 +159,8 @@ def token_required(f):
 def check_token(user):
     '''
     Verification that the token works. (Token and username are fetched from request and 
-    validated via the @token_required decorator). All errors caught there. It also returns *user*,
-    which is used here but is why it is include in function parameters.
+    validated via the @token_required decorator). All errors caught there. @t_r also returns *user*,
+    which is not used here but is why it is include in function parameters.
 
     This is for developer testing only - not used in auth process otherwise.
     '''
@@ -303,8 +298,7 @@ def token():
     code = request.form['code']
 
     if grant_type != 'authorization_code':
-        # TODO: choose correct http response
-        return jsonify({'message' : 'grant_type must be set to "authorization_code"'}), 403
+        return jsonify({'message' : 'grant_type must be set to "authorization_code"'}), 400
 
     # decode code without verifying signature, to get user and their salt for verification
     try:

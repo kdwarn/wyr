@@ -1,5 +1,7 @@
 '''
     TODO:
+        - rather than check response.data, I think I should often check response.get_json() and
+            the response codes/error numbers.
         - test error cases for current API functions implemented
         - disable email to WYR about client registration unless explicitly enabled? (to avoid
           emails while testing) (haven't set this up yet in api.py)
@@ -18,6 +20,134 @@ from app import models
 from app import api
 
 
+###################
+# CLIENT CREATION #
+###################
+
+# for ad-hoc creation of client app
+valid_client_vars = {'submit': 'register', 
+                     'name': 'Tester App Ad Hoc', 
+                     'description': 'This is a test client app',
+                     'callback_url': 'https://www.test.com'}
+
+def test_dev_app_fixture_info(dev_app, developer1):
+    ''' Test that the dev_app fixture was created properly. '''
+    client = models.Client.query.first()
+
+    assert (client.user_id == developer1.id and
+            client.name == 'Tester App 1' and 
+            client.description == 'Testing app development' and
+            client.callback_url == 'https://www.whatyouveread.com/example')
+
+
+def test_create_client_redirect_log_in_page(flask_client, user3):
+    '''Client registration takes developer to main page if not logged in.'''
+    response = flask_client.post('/api/clients',
+                           data=valid_client_vars,
+                           follow_redirects=True)
+    clients = models.Client.query.all()
+    
+    assert (b'Welcome!' in response.data and
+            len(clients) == 0)
+
+
+def test_create_client_cancelled(flask_client, user4):
+    ''' Test cancel client registration.'''
+    response = flask_client.post('/api/clients',
+                           data=dict(submit='cancel',
+                                     name='Test',
+                                     description='This is a test client app',
+                                     callback_url='https://www.test.com'),
+                           follow_redirects=True)
+    clients = models.Client.query.all()
+    
+    assert (b'Client registration canceled.' in response.data and
+            len(clients) == 0)
+
+
+@pytest.mark.parametrize('name, description, callback_url',
+                         [('', 'a simple app', 'https://example.com'),
+                          ('Mobile WYR', '', 'https://example.com'),
+                          ('Mobile WYR', 'a simple app', ''),
+                          ])
+def test_create_client_error1(flask_client, user4, name, description, callback_url):
+    ''' Developer returned to registration page if any form data missing.'''
+    
+    response = flask_client.post('/api/clients',
+                           data=dict(submit='register',
+                                     name=name,
+                                     description=description,
+                                     callback_url=callback_url),
+                           follow_redirects=True)
+    
+    clients = models.Client.query.all()
+    
+    assert (b'Please complete all required fields.' in response.data and
+            len(clients) == 0)
+
+
+def test_create_client_error2(flask_client, user4):
+    ''' Callback_url must be HTTPS.'''
+    
+    response = flask_client.post('/api/clients',
+                           data=dict(submit='register',
+                                     name='Test',
+                                     description='This is a test client app',
+                                     callback_url='http://www.test.com'),
+                           follow_redirects=True)
+    
+    clients = models.Client.query.all()
+    
+    assert (b'The callback URL must use HTTPS.' in response.data and
+            len(clients) == 0)
+
+
+def test_create_client_sucessful1(flask_client, developer1):
+    ''' Created client shows in the database.'''
+    
+    flask_client.post('/api/clients',
+                      data=valid_client_vars,
+                      follow_redirects=True)
+    
+    clients = models.Client.query.all()
+    
+    assert len(clients) == 1
+
+
+def test_create_client_sucessful2(flask_client, developer1):
+    ''' Proper response is given after client created and is listed in apps. '''
+    
+    response = flask_client.post('/api/clients',
+                           data=valid_client_vars,
+                           follow_redirects=True)
+    
+    assert (b'Client registered' in response.data and
+            b'Tester App Ad Hoc' in response.data)
+
+
+def test_create_client_sucessful3(flask_client, developer1, dev_app):
+    ''' A second created client shows in the database.'''
+    
+    flask_client.post('/api/clients',
+                      data=valid_client_vars,
+                      follow_redirects=True)
+    
+    clients = models.Client.query.all()
+    
+    assert len(clients) == 2
+
+
+def test_create_client_sucessful4(flask_client, developer1, dev_app):
+    ''' A second client created is listed in apps. '''
+    
+    response = flask_client.post('/api/clients',
+                                 data=valid_client_vars,
+                                 follow_redirects=True)
+
+    assert (b'Tester App 1' in response.data and
+            b'Tester App Ad Hoc' in response.data)
+
+
 ####################
 # CREATING TOKENS #
 ####################
@@ -25,7 +155,7 @@ from app import api
 # not specific to authorization code or access token
 
 def test_create_token1(user6):
-    ''' Test code creation works, without verification. '''
+    ''' Token created properly - decoding works (without verification). '''
     
     expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
     code = api.create_token(user6, 1, expiration)
@@ -45,7 +175,8 @@ def test_create_token2(user6):
 
 
 def test_decode_token_raises_ex_with_bad_salt(user6, dev_app):
-    
+    ''' Not using the correct salt will raise exception. '''
+
     code = api.create_token(user6, dev_app.client_id)
 
     with pytest.raises(jwt.exceptions.InvalidSignatureError):
@@ -131,195 +262,13 @@ def test_check_token_returns_error4(flask_client):
     assert (response.status_code == 403 and json_data['error'] == 94)
 
 
-# access token testing
-
-def test_get_access_token1(flask_client, user6, dev_app):
-    ''' Getting an access token works properly. '''
-    
-    # create authorization code, which the client would have received via authorize()
-    code = api.create_token(user6, dev_app.client_id)
-
-    response = flask_client.post('/api/token',
-                           data=dict(client_id=dev_app.client_id, 
-                                     grant_type='authorization_code',
-                                     code=code),
-                           follow_redirects=True)
-                           
-    # decode the access_token provided to client
-    access_token = jwt.decode(response.get_json()['access_token'], user6.salt)
-
-    assert (response.status_code == 200 and 
-            response.headers['Cache-Control'] == 'no-store' and
-            response.headers['Pragma'] == 'no-cache' and 
-            response.is_json and 
-            access_token['username'] == 'tester6') 
-
-
-def test_get_access_token_error1(flask_client, user6, dev_app):
-    ''' grant_type has to be authorization_code '''
-    
-    code = api.create_token(user6, dev_app.client_id)
-
-    response = flask_client.post('/api/token',
-                           data=dict(client_id=dev_app.client_id, 
-                                     grant_type='authorizationcode',
-                                     code=code),
-                           follow_redirects=True)
-
-    assert b'grant_type must be set to' in response.data
-
-
-def test_get_access_token_error2(flask_client, user6, dev_app):
-    ''' Code can't be manipulated.'''
-
-    code = "this is a bad code"
-
-    response = flask_client.post('/api/token',
-                            data=dict(client_id=dev_app.client_id, 
-                                        grant_type='authorization_code',
-                                        code=code),
-                            follow_redirects=True)
-
-    json = response.get_json()
-
-    assert (response.status_code == 403 and json['error'] == 94)
-
-
-def test_get_access_token_error4(flask_client, user6, dev_app):
-    ''' Code cannot be expired '''
-
-    expiration = datetime.datetime.utcnow() + datetime.timedelta(seconds=-2)
-    code = api.create_token(user6, dev_app.client_id, expiration)
-
-    response = flask_client.post('/api/token',
-                            data=dict(client_id=dev_app.client_id, 
-                                        grant_type='authorization_code',
-                                        code=code),
-                            follow_redirects=True)
-
-    json = response.get_json()
-
-    assert (response.status_code == 403 and json['error'] == 93)
-
-
-###################
-# CLIENT CREATION #
-###################
-
-# for ad-hoc creation of client app
-valid_client_vars = {'submit': 'register', 
-                     'name': 'Tester App Ad Hoc', 
-                     'description': 'This is a test client app',
-                     'callback_url': 'https://www.test.com'}
-
-def test_dev_app_fixture_info(dev_app, developer1):
-    ''' Test that the dev_app fixture was created properly. '''
-    client = models.Client.query.first()
-    assert (client.user_id == developer1.id and
-            client.name == 'Tester App 1' and 
-            client.description == 'Testing app development' and
-            client.callback_url == 'https://www.whatyouveread.com/example')
-
-
-def test_create_client_redirect_log_in_page(flask_client, user3):
-    '''Client registration takes developer to main page if not logged in.'''
-    response = flask_client.post('/api/clients',
-                           data=valid_client_vars,
-                           follow_redirects=True)
-    clients = models.Client.query.all()
-    print(response.data)
-    assert (b'Welcome!' in response.data and
-            len(clients) == 0)
-
-
-def test_create_client_cancelled(flask_client, user4):
-    ''' Test cancel client registration.'''
-    response = flask_client.post('/api/clients',
-                           data=dict(submit='cancel',
-                                     name='Test',
-                                     description='This is a test client app',
-                                     callback_url='https://www.test.com'),
-                           follow_redirects=True)
-    clients = models.Client.query.all()
-    assert (b'Client registration canceled.' in response.data and
-            len(clients) == 0)
-
-
-@pytest.mark.parametrize('name, description, callback_url',
-                         [('', 'a simple app', 'https://example.com'),
-                          ('Mobile WYR', '', 'https://example.com'),
-                          ('Mobile WYR', 'a simple app', ''),
-                          ])
-def test_create_client_error1(flask_client, user4, name, description, callback_url):
-    ''' Developer returned to registration page if any form data missing.'''
-    response = flask_client.post('/api/clients',
-                           data=dict(submit='register',
-                                     name=name,
-                                     description=description,
-                                     callback_url=callback_url),
-                           follow_redirects=True)
-    clients = models.Client.query.all()
-    assert (b'Please complete all required fields.' in response.data and
-            len(clients) == 0)
-
-
-def test_create_client_error2(flask_client, user4):
-    ''' Callback_url must be HTTPS.'''
-    response = flask_client.post('/api/clients',
-                           data=dict(submit='register',
-                                     name='Test',
-                                     description='This is a test client app',
-                                     callback_url='http://www.test.com'),
-                           follow_redirects=True)
-    clients = models.Client.query.all()
-    assert (b'The callback URL must use HTTPS.' in response.data and
-            len(clients) == 0)
-
-
-def test_create_client_sucessful1(flask_client, developer1):
-    ''' Created client shows in the database.'''
-    flask_client.post('/api/clients',
-                      data=valid_client_vars,
-                      follow_redirects=True)
-    clients = models.Client.query.all()
-    assert len(clients) == 1
-
-
-def test_create_client_sucessful2(flask_client, developer1):
-    ''' Proper response is given after client created and is listed in apps. '''
-    response = flask_client.post('/api/clients',
-                           data=valid_client_vars,
-                           follow_redirects=True)
-    
-    assert (b'Client registered' in response.data and
-            b'Tester App Ad Hoc' in response.data)
-
-
-def test_create_client_sucessful3(flask_client, developer1, dev_app):
-    ''' A second created client shows in the database.'''
-    flask_client.post('/api/clients',
-                      data=valid_client_vars,
-                      follow_redirects=True)
-    clients = models.Client.query.all()
-    assert len(clients) == 2
-
-
-def test_create_client_sucessful4(flask_client, developer1, dev_app):
-    ''' A second client created is listed in apps. '''
-    response = flask_client.post('/api/clients',
-                                 data=valid_client_vars,
-                                 follow_redirects=True)
-
-    assert (b'Tester App 1' in response.data and
-            b'Tester App Ad Hoc' in response.data)
-
-
-#############################
-# USER AUTHORIZATION OF APP #
-#############################
+##################################################
+# USER AUTHORIZATION OF APP, AUTHORIZATION CODES #
+##################################################
 
 def test_app_authorization_get1(flask_client, user1):
     ''' User is redirected to login page if they are not logged in.'''
+    
     response = flask_client.get('/api/authorize',
                           query_string={'client_id': '1',
                                         'response_type': 'not_code'},
@@ -330,6 +279,7 @@ def test_app_authorization_get1(flask_client, user1):
 
 def test_app_authorization_get2(flask_client, user6):
     ''' **response_type** passed must be set to 'code' '''
+    
     response = flask_client.get('/api/authorize',
                           query_string={'client_id': '1',
                                         'response_type': 'not_code'},
@@ -340,6 +290,7 @@ def test_app_authorization_get2(flask_client, user6):
 
 def test_app_authorization_get3(flask_client, user6):
     ''' **response_type** passed must be set to 'code' '''
+    
     response = flask_client.get('/api/authorize',
                           query_string={'client_id': '1',
                                         'response_type': ''},
@@ -350,6 +301,7 @@ def test_app_authorization_get3(flask_client, user6):
 
 def test_app_authorization_get4(flask_client, user6, dev_app):
     ''' *client_id* must be id of a registered client. '''
+    
     response = flask_client.get('/api/authorize',
                           query_string={'client_id': '500',
                                         'response_type': 'code'},
@@ -393,6 +345,81 @@ def test_app_authorization_post1(flask_client, user6, dev_app):
     assert (dev_app.callback_url in response.headers['Location'] and
         'code' in response.headers['Location'] and 
         'state' in response.headers['Location'])
+
+
+#################
+# ACCESS TOKENS #
+#################
+
+def test_get_access_token1(flask_client, user6, dev_app):
+    ''' Getting an access token works properly. '''
+    
+    # create authorization code, which the client would have received via authorize()
+    code = api.create_token(user6, dev_app.client_id)
+
+    response = flask_client.post('/api/token',
+                           data=dict(client_id=dev_app.client_id, 
+                                     grant_type='authorization_code',
+                                     code=code),
+                           follow_redirects=True)
+                           
+    # decode the access_token provided to client
+    access_token = jwt.decode(response.get_json()['access_token'], user6.salt)
+
+    assert (response.status_code == 200 and 
+            response.headers['Cache-Control'] == 'no-store' and
+            response.headers['Pragma'] == 'no-cache' and 
+            response.is_json and 
+            access_token['username'] == 'tester6') 
+
+
+def test_get_access_token_error1(flask_client, user6, dev_app):
+    ''' grant_type has to be authorization_code '''
+    
+    code = api.create_token(user6, dev_app.client_id)
+
+    response = flask_client.post('/api/token',
+                           data=dict(client_id=dev_app.client_id, 
+                                     grant_type='authorizationcode',
+                                     code=code),
+                           follow_redirects=True)
+    
+    json_data = response.get_json()
+    
+    assert (response.status_code == 400 and json_data['error'] == 400)
+
+
+def test_get_access_token_error2(flask_client, user6, dev_app):
+    ''' Code can't be manipulated.'''
+
+    code = "this is a bad code"
+
+    response = flask_client.post('/api/token',
+                            data=dict(client_id=dev_app.client_id, 
+                                        grant_type='authorization_code',
+                                        code=code),
+                            follow_redirects=True)
+
+    json_data = response.get_json()
+
+    assert (response.status_code == 403 and json_data['error'] == 94)
+
+
+def test_get_access_token_error4(flask_client, user6, dev_app):
+    ''' Code cannot be expired '''
+
+    expiration = datetime.datetime.utcnow() + datetime.timedelta(seconds=-2)
+    code = api.create_token(user6, dev_app.client_id, expiration)
+
+    response = flask_client.post('/api/token',
+                            data=dict(client_id=dev_app.client_id, 
+                                        grant_type='authorization_code',
+                                        code=code),
+                            follow_redirects=True)
+
+    json_data = response.get_json()
+
+    assert (response.status_code == 403 and json_data['error'] == 93)
 
 
 ###############################
