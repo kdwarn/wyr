@@ -451,7 +451,7 @@ def test_document_get1(flask_client, user4, dev_app):
            json_data['note'] == 'This is a note.')
 
 
-def test_document_get1(flask_client, user4, dev_app):
+def test_document_error1(flask_client, user4, dev_app):
     ''' If username provided doesn't match username in token, give error. '''
     
     # get user's first document
