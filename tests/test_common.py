@@ -520,7 +520,7 @@ def test_edit_all(user1):
             doc.authors[0].first_name == 'Regina' and
             doc.authors[0].last_name == 'Williams' and
             doc.year == '2017' and
-            doc.note == 'This is an edited note.' and
+            doc.notes == 'This is an edited note.' and
             doc.read == 0)
 
 
@@ -545,7 +545,7 @@ def test_edit_clear_all_but_title(user1):
             len(doc.tags) == 0 and
             len(doc.authors) == 0 and
             doc.year == '' and
-            doc.note == '' and
+            doc.notes == '' and
             doc.read == 0)
 
 
