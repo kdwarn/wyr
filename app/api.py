@@ -2,6 +2,7 @@
 TODO: 
     - work on document() and documents()
     - paginate results for documents()
+    - should not be able to edit or delete Goodreads or Mendeley doc
     - send email notification to WYR that client registered
     - check that wyr.py is properly including register_client() and authorize() in CSRF
       protection (excluded these endpoints in the skipping of api blueprint)
@@ -15,16 +16,18 @@ TODO:
         https://www.narwhl.com/http-response-codes/
 
     - list of error codes I'm using:
-        1-10: db/account issues
+        1-9: db/account issues
             1: can't locate user
             2: can't locate client
             3: can't locate document
-        10-20: field issues
+        10-19: field issues
             10: title not supplied, but required
             11: link already exists in attempted added item
             12: No bunch by that name.
             13: not one of the user's items.
             14: ID not provided
+        20-29: editing restrictions
+            20: cannot edit Mendeley or Goodreads document
         90-99: authorization/submitted json issues
             90: Parameters not submitted in json format
             91: Missing token
@@ -46,6 +49,7 @@ TODO:
 
 import datetime
 from functools import wraps
+import json
 import random
 import string
 import uuid
@@ -69,32 +73,26 @@ def get_doc_content(id, content):
     '''
     Return the doc fields from request (not auth-related fields).
     '''
-    
-    doc_content = {}
-    doc_content['id'] = id
-    doc_content['title'] = content.get('title')
-    doc_content['link'] = content.get('link')  # note the difference
-    doc_content['tags'] = content.get('tags')
-    doc_content['authors'] = content.get('authors')
-    doc_content['year'] = content.get('year')
-    doc_content['notes'] = content.get('notes')
-    doc_content['read'] = content.get('read')
-
-    return doc_content
+    return {'id': id,
+            'title': content.get('title'),
+            'link': content.get('link'),
+            'tags': content.get('tags'),
+            'authors': content.get('authors'),
+            'year': content.get('year'),
+            'notes': content.get('notes'),
+            'read': content.get('read')}
 
 
 def create_token(user, client_id, expiration=''):
     ''' Create both authorization code (in authorize()) and access token (in token()). '''
-
     if not expiration:
         expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
 
-    token = jwt.encode({'client_id': client_id, 
+    return jwt.encode({'client_id': client_id, 
                         'username': user.username, 
                         'exp': expiration,
                         }, 
                         user.salt).decode('utf-8')
-    return token
 
 
 def token_required(f):
@@ -109,7 +107,6 @@ def token_required(f):
     
     Based on https://prettyprinted.com/blog/9857/authenicating-flask-api-using-json-web-tokens
     '''
-
     @wraps(f)
     def wrapper(*args, **kwargs):
         if not request.is_json:
@@ -165,7 +162,6 @@ def clients():
     
     Only registered users who are logged in can register clients.
     '''
-    
     if request.method == 'GET':
         clients = Client.query.filter_by(user_id=current_user.id).all()
         return render_template('clients.html', clients=clients)
@@ -198,7 +194,7 @@ def clients():
         db.session.add(client)
         db.session.commit()
         flash("Client registered.")
-        
+
     return redirect(url_for('api.clients'))
 
 
@@ -206,13 +202,12 @@ def clients():
 @token_required
 def check_token(user):
     '''
-    Verification that the token works. (Token and username are fetched from request and 
-    validated via the @token_required decorator). All errors caught there. @t_r also returns *user*,
-    which is not used here but is why it is include in function parameters.
-
-    This is for developer testing only - not used in auth process otherwise.
+    Provides verficiation to client developer that the token works (or doesn't). 
+    
+    Token and username are fetched from request and validated via the @token_required decorator. 
+    All errors caught there. @t_r also returns *user*, which is not used here but is why it is 
+    included in function parameters.
     '''
-
     return jsonify({'message' : 'Success! The token works.',
                     'status': 'Ok'}), 200
 
@@ -235,7 +230,6 @@ def authorize():
     to this route from client app (Authorization Grant).
     
     '''
-
     if request.method == 'GET':
         client_id = request.args.get('client_id')
         response_type = request.args.get('response_type')
@@ -271,7 +265,6 @@ def authorize():
     
     expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
     code = create_token(current_user, client_id, expiration) 
-    
     redirect_url = client.callback_url + '?code=' + code
 
     if state:
@@ -283,7 +276,7 @@ def authorize():
 @api_bp.route('/token', methods=['POST'])
 def token():
     '''
-    Provide access token to client, after authorization from user.
+    Return access token to client, after authorization from user.
     
     In the Oauth2 protocol flow (https://tools.ietf.org/html/rfc6749#section-1.2), this is step C 
     (Authorization Grant) and Step D (Access Token). These steps would
@@ -293,7 +286,6 @@ def token():
 
     The client stores this access token for future calls to the user's protected resources (steps
     E and F, repeated as needed).
-    
     '''
     client_id = request.form['client_id']
     grant_type = request.form['grant_type']
@@ -331,10 +323,8 @@ def token():
     
     expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
     token = create_token(user, client_id, expiration)
-
     client = Client.query.filter_by(client_id=client_id).one()
     user.apps.append(client)
-
     response = jsonify({'access_token': token, 
                         'token_type': 'bearer'})
     response.headers['Cache-Control'] = 'no-store'
@@ -352,7 +342,6 @@ def document(user, id):
     All error checking of token/username, json format is done by @token_required, which also 
     returns *user* to this function. 
     '''
-    
     if not id:
         return jsonify({'message': 'ID of document not included in request.', 
                             'error': 14}), 404  # TODO: check HTTP response
@@ -364,26 +353,13 @@ def document(user, id):
 
     # get a document
     if request.method == 'GET':
-        
-        if doc.tags:
-            tags = [tag.name for tag in doc.tags]
-        else:
-            tags = ''
-
-        if doc.authors:
-            authors = [author.last_name + ', ' + author.first_name for author in doc.authors]
-        else:
-            authors = ''
-
-        return jsonify({'title': doc.title,
-                        'url': doc.link,
-                        'year': doc.year,
-                        'note': doc.note,
-                        'tags': tags,
-                        'authors': authors}), 200
+        return jsonify(doc.serialize()), 200
     
     # edit a document
     if request.method == 'PUT':
+        if doc.source_id != 3:
+            return jsonify({'message': 'Mendeley and Goodreads items cannot b edited through WYR', 
+                             'error': 20}), 403
 
         doc_content = get_doc_content(id, request.get_json())
 
@@ -398,7 +374,6 @@ def document(user, id):
 
     # delete document
     if request.method == 'DELETE':
-        
         try:
             common.delete_item(id, user)
         except ex.NotUserDocException as e:
@@ -411,12 +386,11 @@ def document(user, id):
 @token_required
 def documents(user):
     '''
-    Get all documents from a user's collection or add a new document
+    Get all documents from a user's collection or add a new document.
 
     All error checking of token/username, json format is done by @token_required, which also 
     returns *user* to this function.
     '''
-
     # add a document
     if request.method == 'POST':
 
@@ -432,7 +406,13 @@ def documents(user):
             return jsonify({'message': 'Item added.'}), 201
 
     # get all documents
+    # TODO: extend this to filter in the various ways common.get_docs() can filter
     if request.method == 'GET':
-        pass
-
-    return 
+        docs = common.get_docs(user)
+        docs_as_json = []
+        for doc in docs:
+            docs_as_json.append(doc.serialize())
+        
+        return jsonify(docs_as_json)
+        
+    

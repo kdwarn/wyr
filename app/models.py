@@ -5,6 +5,7 @@ TODO:
 
 '''
 
+import json
 import uuid
 
 from flask_login import UserMixin
@@ -159,7 +160,7 @@ class Documents(db.Model):
     read = db.Column(db.Integer)
     starred = db.Column(db.Integer)
     year = db.Column(db.String(4))
-    note = db.Column(db.Text)
+    notes = db.Column(db.Text)
     native_doc_id = db.Column(db.String(50))  # needed for Mendeley and Goodreads
 
     # relationships
@@ -179,7 +180,7 @@ class Documents(db.Model):
                                  cascade="all, delete, delete-orphan"
                                 )
 
-    def __init__(self, user_id, source_id, title, link='', created='', read='', year='', note=''):
+    def __init__(self, user_id, source_id, title, link='', created='', read='', year='', notes=''):
         self.user_id = user_id
         self.source_id = source_id
         self.title = title
@@ -187,7 +188,20 @@ class Documents(db.Model):
         self.created = created
         self.read = read
         self.year = year
-        self.note = note
+        self.notes = notes
+
+    def serialize(self):
+        
+        return {'title': self.title,
+                'link': self.link,
+                'created': self.created.date(),
+                'created': self.created.strftime('%Y-%m-%d'),
+                'read': self.read,
+                'year': self.year,
+                'notes': self.notes,
+                'authors': [author.asdict() for author in self.authors],
+                'tags': [tag.name for tag in self.tags],
+                }
 
 
 class Tags(db.Model):
@@ -206,6 +220,11 @@ class Authors(db.Model):
     def __init__(self, first_name, last_name):
         self.first_name = first_name
         self.last_name = last_name
+
+    def asdict(self):
+        return {'id': self.id,
+                'first_name': self.first_name,
+                'last_name': self.last_name}
 
 
 class FileLinks(db.Model):

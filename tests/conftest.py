@@ -125,8 +125,11 @@ def user4(flask_client, four_items):
     db.session.add(user4)
     db.session.commit()
 
-    for item in four_items:
-        common.add_item(item, user4)
+    common.add_item(four_items[0], user4)
+    common.add_item(four_items[1], user4)
+    common.add_item(four_items[2], user4)
+    common.add_item(four_items[3], user4, source='mendeley')
+
 
     flask_client.post('/login', 
                       data=dict(wyr_username='tester4',
@@ -305,7 +308,7 @@ def four_items():
                                 ],
                     'year': '2018',
                     'notes': 'This is a note.',
-                    'read': '1'})
+                    'read': 1})
     items.append({'title': 'Second user doc',
                     'link': 'http://whatyouveread.com/2',
                     'tags': ['tag2', 'tag3', 'tag4'],
@@ -315,7 +318,7 @@ def four_items():
                                ],
                     'year': '2017',
                     'notes': 'This is also a note.',
-                    'read': '0'})
+                    'read': 0})
     items.append({'title': 'Third user doc',
                     'link': 'http://whatyouveread.com/3',
                     'tags': ['tag0', 'tag2'],
@@ -325,14 +328,15 @@ def four_items():
                                ],
                     'year': '2019',
                     'notes': 'This is also a note.',
-                    'read': '0'})
+                    'read': 0})
     items.append({'title': 'Fourth user doc',
                     'link': '',
                     'tags': [],
                     'authors': [],
                     'year': '',
                     'notes': '',
-                    'read': '0'})
+                    'read': 0,
+                    'native_doc_id': '121adb334'})
     return items
 
 
@@ -350,7 +354,7 @@ def five_items():
                                 ],
                     'year': '2018',
                     'notes': 'This is a note.',
-                    'read': '1'})
+                    'read': 1})
     items.append({'title': 'Second user doc',
                     'link': 'http://whatyouveread.com/2',
                     'tags': ['tag6', 'tag7', 'tag8'],
@@ -360,7 +364,7 @@ def five_items():
                                ],
                     'year': '2017',
                     'notes': 'This is also a note.',
-                    'read': '0'})
+                    'read': 0})
     items.append({'title': 'Third user doc',
                     'link': 'http://whatyouveread.com/3',
                     'tags': ['tag4', 'tag6'],
@@ -370,7 +374,7 @@ def five_items():
                                ],
                     'year': '2019',
                     'notes': 'This is also a note.',
-                    'read': '0'})
+                    'read': 0})
     items.append({'title': 'Fourth user doc',
                     'link': 'http://whatyouveread.com/4',
                     'tags': ['tag4', 'tag6', '7even'],
@@ -380,14 +384,14 @@ def five_items():
                                ],
                     'year': '2019',
                     'notes': 'This is also a note.',
-                    'read': '1'})
+                    'read': 1})
     items.append({'title': 'Fifth user doc',
                     'link': '',
                     'tags': [],
                     'authors': [],
                     'year': '',
                     'notes': '',
-                    'read': '0'})
+                    'read': 0})
     return items
 
 

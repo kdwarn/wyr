@@ -1,9 +1,9 @@
 '''
     TODO:
-        - parameterize the pair of functions test_app_authorization_get2 to _get5
         - test that client id matches that parameter in the decoded authorization_code
-        - all error testing for document()
-        - write and test documents() function
+        - all error testing for document() and documents()
+        - integration(?) testing - the whole process from authorization to adding/editing/deleting/
+            getting doc(s) (new section at bottom)
         - disable email to WYR about client registration unless explicitly enabled? (to avoid
           emails while testing) (haven't set this up yet in api.py)
         - testing editing client info
@@ -11,6 +11,7 @@
 
 
 import datetime
+import json
 import time
 
 import jwt
@@ -30,6 +31,7 @@ valid_client_vars = {'submit': 'register',
                      'name': 'Tester App Ad Hoc', 
                      'description': 'This is a test client app',
                      'callback_url': 'https://www.test.com'}
+
 
 def test_dev_app_fixture_info(dev_app, developer1):
     ''' Test that the dev_app fixture was created properly. '''
@@ -248,8 +250,11 @@ def test_app_authorization_get1(flask_client, user1):
 
     assert b'Welcome!' in response.data
 
-
-def test_app_authorization_get2(flask_client, user6):
+@pytest.mark.parametrize('client_id, response_type',
+                         [('1', 'not_code'),
+                          ('1', ''),
+                          ])
+def test_app_authorization_get2(flask_client, user6, client_id, response_type):
     ''' **response_type** passed must be set to 'code'.'''
     response = flask_client.get('/api/authorize',
                                 query_string={'client_id': '1',
@@ -259,17 +264,11 @@ def test_app_authorization_get2(flask_client, user6):
     assert b'Query parameter response_type must be set to ' in response.data
 
 
-def test_app_authorization_get3(flask_client, user6):
-    ''' **response_type** passed must be set to 'code'.'''
-    response = flask_client.get('/api/authorize',
-                                query_string={'client_id': '1',
-                                              'response_type': ''},
-                                follow_redirects=True)
-    
-    assert b'Query parameter response_type must be set to ' in response.data
-
-
-def test_app_authorization_get4(flask_client, user6, dev_app):
+@pytest.mark.parametrize('client_id, response_type',
+                         [('500', 'code'),
+                          ('', 'code'),
+                          ])
+def test_app_authorization_get3(flask_client, user6, client_id, response_type):
     ''' *client_id* must be id of a registered client.'''
     response = flask_client.get('/api/authorize',
                           query_string={'client_id': '500',
@@ -279,17 +278,7 @@ def test_app_authorization_get4(flask_client, user6, dev_app):
     assert b'No third-party app found matching request. Authorization failed.' in response.data
 
 
-def test_app_authorization_get5(flask_client, user6, dev_app):
-    ''' *client_id* must be id of a registered client. '''
-    response = flask_client.get('/api/authorize',
-                                query_string={'client_id': '',
-                                              'response_type': 'code'},
-                                follow_redirects=True)
-    
-    assert b'No third-party app found matching request. Authorization failed.' in response.data
-
-
-def test_app_authorization_get6(flask_client, user6, dev_app):
+def test_app_authorization_get4(flask_client, user6, dev_app):
     '''User presented with authorization form if all checks pass.'''
     response = flask_client.get('/api/authorize',
                                 query_string={'client_id': dev_app.client_id,
@@ -334,12 +323,16 @@ def test_get_access_token1(flask_client, user6, dev_app):
             access_token['username'] == 'tester6') 
 
 
-def test_get_access_token_error1(flask_client, user6, dev_app):
-    ''' grant_type has to be authorization_code '''
+@pytest.mark.parametrize('grant_type', 
+                         [('authorizationcode'),
+                          (''),]
+                        )
+def test_get_access_token_error1(flask_client, user6, dev_app, grant_type):
+    ''' Return error if grant_type != authorization_code '''
     code = api.create_token(user6, dev_app.client_id)
     response = flask_client.post('/api/token',
                                  data=dict(client_id=dev_app.client_id, 
-                                           grant_type='authorizationcode',
+                                           grant_type=grant_type,
                                            code=code),
                                  follow_redirects=True)
     json_data = response.get_json()
@@ -374,12 +367,13 @@ def test_get_access_token_error4(flask_client, user6, dev_app):
     assert (response.status_code == 403 and json_data['error'] == 93)
 
 
-###############################
-# GETTING PROTECTED RESOURCES #
-###############################
+#######################
+# PROTECTED RESOURCES #
+#######################
+
 
 def test_document_get1(flask_client, user4, dev_app):
-    '''document() GET should return one document.'''
+    '''document() GET should return all fields correctly.'''
     doc = user4.documents.first()
     token = api.create_token(user4, dev_app.client_id)
     response = flask_client.get('/api/documents/' + str(doc.id),
@@ -389,16 +383,21 @@ def test_document_get1(flask_client, user4, dev_app):
     
     assert (response.status_code == 200 and 
             json_data['title'] == 'First user doc' and  
-            json_data['url'] ==  'http://whatyouveread.com/1' and 
-            json_data['year'] == '2018' and 
-            'Smith, Joe' in json_data['authors'] and 
-            'Smith, Jane' in json_data['authors'] and
+            json_data['link'] ==  'http://whatyouveread.com/1' and 
+            json_data['year'] == '2018' and
+            json_data['created'] == datetime.datetime.now().date(),
+            json_data['authors'][0]['first_name'] == 'Joe' and
+            json_data['authors'][0]['last_name'] == 'Smith' and  
+            json_data['authors'][0]['id'] == 1 and
+            json_data['authors'][1]['first_name'] == 'Jane' and
+            json_data['authors'][1]['last_name'] == 'Smith' and
+            json_data['authors'][0]['id'] == 2 and
             'tag0' in json_data['tags'] and
             'tag1' in json_data['tags'] and
-            json_data['note'] == 'This is a note.')
+            json_data['notes'] == 'This is a note.')
 
 
-def test_document_error1(flask_client, user4, dev_app):
+def test_document_get_error1(flask_client, user4, dev_app):
     '''Return error if username provided doesn't match username in token.'''
     doc = user4.documents.first()
     token = api.create_token(user4, dev_app.client_id)
@@ -409,7 +408,7 @@ def test_document_error1(flask_client, user4, dev_app):
     
     assert (response.status_code == 403 and json_data['error'] == 96)
 
-
+@pytest.mark.now
 def test_document_put1(flask_client, user4, dev_app):
     '''document() PUT should edit one document.'''
     token = api.create_token(user4, dev_app.client_id)
@@ -423,7 +422,7 @@ def test_document_put1(flask_client, user4, dev_app):
                                                   {'last_name': 'Smith', 'first_name': 'Jane'}],
                                       'year': '2018',
                                       'notes': 'This is a note.',
-                                      'read': '1'})
+                                      'read': 1})
     json_data = response.get_json()
 
     # have to do it this way because session is no longer available
@@ -436,9 +435,40 @@ def test_document_put1(flask_client, user4, dev_app):
             doc1.year == '2018' and 
             len(doc1.authors) == 2 and 
             len(doc1.tags) == 2 and
-            doc1.note == 'This is a note.')
+            doc1.notes == 'This is a note.' and 
+            doc1.read == 1)
 
+@pytest.mark.now
+def test_document_put2(flask_client, user4, dev_app):
+    '''Read is converted to int if provided in str format.'''
+    token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.put('/api/documents/1',
+                                json={'token': token,
+                                      'username': 'tester4',
+                                      'title': 'new title',  # change 1
+                                      'link': 'http://whatyouveread.com/1',
+                                      'tags': ['tag0', 'tag1'],
+                                      'authors': [{'last_name': 'Smith', 'first_name': 'Joe'},
+                                                  {'last_name': 'Smith', 'first_name': 'Jane'}],
+                                      'year': '2018',
+                                      'notes': 'This is a note.',
+                                      'read': '0'})  # change 2
+    json_data = response.get_json()
 
+    # have to do it this way because session is no longer available
+    doc1 = models.Documents.query.filter_by(id=1).one()
+
+    assert (response.status_code == 200 and 
+            json_data['message'] == 'Item edited.' and
+            doc1.title == 'new title' and  
+            doc1.link ==  'http://whatyouveread.com/1' and 
+            doc1.year == '2018' and 
+            len(doc1.authors) == 2 and 
+            len(doc1.tags) == 2 and
+            doc1.notes == 'This is a note.' and 
+            doc1.read == 0)
+
+@pytest.mark.now
 def test_document_put_error1(flask_client, user4, dev_app):
     ''' Return error if username provided doesn't match username in token'''
     token = api.create_token(user4, dev_app.client_id)
@@ -452,11 +482,30 @@ def test_document_put_error1(flask_client, user4, dev_app):
                                                   {'last_name': 'Smith', 'first_name': 'Jane'}],
                                       'year': '2018',
                                       'notes': 'This is a note.',
-                                      'read': '1'})
+                                      'read': 1})
     json_data = response.get_json()
 
     assert json_data['error'] == 96
 
+
+@pytest.mark.now
+def test_document_put_error2(flask_client, user4, dev_app):
+    ''' Client should not be able to edit non-WYR item.'''
+    token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.put('/api/documents/4',
+                                json={'token': token,
+                                      'username': 'tester4',
+                                      'title': 'Fourth user doc',
+                                      'link': '',
+                                      'tags': [],
+                                      'authors': [],
+                                      'year': '',
+                                      'notes': '',
+                                      'read': '1'} # only change
+                                )
+    json_data = response.get_json()
+
+    assert json_data['error'] == 20
 
 def test_document_delete1(flask_client, user4, dev_app):
     '''document() DELETE should delete one item.'''
@@ -485,3 +534,15 @@ def test_document_delete_error1(flask_client, user4, dev_app):
     json_data = response.get_json()
 
     assert json_data['error'] == 96
+
+
+def test_get_all_docs(flask_client, user4, dev_app):
+    ''' documents() GET returns all user's documents.'''
+    access_token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.get('/api/documents',
+                                json={'username': user4.username,
+                                      'token': access_token})
+    json_data = response.get_json()
+    
+    # print(json.dumps(json_data, indent=4))
+    assert len(json_data) == 4
