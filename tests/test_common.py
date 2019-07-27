@@ -145,6 +145,20 @@ def test_add_no_read_value_defaults_to_1(user0):
     assert doc.read == 1
 
 
+def test_add_str_read_value_converted_to_int1(user0):
+    content = {'title': 'Test', 'read': '1'}
+    common.add_item(content, user0)
+    doc = user0.documents.first()
+    assert doc.read == 1
+
+
+def test_add_str_read_value_converted_to_int2(user0):
+    content = {'title': 'Test', 'read': '0'}
+    common.add_item(content, user0)
+    doc = user0.documents.first()
+    assert doc.read == 0
+
+
 def test_add_one_minimal(user0):
     content = {'title': 'Test'}
     common.add_item(content, user0)
@@ -256,6 +270,45 @@ def test_edit_unexpected_read_value_defaults_to_1(user1):
     doc = user1.documents.first()
     assert doc.read == 1
 
+
+def test_edit_str_read_value_converted_to_int1(user1):
+    '''Read value of '0' converted to 0.'''
+
+    content = {'id': '1',
+               'title': 'Test',
+               'link': 'http://whatyouveread.com/1',
+               'tags': ['tag0', 'tag1'],
+               'authors': [
+                           {'last_name': 'Smith', 'first_name': 'Joe'},
+                           {'last_name': 'Smith', 'first_name': 'Jane'}
+                          ],
+               'year': '2018',
+               'notes': 'This is a note.',
+               'read': '0'}
+
+    common.edit_item(content, user1)
+    doc = user1.documents.first()
+    assert doc.read == 0
+
+
+def test_edit_str_read_value_converted_to_int2(user1):
+    '''Read value of '1' converted to 1.'''
+
+    content = {'id': '1',
+               'title': 'Test',
+               'link': 'http://whatyouveread.com/1',
+               'tags': ['tag0', 'tag1'],
+               'authors': [
+                           {'last_name': 'Smith', 'first_name': 'Joe'},
+                           {'last_name': 'Smith', 'first_name': 'Jane'}
+                          ],
+               'year': '2018',
+               'notes': 'This is a note.',
+               'read': '1'}
+
+    common.edit_item(content, user1)
+    doc = user1.documents.first()
+    assert doc.read == 1
 
 # tags
 
@@ -369,7 +422,7 @@ def test_delete_orphaned_tags2(user1):
                           ],
                'year': '2018',
                'notes': 'This is a note.',
-               'read': '1'}
+               'read': 1}
 
     common.edit_item(content, user1)
 
@@ -467,7 +520,7 @@ def test_delete_orphaned_authors2(user1):
                           ],
               'year': '2018',
               'notes': 'This is a note.',
-              'read': '1'}
+              'read': 1}
 
     common.edit_item(content, user1)
 
@@ -487,7 +540,7 @@ def test_edit_remove_all_tags_and_authors(user1):
                'authors': [],
                'year': '2018',
                'notes': 'This is a note.',
-               'read': '1'}
+               'read': 1}
 
     common.edit_item(content, user1)
 
@@ -506,7 +559,7 @@ def test_edit_all(user1):
                'authors': [{'last_name': 'Williams', 'first_name': 'Regina'}],
                'year': '2017',
                'notes': 'This is an edited note.',
-               'read': '0'}
+               'read': 0}
 
     common.edit_item(content, user1)
 
@@ -534,7 +587,7 @@ def test_edit_clear_all_but_title(user1):
                'authors': [],
                'year': '',
                'notes': '',
-               'read': '0'}
+               'read': 0}
 
     common.edit_item(content, user1)
 

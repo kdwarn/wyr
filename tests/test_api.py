@@ -438,35 +438,6 @@ def test_document_put1(flask_client, user4, dev_app):
             doc1.notes == 'This is a note.' and 
             doc1.read == 1)
 
-@pytest.mark.now
-def test_document_put2(flask_client, user4, dev_app):
-    '''Read is converted to int if provided in str format.'''
-    token = api.create_token(user4, dev_app.client_id)
-    response = flask_client.put('/api/documents/1',
-                                json={'token': token,
-                                      'username': 'tester4',
-                                      'title': 'new title',  # change 1
-                                      'link': 'http://whatyouveread.com/1',
-                                      'tags': ['tag0', 'tag1'],
-                                      'authors': [{'last_name': 'Smith', 'first_name': 'Joe'},
-                                                  {'last_name': 'Smith', 'first_name': 'Jane'}],
-                                      'year': '2018',
-                                      'notes': 'This is a note.',
-                                      'read': '0'})  # change 2
-    json_data = response.get_json()
-
-    # have to do it this way because session is no longer available
-    doc1 = models.Documents.query.filter_by(id=1).one()
-
-    assert (response.status_code == 200 and 
-            json_data['message'] == 'Item edited.' and
-            doc1.title == 'new title' and  
-            doc1.link ==  'http://whatyouveread.com/1' and 
-            doc1.year == '2018' and 
-            len(doc1.authors) == 2 and 
-            len(doc1.tags) == 2 and
-            doc1.notes == 'This is a note.' and 
-            doc1.read == 0)
 
 @pytest.mark.now
 def test_document_put_error1(flask_client, user4, dev_app):
