@@ -460,23 +460,46 @@ def test_document_put_error1(flask_client, user4, dev_app):
 
 
 @pytest.mark.now
-def test_document_put_error2(flask_client, user4, dev_app):
+def test_document_put_error2(flask_client, user5, dev_app):
     ''' Client should not be able to edit non-WYR item.'''
-    token = api.create_token(user4, dev_app.client_id)
-    response = flask_client.put('/api/documents/4',
+    token = api.create_token(user5, dev_app.client_id)
+    response = flask_client.put('/api/documents/3',
                                 json={'token': token,
-                                      'username': 'tester4',
+                                      'username': 'tester5',
                                       'title': 'Fourth user doc',
                                       'link': '',
                                       'tags': [],
                                       'authors': [],
                                       'year': '',
                                       'notes': '',
-                                      'read': '1'} # only change
+                                      'read': 1} # only change
                                 )
     json_data = response.get_json()
 
     assert json_data['error'] == 20
+
+
+def test_document_put_error3(flask_client, user4, dev_app):
+    ''' Return error if can't find that doc in user's docs.'''
+    token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.put('/api/documents/5',
+                                json={'token': token,
+                                      'username': 'tester4'})
+    json_data = response.get_json()
+
+    assert json_data['error'] == 13
+
+
+def test_document_put_error4(flask_client, user3, user4, dev_app):
+    ''' Return error if not the user's doc.'''
+    token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.put('/api/documents/1',
+                                json={'token': token,
+                                      'username': 'tester4'})
+    json_data = response.get_json()
+
+    assert json_data['error'] == 13
+    
 
 def test_document_delete1(flask_client, user4, dev_app):
     '''document() DELETE should delete one item.'''
@@ -505,6 +528,17 @@ def test_document_delete_error1(flask_client, user4, dev_app):
     json_data = response.get_json()
 
     assert json_data['error'] == 96
+
+
+def test_document_delete_error2(flask_client, user5, dev_app):
+    '''Return error if user tries to delete non-WYR item.'''
+    token = api.create_token(user5, dev_app.client_id)
+    response = flask_client.delete('/api/documents/3',
+                                    json={'token': token,
+                                          'username': 'tester5'})
+    json_data = response.get_json()
+
+    assert json_data['error'] == 21
 
 
 def test_get_all_docs(flask_client, user4, dev_app):

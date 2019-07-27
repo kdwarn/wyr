@@ -248,7 +248,6 @@ def add_item(content, user, source=''):
 
 def edit_item(content, user, source=''):
     '''Edit existing document.'''
-
     # uses source rather than source_id because there is a difference in how
     # items from native.py and api.py are treated, although same source_id
 
@@ -273,9 +272,6 @@ def edit_item(content, user, source=''):
     else:
         read = 1  # default to read if value is anything else
 
-    if not title:
-        raise ex.NoTitleException(id)
-
     try:
         doc_to_edit = user.documents.filter_by(id=id).one()
     except NoResultFound:
@@ -291,7 +287,12 @@ def edit_item(content, user, source=''):
 
             if doc:
                 raise ex.DuplicateLinkException(doc.id)
+        
+        if source in ['api', 'native'] and doc_to_edit.source_id != 3:
+            raise ex.NotEditableDocException
 
+        if not title:
+            raise ex.NoTitleException(id)
 
         doc_to_edit.title = title
         doc_to_edit.link = link
@@ -316,7 +317,7 @@ def edit_item(content, user, source=''):
                 doc_to_edit.tags.clear()
 
         if authors:
-            authors = add_or_update_authors(user, authors, doc_to_edit)
+            add_or_update_authors(user, authors, doc_to_edit)
         else:
             # remove all authors if there were any
             if doc_to_edit.authors:
@@ -331,14 +332,17 @@ def edit_item(content, user, source=''):
     return
 
 
-def delete_item(id, user):
+def delete_item(id, user, source=''):
     '''Delete document.'''
 
     try:
-        user.documents.filter(Documents.id==id).one()
+        doc = user.documents.filter(Documents.id==id).one()
     except NoResultFound:
         raise ex.NotUserDocException
     else:
+        if source in ['api', 'native'] and doc.source_id != 3:
+            raise ex.NotDeleteableDocException
+        
         user.documents.filter(Documents.id==id).delete()
         db.session.commit()
 

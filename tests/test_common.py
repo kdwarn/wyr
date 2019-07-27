@@ -616,7 +616,7 @@ def test_delete_item(user1):
 
     doc = user1.documents.first()
 
-    common.delete_item(doc.id, user1)
+    common.delete_item(doc.id, user1, source='native')
 
     assert user1.documents.count() == 3
 
@@ -709,24 +709,24 @@ def test_get_docs_by_author3(flask_client, user4, user5):
 
 
 
-def test_get_docs_by_bunch1(flask_client, user5):
+def test_get_docs_by_bunch1(flask_client, user6):
 
-    docs = common.get_docs(user5, bunch="bunch 1")
+    docs = common.get_docs(user6, bunch="bunch 1")
 
     assert len(docs) == 4
 
 
-def test_get_docs_by_bunch2(flask_client, user5):
+def test_get_docs_by_bunch2(flask_client, user6):
 
-    docs = common.get_docs(user5, bunch="bunch 2")
+    docs = common.get_docs(user6, bunch="bunch 2")
     assert len(docs) == 2
 
 
-def test_get_docs_by_bunch3(flask_client, user5):
+def test_get_docs_by_bunch3(flask_client, user6):
     "Undefined bunch."
 
     with pytest.raises(ex.NoBunchException):
-        common.get_docs(user5, bunch='nobunch')
+        common.get_docs(user6, bunch='nobunch')
 
 
 

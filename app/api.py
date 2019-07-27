@@ -1,5 +1,11 @@
 '''
 TODO: 
+    - need to think about source_ids and raising exception if user (not program) is trying to edit
+        a Goodreads or Mendeley doc (though web app or API), and how to make sure that works 
+        everwhere
+    - might need to create get_user_doc() function to just get one doc, so I can put the exception
+        there rather than manually do error checking for it elsewhere
+    - user shouldn't be able to delete non-WYR item
     - work on document() and documents()
     - paginate results for documents()
     - should not be able to edit or delete Goodreads or Mendeley doc
@@ -28,6 +34,7 @@ TODO:
             14: ID not provided
         20-29: editing restrictions
             20: cannot edit Mendeley or Goodreads document
+            21: cannot delete Mendely or Goodreads document
         90-99: authorization/submitted json issues
             90: Parameters not submitted in json format
             91: Missing token
@@ -346,36 +353,38 @@ def document(user, id):
         return jsonify({'message': 'ID of document not included in request.', 
                             'error': 14}), 404  # TODO: check HTTP response
         
-    try:
-        doc = user.documents.filter(Documents.id==id).one()
-    except NoResultFound:
-        return jsonify({'message': 'Unable to locate document.', 'error': 3}), 404
 
     # get a document
     if request.method == 'GET':
+        try:
+            doc = user.documents.filter(Documents.id==id).one()
+        except NoResultFound:
+            return jsonify({'message': 'Unable to locate document.', 'error': 3}), 404
+        
         return jsonify(doc.serialize()), 200
     
     # edit a document
     if request.method == 'PUT':
-        if doc.source_id != 3:
-            return jsonify({'message': 'Mendeley and Goodreads items cannot b edited through WYR', 
-                             'error': 20}), 403
-
         doc_content = get_doc_content(id, request.get_json())
-
+        
         try:
+            
             common.edit_item(doc_content, user, source='api')
         except ex.NotUserDocException as e:
-            return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
+            return jsonify({'message': str(e.message), 'error': e.error}), e.http_status
+        except ex.NotEditableDocException as e:
+            return jsonify({'message': str(e.message), 'error': e.error}), e.http_status
         except ex.NoTitleException as e:
-            return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
+            return jsonify({'message': str(e.message), 'error': e.error}), e.http_status
         else:
             return jsonify({'message': 'Item edited.'}), 200
 
     # delete document
     if request.method == 'DELETE':
         try:
-            common.delete_item(id, user)
+            common.delete_item(id, user, source='api')
+        except ex.NotDeleteableDocException as e:
+            return jsonify({'message': str(e.message), 'error': e.error}), e.http_status
         except ex.NotUserDocException as e:
             return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
         else:

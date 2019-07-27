@@ -244,7 +244,7 @@ def test_add4(flask_client, user4):
 def test_edit1(flask_client, user4):
     '''Editing every part of item works.'''
 
-    content = {'id': '1',
+    content = {'id': 1,
                'title': 'Test',
                'link': 'http://whatyouveread.com/5',
                'tags': 'tag2, tag3',
@@ -285,7 +285,7 @@ def test_edit3(flask_client, user4):
 def test_edit4(flask_client, user5, user4):
     '''Can't edit another user's doc.'''
 
-    content = {'id': '5',
+    content = {'id': '3',
                'title': 'Test'}
 
     response = flask_client.post('/edit', data=content, follow_redirects=True)

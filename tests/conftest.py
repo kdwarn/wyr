@@ -71,8 +71,10 @@ def user1(flask_client, four_items):
     db.session.add(user1)
     db.session.commit()
 
-    for item in four_items:
-        common.add_item(item, user1)
+    common.add_item(four_items[0], user1, source='api')
+    common.add_item(four_items[1], user1, source='api')
+    common.add_item(four_items[2], user1, source='api')
+    common.add_item(four_items[3], user1, source='mendeley')
 
     return user1
 
@@ -85,8 +87,10 @@ def user2(flask_client, four_items):
     db.session.add(user2)
     db.session.commit()
 
-    for item in four_items:
-        common.add_item(item, user2)
+    common.add_item(four_items[0], user2, source='api')
+    common.add_item(four_items[1], user2, source='api')
+    common.add_item(four_items[2], user2, source='api')
+    common.add_item(four_items[3], user2, source='mendeley')
 
     return user2
 
@@ -95,7 +99,7 @@ def user2(flask_client, four_items):
 def user3(flask_client, four_items):
     '''
     Create a user with hashed password and salt, as in the registration
-    process.
+    process, with four WYR items, not logged in.
     '''
 
     myctx = CryptContext(schemes=['pbkdf2_sha256'])
@@ -105,8 +109,10 @@ def user3(flask_client, four_items):
     db.session.add(user3)
     db.session.commit()
 
-    for item in four_items:
-        common.add_item(item, user3)
+    common.add_item(four_items[0], user3, source='api')
+    common.add_item(four_items[1], user3, source='api')
+    common.add_item(four_items[2], user3, source='api')
+    common.add_item(four_items[3], user3, source='api')
 
     return user3
 
@@ -115,7 +121,7 @@ def user3(flask_client, four_items):
 def user4(flask_client, four_items):
     '''
     Create a user with hashed password and salt, as in the registration
-    process, with four items, and log them in.
+    process, with four WYR items, and log them in.
     '''
 
     myctx = CryptContext(schemes=['pbkdf2_sha256'])
@@ -125,10 +131,10 @@ def user4(flask_client, four_items):
     db.session.add(user4)
     db.session.commit()
 
-    common.add_item(four_items[0], user4)
-    common.add_item(four_items[1], user4)
-    common.add_item(four_items[2], user4)
-    common.add_item(four_items[3], user4, source='mendeley')
+    common.add_item(four_items[0], user4, source='api')
+    common.add_item(four_items[1], user4, source='api')
+    common.add_item(four_items[2], user4, source='api')
+    common.add_item(four_items[3], user4, source='api')
 
 
     flask_client.post('/login', 
@@ -142,10 +148,10 @@ def user4(flask_client, four_items):
 
 
 @pytest.fixture
-def user5(flask_client, five_items):
+def user5(flask_client, four_items):
     '''
     Create a user with hashed password and salt, as in the registration
-    process, with five items and two bunches, and log them in.
+    process, with four WYR items, and log them in.
     '''
 
     myctx = CryptContext(schemes=['pbkdf2_sha256'])
@@ -155,8 +161,42 @@ def user5(flask_client, five_items):
     db.session.add(user5)
     db.session.commit()
 
-    for item in five_items:
-        common.add_item(item, user5)
+    common.add_item(four_items[0], user5, source='api')
+    common.add_item(four_items[1], user5, source='api')
+    common.add_item(four_items[2], user5, source='mendeley')
+    common.add_item(four_items[3], user5, source='goodreads')
+
+
+    flask_client.post('/login', 
+                      data=dict(wyr_username='tester5',
+                                wyr_password='testing5',
+                                remember='',
+                                next=''), 
+                      follow_redirects=True)
+
+    return user5
+
+
+@pytest.fixture
+def user6(flask_client, five_items):
+    '''
+    Create a user with hashed password and salt, as in the registration
+    process, with five items and two bunches, and log them in.
+    '''
+
+    myctx = CryptContext(schemes=['pbkdf2_sha256'])
+    hashed_password = myctx.hash('testing6')
+
+    user6 = models.User('tester6', hashed_password, 'salt6', 'test6@whatyouveread.com')
+    db.session.add(user6)
+    db.session.commit()
+
+    common.add_item(five_items[0], user6, source='api')
+    common.add_item(five_items[1], user6, source='api')
+    common.add_item(five_items[2], user6, source='api')
+    common.add_item(five_items[3], user6, source='api')
+    common.add_item(five_items[4], user6, source='api')
+
 
     # create a bunch for this user, using "or" to combine tags
     # (four documents meet this criteria, 2 read and 2 to-read)
@@ -164,7 +204,7 @@ def user5(flask_client, five_items):
     bunch_name = 'bunch 1'
     bunch_tags = [1, 3]  # tag4 and tag6
 
-    new_bunch = models.Bunches(user5.id, selector, bunch_name)
+    new_bunch = models.Bunches(user6.id, selector, bunch_name)
     db.session.add(new_bunch)
     db.session.commit()
 
@@ -178,7 +218,7 @@ def user5(flask_client, five_items):
     bunch_name = 'bunch 2'
     bunch_tags = [1, 3]  # tag4 and tag6
 
-    new_bunch = models.Bunches(user5.id, selector, bunch_name)
+    new_bunch = models.Bunches(user6.id, selector, bunch_name)
     db.session.add(new_bunch)
     db.session.commit()
 
@@ -192,7 +232,7 @@ def user5(flask_client, five_items):
     bunch_name = 'bunch 3'
     bunch_tags = [4, 5]  # tag7 and tag7
 
-    new_bunch = models.Bunches(user5.id, selector, bunch_name)
+    new_bunch = models.Bunches(user6.id, selector, bunch_name)
     db.session.add(new_bunch)
     db.session.commit()
 
@@ -206,7 +246,7 @@ def user5(flask_client, five_items):
     bunch_name = 'bunch 4'
     bunch_tags = [1, 2]  # tag4 and tag5
 
-    new_bunch = models.Bunches(user5.id, selector, bunch_name)
+    new_bunch = models.Bunches(user6.id, selector, bunch_name)
     db.session.add(new_bunch)
     db.session.commit()
 
@@ -216,30 +256,6 @@ def user5(flask_client, five_items):
 
     # log user in
     flask_client.post('/login', 
-                      data=dict(wyr_username='tester5',
-                                wyr_password='testing5',
-                                remember='',
-                                next='',), 
-                      follow_redirects=True)
-
-    return user5
-
-
-@pytest.fixture
-def user6(flask_client):
-    '''
-    Create a user with hashed password and salt, as in the registration
-    process, with no items, and log them in.
-    '''
-
-    myctx = CryptContext(schemes=['pbkdf2_sha256'])
-    hashed_password = myctx.hash('testing6')
-
-    user6 = models.User('tester6', hashed_password, 'salt6', 'test6@whatyouveread.com')
-    db.session.add(user6)
-    db.session.commit()
-
-    flask_client.post('/login', 
                       data=dict(wyr_username='tester6',
                                 wyr_password='testing6',
                                 remember='',
@@ -247,6 +263,30 @@ def user6(flask_client):
                       follow_redirects=True)
 
     return user6
+
+
+@pytest.fixture
+def user7(flask_client):
+    '''
+    Create a user with hashed password and salt, as in the registration
+    process, with no items, and log them in.
+    '''
+
+    myctx = CryptContext(schemes=['pbkdf2_sha256'])
+    hashed_password = myctx.hash('testing7')
+
+    user7 = models.User('tester7', hashed_password, 'salt7', 'test7@whatyouveread.com')
+    db.session.add(user7)
+    db.session.commit()
+
+    flask_client.post('/login', 
+                      data=dict(wyr_username='tester7',
+                                wyr_password='testing7',
+                                remember='',
+                                next='',), 
+                      follow_redirects=True)
+
+    return user7
 
 
 @pytest.fixture
@@ -328,7 +368,8 @@ def four_items():
                                ],
                     'year': '2019',
                     'notes': 'This is also a note.',
-                    'read': 0})
+                    'read': 0,
+                    'native_doc_id': '121adb333'})  # not used in some of the fixtures, but ok
     items.append({'title': 'Fourth user doc',
                     'link': '',
                     'tags': [],
@@ -336,7 +377,7 @@ def four_items():
                     'year': '',
                     'notes': '',
                     'read': 0,
-                    'native_doc_id': '121adb334'})
+                    'native_doc_id': '121adb334'})  # not used in some of the fixtures, but ok
     return items
 
 
@@ -384,14 +425,16 @@ def five_items():
                                ],
                     'year': '2019',
                     'notes': 'This is also a note.',
-                    'read': 1})
+                    'read': 1,
+                    'native_doc_id': '121adb334'})
     items.append({'title': 'Fifth user doc',
                     'link': '',
                     'tags': [],
                     'authors': [],
                     'year': '',
                     'notes': '',
-                    'read': 0})
+                    'read': 0,
+                    'native_doc_id': '121adb335'})
     return items
 
 

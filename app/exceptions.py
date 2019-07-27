@@ -37,8 +37,21 @@ class NotUserDocException(WyrException):
     def __init__(self):
         self.message = 'That document was not found in your collection.'
         self.error = 13
-        self.http_status = 400
+        self.http_status = 404
 
+
+class NotEditableDocException(WyrException):
+    def __init__(self):
+        self.message = 'Cannot edit non-WYR document.'
+        self.error = 20
+        self.http_status = 403
+
+
+class NotDeleteableDocException(WyrException):
+    def __init__(self):
+        self.message = 'Cannot delete non-WYR document.'
+        self.error = 21
+        self.http_status = 403
 
 # Tag- and Bunch-related Exceptions
 
