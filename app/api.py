@@ -1,20 +1,17 @@
 '''
 TODO: 
-    - need to think about source_ids and raising exception if user (not program) is trying to edit
-        a Goodreads or Mendeley doc (though web app or API), and how to make sure that works 
-        everwhere
     - might need to create get_user_doc() function to just get one doc, so I can put the exception
         there rather than manually do error checking for it elsewhere
-    - user shouldn't be able to delete non-WYR item
-    - work on document() and documents()
     - paginate results for documents()
-    - should not be able to edit or delete Goodreads or Mendeley doc
+    - add endpoints for viewing user's tags, authors, and bunches
+    - add endpoint for logging in?
     - send email notification to WYR that client registered
     - check that wyr.py is properly including register_client() and authorize() in CSRF
       protection (excluded these endpoints in the skipping of api blueprint)
     - allow developers to edit details of app
     - move api/clients to dev/clients?
     - make sure json response message/status/error messages are consistent
+    - add endpoint for settings and preferences
 '''
 
 '''
@@ -26,13 +23,15 @@ TODO:
             1: can't locate user
             2: can't locate client
             3: can't locate document
+            4: no documents matching supplied criteria (tag, read_status, etc.)
         10-19: field issues
             10: title not supplied, but required
             11: link already exists in attempted added item
             12: No bunch by that name.
             13: not one of the user's items.
             14: ID not provided
-        20-29: editing restrictions
+            15: read_status has to be either "read' or 'to-read' if provided
+        20-29: external source restrictions
             20: cannot edit Mendeley or Goodreads document
             21: cannot delete Mendely or Goodreads document
         90-99: authorization/submitted json issues
@@ -44,6 +43,7 @@ TODO:
             95: Username not supplied in API request
             96: Username in token does not match username supplied
             97: response_type must be set to authorization_code
+            98: Client_id in token does not match client_id supplied.
             99: Other authorization/json issue
 
 '''
@@ -91,7 +91,7 @@ def get_doc_content(id, content):
 
 
 def create_token(user, client_id, expiration=''):
-    ''' Create both authorization code (in authorize()) and access token (in token()). '''
+    '''Create both authorization code (in authorize()) and access token (in token()).'''
     if not expiration:
         expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
 
@@ -302,6 +302,12 @@ def token():
         return jsonify({'message' : 'grant_type must be set to "authorization_code"',
                         'error': 97}), 400
 
+    try:
+        client = Client.query.filter_by(client_id=client_id).one()
+    except NoResultFound:
+        return jsonify({'message': 'Client not found.',
+                    'error': 2}), 404
+
     # decode code without verifying signature, to get user and their salt for verification
     try:
         unverified_code = jwt.decode(code, verify=False) 
@@ -309,7 +315,8 @@ def token():
         return jsonify({'message' : str(e), 'error': 94}), 403
     
     if unverified_code['client_id'] != client_id:
-        return jsonify({'message': 'Unable to locate client.', 'error': 2}), 404
+        return jsonify({'message': 'Client does not match token.', 
+                        'error': 98}), 403
 
     try:
         user = User.query.filter(User.username==unverified_code['username']).one()
@@ -327,10 +334,9 @@ def token():
         return jsonify({'message' : str(e), 'error': 94}), 400
     except Exception as e:
         return jsonify({'message' : str(e), 'error': 99}), 403
-    
+
     expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
     token = create_token(user, client_id, expiration)
-    client = Client.query.filter_by(client_id=client_id).one()
     user.apps.append(client)
     response = jsonify({'access_token': token, 
                         'token_type': 'bearer'})
@@ -351,8 +357,7 @@ def document(user, id):
     '''
     if not id:
         return jsonify({'message': 'ID of document not included in request.', 
-                            'error': 14}), 404  # TODO: check HTTP response
-        
+                        'error': 14}), 400
 
     # get a document
     if request.method == 'GET':
@@ -386,14 +391,14 @@ def document(user, id):
         except ex.NotDeleteableDocException as e:
             return jsonify({'message': str(e.message), 'error': e.error}), e.http_status
         except ex.NotUserDocException as e:
-            return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
+            return jsonify({'message': str(e.message), 'error': e.error}), e.http_status
         else:
             return jsonify({'message': 'Item deleted.'}), 200
 
 
 @api_bp.route('/documents', methods=['GET', 'POST'])
 @token_required
-def documents(user):
+def documents(user, tag='', author_id='', bunch='', read_status=''):
     '''
     Get all documents from a user's collection or add a new document.
 
@@ -408,16 +413,37 @@ def documents(user):
         try:
             common.add_item(doc_content, user, source='api')
         except ex.NoTitleException as e:
-            return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
+            return jsonify({'message': str(e.message), 'error': e.error}), e.http_status
         except ex.DuplicateLinkException as e:
-            return jsonify({'message': str(e.message), 'error': str(e.error)}), e.http_status
+            return jsonify({'message': str(e.message), 'error': e.error}), e.http_status
         else:
             return jsonify({'message': 'Item added.'}), 201
 
     # get all documents
-    # TODO: extend this to filter in the various ways common.get_docs() can filter
     if request.method == 'GET':
-        docs = common.get_docs(user)
+        tag = request.args.get('tag')
+        author_id = request.args.get('author_id')
+        bunch = request.args.get('bunch')
+        read_status = request.args.get('read_status')
+        
+        if read_status:
+            if read_status not in ['read', 'to-read']:
+                return jsonify({'message': "read_status should be 'read' or 'to-read'.",
+                                'error': 15}), 400
+        try:
+            docs = common.get_docs(user, 
+                                   tag=tag, 
+                                   author_id=author_id, 
+                                   bunch=bunch, 
+                                   read_status=read_status)
+        except ex.NoBunchException:
+            return jsonify({'message': 'No documents found matching supplied critieria.',
+                            'error': 4}), 404
+                       
+        if not docs:
+            return jsonify({'message': 'No documents found matching supplied critieria.',
+                        'error': 4}), 404
+        
         docs_as_json = []
         for doc in docs:
             docs_as_json.append(doc.serialize())

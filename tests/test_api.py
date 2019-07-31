@@ -13,6 +13,7 @@
 import datetime
 import json
 import time
+from urllib.parse import urlparse, parse_qs
 
 import jwt
 import pytest
@@ -250,6 +251,7 @@ def test_app_authorization_get1(flask_client, user1):
 
     assert b'Welcome!' in response.data
 
+
 @pytest.mark.parametrize('client_id, response_type',
                          [('1', 'not_code'),
                           ('1', ''),
@@ -367,10 +369,34 @@ def test_get_access_token_error4(flask_client, user6, dev_app):
     assert (response.status_code == 403 and json_data['error'] == 93)
 
 
+def test_get_access_token_error5(flask_client, user6, dev_app):
+    '''User should get error if no matching client found.'''
+    code = api.create_token(user6, '2')
+    response = flask_client.post('/api/token',
+                                 data=dict(client_id='2', 
+                                           grant_type='authorization_code',
+                                           code=code),
+                                 follow_redirects=True)
+    json_data = response.get_json()
+
+    assert (response.status_code == 404 and json_data['error'] == 2)
+
+
+def test_get_access_token_error6(flask_client, user6, dev_app):
+    '''User should get error if provided client_id does not match client_id in token.'''
+    code = api.create_token(user6, '2')
+    response = flask_client.post('/api/token',
+                                 data=dict(client_id=dev_app.client_id, 
+                                           grant_type='authorization_code',
+                                           code=code),
+                                 follow_redirects=True)
+    json_data = response.get_json()
+
+    assert (response.status_code == 403 and json_data['error'] == 98)
+
 #######################
 # PROTECTED RESOURCES #
 #######################
-
 
 def test_document_get1(flask_client, user4, dev_app):
     '''document() GET should return all fields correctly.'''
@@ -399,16 +425,26 @@ def test_document_get1(flask_client, user4, dev_app):
 
 def test_document_get_error1(flask_client, user4, dev_app):
     '''Return error if username provided doesn't match username in token.'''
-    doc = user4.documents.first()
     token = api.create_token(user4, dev_app.client_id)
-    response = flask_client.get('/api/documents/' + str(doc.id),
+    response = flask_client.get('/api/documents/1',
                                 json={'token': token,
                                       'username': 'different_user'})
     json_data = response.get_json()
     
     assert (response.status_code == 403 and json_data['error'] == 96)
 
-@pytest.mark.now
+
+def test_document_get_error2(flask_client, user4, dev_app):
+    '''User should get error if no item found with ID provided.'''
+    token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.get('/api/documents/5',
+                                json={'token': token,
+                                      'username': 'tester4'})
+    json_data = response.get_json()
+    
+    assert (response.status_code == 404 and json_data['error'] == 3)
+
+
 def test_document_put1(flask_client, user4, dev_app):
     '''document() PUT should edit one document.'''
     token = api.create_token(user4, dev_app.client_id)
@@ -439,9 +475,8 @@ def test_document_put1(flask_client, user4, dev_app):
             doc1.read == 1)
 
 
-@pytest.mark.now
 def test_document_put_error1(flask_client, user4, dev_app):
-    ''' Return error if username provided doesn't match username in token'''
+    '''The username in request should match username in token.'''
     token = api.create_token(user4, dev_app.client_id)
     response = flask_client.put('/api/documents/1',
                                 json={'token': token,
@@ -459,7 +494,6 @@ def test_document_put_error1(flask_client, user4, dev_app):
     assert json_data['error'] == 96
 
 
-@pytest.mark.now
 def test_document_put_error2(flask_client, user5, dev_app):
     ''' Client should not be able to edit non-WYR item.'''
     token = api.create_token(user5, dev_app.client_id)
@@ -480,7 +514,7 @@ def test_document_put_error2(flask_client, user5, dev_app):
 
 
 def test_document_put_error3(flask_client, user4, dev_app):
-    ''' Return error if can't find that doc in user's docs.'''
+    ''' Client should receive error if document id not located in collection.'''
     token = api.create_token(user4, dev_app.client_id)
     response = flask_client.put('/api/documents/5',
                                 json={'token': token,
@@ -491,7 +525,7 @@ def test_document_put_error3(flask_client, user4, dev_app):
 
 
 def test_document_put_error4(flask_client, user3, user4, dev_app):
-    ''' Return error if not the user's doc.'''
+    ''' User should not be able to edit another user's document.'''
     token = api.create_token(user4, dev_app.client_id)
     response = flask_client.put('/api/documents/1',
                                 json={'token': token,
@@ -499,7 +533,26 @@ def test_document_put_error4(flask_client, user3, user4, dev_app):
     json_data = response.get_json()
 
     assert json_data['error'] == 13
-    
+
+
+def test_document_put_error5(flask_client, user4, dev_app):
+    '''User's client should receive error if no title supplied in edit request.'''
+    token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.put('/api/documents/4',
+                                json={'token': token,
+                                      'username': 'tester4',
+                                      'title': '',
+                                      'link': '',
+                                      'tags': [],
+                                      'authors': [],
+                                      'year': '',
+                                      'notes': '',
+                                      'read': 0} 
+                                )
+    json_data = response.get_json()
+
+    assert json_data['error'] == 10
+
 
 def test_document_delete1(flask_client, user4, dev_app):
     '''document() DELETE should delete one item.'''
@@ -519,7 +572,7 @@ def test_document_delete1(flask_client, user4, dev_app):
 
 
 def test_document_delete_error1(flask_client, user4, dev_app):
-    '''Return error if username provided doesn't match username in token.'''
+    '''The username in request should match username in token.'''
     doc = user4.documents.first()
     token = api.create_token(user4, dev_app.client_id)
     response = flask_client.delete('/api/documents/' + str(doc.id),
@@ -531,7 +584,7 @@ def test_document_delete_error1(flask_client, user4, dev_app):
 
 
 def test_document_delete_error2(flask_client, user5, dev_app):
-    '''Return error if user tries to delete non-WYR item.'''
+    '''Client should not be able to delete non-WYR item.'''
     token = api.create_token(user5, dev_app.client_id)
     response = flask_client.delete('/api/documents/3',
                                     json={'token': token,
@@ -539,6 +592,28 @@ def test_document_delete_error2(flask_client, user5, dev_app):
     json_data = response.get_json()
 
     assert json_data['error'] == 21
+
+
+def test_document_delete_error3(flask_client, user4, dev_app):
+    '''User's client should receive error if document id not located in collection.'''
+    token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.delete('/api/documents/5',
+                                json={'token': token,
+                                      'username': 'tester4'})
+    json_data = response.get_json()
+
+    assert json_data['error'] == 13
+
+
+def test_document_delete_error4(flask_client, user3, user4, dev_app):
+    '''User's client should not be able to delete another user's document.'''
+    token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.delete('/api/documents/1',
+                                json={'token': token,
+                                      'username': 'tester4'})
+    json_data = response.get_json()
+
+    assert json_data['error'] == 13
 
 
 def test_get_all_docs(flask_client, user4, dev_app):
@@ -550,4 +625,172 @@ def test_get_all_docs(flask_client, user4, dev_app):
     json_data = response.get_json()
     
     # print(json.dumps(json_data, indent=4))
+    assert len(json_data) == 4
+
+
+def test_get_all_read_docs(flask_client, user4, dev_app):
+    '''If client requests read docs, those should be returned.'''
+    access_token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.get('/api/documents',
+                                json={'username': user4.username,
+                                      'token': access_token},
+                                query_string={'read_status': 'read'})
+    json_data = response.get_json()
+    
+    assert len(json_data) == 1
+
+
+def test_get_all_to_read_docs(flask_client, user4, dev_app):
+    '''If client requests read docs, those should be returned.'''
+    access_token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.get('/api/documents',
+                                json={'username': user4.username,
+                                      'token': access_token},
+                                query_string={'read_status': 'to-read'})
+    json_data = response.get_json()
+    
+    assert len(json_data) == 3
+
+
+def test_get_docs_read_status_error(flask_client, user4, dev_app):
+    '''An improper read_status should return an error'''
+    access_token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.get('/api/documents',
+                                json={'username': user4.username,
+                                      'token': access_token},
+                                query_string={'read_status': 'toread'})
+    json_data = response.get_json()
+    
+    assert (response.status_code == 400 and json_data['error'] == 15)
+
+
+def test_get_docs_by_tag1(flask_client, user4, dev_app):
+    '''Should return only docs with provided tag.'''
+    access_token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.get('/api/documents',
+                                json={'username': user4.username,
+                                      'token': access_token},
+                                query_string={'tag': 'tag0'})
+    json_data = response.get_json()
+    
+    assert (response.status_code == 200 and len(json_data) == 2)
+
+
+def test_get_docs_by_non_existent_tag(flask_client, user4, dev_app):
+    '''Error should be returned if no docs found matching supplied tag.'''
+    access_token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.get('/api/documents',
+                                json={'username': user4.username,
+                                      'token': access_token},
+                                query_string={'tag': 'not a tag'})
+    json_data = response.get_json()
+    
+    assert (response.status_code == 404 and json_data['error'] == 4)
+
+
+def test_get_docs_by_non_existent_author_id(flask_client, user4, dev_app):
+    '''Error should be returned if no docs found matching supplied author_id.'''
+    access_token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.get('/api/documents',
+                                json={'username': user4.username,
+                                      'token': access_token},
+                                query_string={'author_id': '10'})
+    json_data = response.get_json()
+    
+    assert (response.status_code == 404 and json_data['error'] == 4)
+
+
+def test_get_docs_by_non_existent_bunch(flask_client, user4, dev_app):
+    '''Error should be returned if no docs found matching supplied bunch.'''
+    access_token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.get('/api/documents',
+                                json={'username': user4.username,
+                                      'token': access_token},
+                                query_string={'bunch': 'not a bunch'})
+    json_data = response.get_json()
+    
+    assert (response.status_code == 404 and json_data['error'] == 4)
+
+
+def test_documents_post1(flask_client, user4, dev_app):
+    '''documents POST is successful with adding a new document.'''
+    access_token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.post('/api/documents',
+                                 json={'username': user4.username, 
+                                       'token': access_token, 
+                                       'title': 'new doc title'})
+    json_data = response.get_json()
+    docs = models.Documents.query.filter_by(user_id=1).all()
+    
+    assert (response.status_code == 201 and 
+            json_data['message'] == 'Item added.' and
+            len(docs) == 5 and
+            docs[4].title == 'new doc title')
+
+
+def test_documents_post_error1(flask_client, user4, dev_app):
+    '''User should be given error if no title providing when adding a new item.'''
+    access_token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.post('/api/documents',
+                                 json={'username': user4.username, 
+                                       'token': access_token, 
+                                       'title': ''})
+    json_data = response.get_json()
+    docs = models.Documents.query.filter_by(user_id=1).all()
+    
+    assert (response.status_code == 400 and 
+            json_data['error'] == 10 and
+            len(docs) == 4)
+
+
+def test_documents_post_error2(flask_client, user4, dev_app):
+    '''User should be given error if link already exists for that item.'''
+    access_token = api.create_token(user4, dev_app.client_id)
+    response = flask_client.post('/api/documents',
+                                 json={'username': user4.username, 
+                                       'token': access_token, 
+                                       'title': 'new item duplicate link',
+                                       'link': 'http://whatyouveread.com/1'})
+    json_data = response.get_json()
+    docs = models.Documents.query.filter_by(user_id=1).all()
+    
+    assert (response.status_code == 400 and 
+            json_data['error'] == 11 and
+            len(docs) == 4)
+
+####################
+# INTEGRATION TEST #
+####################
+
+
+@pytest.mark.now
+def test_integration(flask_client, dev_app, user4):
+    ''' Test from initial authorization to getting a document.'''
+    response = flask_client.post('/api/authorize',
+                                 data=dict(submit="Yes",
+                                           client_id=dev_app.client_id,
+                                           state='xyz'),
+                                 follow_redirects=False)
+
+    # get code from the redirect url provided in api/authorize response
+    # (can't do the redirect in Flask testing to exactly simulate what a client would do)
+    redirect_url = response.headers['Location']
+    parsed_url = urlparse(redirect_url)
+    query_params = parse_qs(parsed_url.query)
+    authorization_code = query_params['code'][0]
+
+    # now get the access token
+    response = flask_client.post('/api/token',
+                                 data=dict(client_id=dev_app.client_id, 
+                                 grant_type='authorization_code',
+                                 code=authorization_code),
+                                 follow_redirects=True)       
+    
+    # now use the token to get the user's documents
+    access_token = response.get_json()['access_token']
+    response = flask_client.get('/api/documents',
+                                json={'username': user4.username,
+                                      'token': access_token})
+    json_data = response.get_json()
+
     assert len(json_data) == 4
