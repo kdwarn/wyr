@@ -193,7 +193,7 @@ class Documents(db.Model):
         return {
             "title": self.title,
             "link": self.link,
-            'created': str(self.created.date()),
+            "created": str(self.created.date()),
             "read": self.read,
             "year": self.year,
             "notes": self.notes,
@@ -271,9 +271,9 @@ class Client(db.Model):
     )
     client_type = db.Column(db.String(12))  # only allowing 'public' for now
     name = db.Column(db.String(50))
-    description = db.Column(db.String(150))
-    callback_url = db.Column(db.String(100))
-    home_url = db.Column(db.String(100))
+    description = db.Column(db.String(200))
+    callback_url = db.Column(db.String(200))
+    home_url = db.Column(db.String(200))
 
     def __init__(self, client_id, user_id, name, description, callback_url, home_url=""):
         self.client_id = client_id
