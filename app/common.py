@@ -227,7 +227,7 @@ def add_item(content, user, source=''):
 
     created = datetime.datetime.now(pytz.utc)
 
-    doc = Documents(user.id, source_id, title, link=link, year=year, note=notes, read=read,
+    doc = Documents(user.id, source_id, title, link=link, year=year, notes=notes, read=read,
                     created=created)
 
     if tags:
@@ -296,7 +296,7 @@ def edit_item(content, user, source=''):
         doc_to_edit.title = title
         doc_to_edit.link = link
         doc_to_edit.year = year
-        doc_to_edit.note = notes
+        doc_to_edit.notes = notes
         doc_to_edit.native_doc_id = native_doc_id
 
         # if changed from to-read to read, updated created, delete last_modified

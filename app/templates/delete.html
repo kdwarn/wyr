@@ -49,20 +49,20 @@
         {% endif %}
         </span><br>
 
-        {% if doc.note %}
+        {% if doc.notes %}
             <div class="notes">
             {% if doc.source_id == 3 and current_user.markdown == 1 %}
                 {# adjust for p wrap that Flask-Misaka throws in #}
                 <div style="margin-top:-1em">
-                {{ doc.note|markdown }}
+                {{ doc.notes|markdown }}
                 </div>
             {% elif doc.source_id == 1 or doc.source_id == 2 %}
                 {# let notes from Mendeley and Goodreads use html #}
-                {{ doc.note|safe }}
+                {{ doc.notes|safe }}
             {% else %}
                 {# if user disabled markdown, at least allow <br> #}
                 <div style="margin-top:-1em">
-                {{ doc.note|nl2br }}
+                {{ doc.notes|nl2br }}
                 </div>
             {% endif %}
         {% endif %}

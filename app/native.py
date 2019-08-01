@@ -63,10 +63,10 @@ def add():
         from_bookmarklet = request.args.get('bookmarklet', '')
 
         # because add() and edit() go to same template, create namedtuple for ease of use
-        doc = namedtuple('doc', ['title', 'link', 'year', 'note'])
+        doc = namedtuple('doc', ['title', 'link', 'year', 'notes'])
         doc.title = title
         doc.link = link
-        doc.year, doc.note, tags, authors = '', '', '', ''
+        doc.year, doc.notes, tags, authors = '', '', '', ''
 
         # also pass along tags and author names for autocomplete
         all_tags = common.get_user_tags(current_user)

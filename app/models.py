@@ -1,7 +1,5 @@
 import uuid
 
-from authlib.flask.oauth2.sqla import OAuth2ClientMixin
-from authlib.flask.oauth2.sqla import OAuth2TokenMixin
 from flask_login import UserMixin
 
 
@@ -130,7 +128,7 @@ class Documents(db.Model):
     read = db.Column(db.Integer)
     starred = db.Column(db.Integer)
     year = db.Column(db.String(4))
-    note = db.Column(db.Text)
+    notes = db.Column(db.Text)
     native_doc_id = db.Column(db.String(50))  # needed for Mendeley and Goodreads
 
     # relationships
@@ -150,7 +148,7 @@ class Documents(db.Model):
                                  cascade="all, delete, delete-orphan"
                                 )
 
-    def __init__(self, user_id, source_id, title, link='', created='', read='', year='', note=''):
+    def __init__(self, user_id, source_id, title, link='', created='', read='', year='', notes=''):
         self.user_id = user_id
         self.source_id = source_id
         self.title = title
@@ -158,7 +156,7 @@ class Documents(db.Model):
         self.created = created
         self.read = read
         self.year = year
-        self.note = note
+        self.notes = notes
 
 
 class Tags(db.Model):
@@ -212,22 +210,4 @@ class Bunches(db.Model):
         self.selector = selector
         self.name = name
 
-#######
-# API #
-#######
-'''
-# using Authlib's Flask Oauth 2.0 Server
-# https://docs.authlib.org/en/latest/flask/2/index.html
 
-class Client(db.Model, OAuth2ClientMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
-    user = db.relationship('User')
-
-
-
-class APIToken(db.Model, OAuth2TokenMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
-    user = db.relationship('User')
-'''

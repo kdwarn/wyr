@@ -261,7 +261,7 @@ def save_doc(m_doc, auth_object, existing_doc=''):
     an_params = {'document_id':m_doc['id'], 'type':'note'}
     annotations = auth_object.get('https://api.mendeley.com/annotations', params=an_params).json()
     try:
-        doc.note = annotations[0]['text']
+        doc.notes = annotations[0]['text']
     except KeyError:
         pass
     except IndexError:
