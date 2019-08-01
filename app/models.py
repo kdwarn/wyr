@@ -1,8 +1,8 @@
-'''
+"""
 TODO:
     - create client and user_clients table in db
     - consider creating a salt for each client/user combo
-'''
+"""
 
 from flask_login import UserMixin
 
@@ -13,44 +13,42 @@ from app import db, login
 # see for many-to-many tags-documents relationship:
 # http://flask-sqlalchemy.pocoo.org/2.1/models/
 # and http://docs.sqlalchemy.org/en/latest/orm/tutorial.html#building-a-many-to-many-relationship
-document_tags = db.Table('document_tags',
-                         db.Column('document_id',
-                                   db.Integer,
-                                   db.ForeignKey('documents.id', ondelete='CASCADE'),
-                                   primary_key=True),
-                         db.Column('tag_id',
-                                   db.Integer,
-                                   db.ForeignKey('tags.id', ondelete='CASCADE'),
-                                   primary_key=True))
+document_tags = db.Table(
+    "document_tags",
+    db.Column(
+        "document_id",
+        db.Integer,
+        db.ForeignKey("documents.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    db.Column("tag_id", db.Integer, db.ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
-document_authors = db.Table('document_authors',
-                            db.Column('author_id',
-                                      db.ForeignKey('authors.id'),
-                                      primary_key=True),
-                            db.Column('document_id',
-                                      db.ForeignKey('documents.id'),
-                                      primary_key=True))
+document_authors = db.Table(
+    "document_authors",
+    db.Column("author_id", db.ForeignKey("authors.id"), primary_key=True),
+    db.Column("document_id", db.ForeignKey("documents.id"), primary_key=True),
+)
 
-bunch_tags = db.Table('bunch_tags',
-                      db.Column('bunch_id',
-                                db.Integer,
-                                db.ForeignKey('bunches.id'),
-                                primary_key=True),
-                      db.Column('tag_id',
-                                db.Integer,
-                                db.ForeignKey('tags.id'),
-                                primary_key=True))
+bunch_tags = db.Table(
+    "bunch_tags",
+    db.Column("bunch_id", db.Integer, db.ForeignKey("bunches.id"), primary_key=True),
+    db.Column("tag_id", db.Integer, db.ForeignKey("tags.id"), primary_key=True),
+)
 
-user_apps = db.Table('user_apps',
-                     db.Column('user_id',
-                               db.Integer,
-                               db.ForeignKey('user.id', ondelete='CASCADE'),
-                               primary_key=True),
-                     db.Column('client_id',
-                               db.Integer,
-                               db.ForeignKey('client.client_id', ondelete='CASCADE'),
-                               primary_key=True))
+user_apps = db.Table(
+    "user_apps",
+    db.Column(
+        "user_id", db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), primary_key=True
+    ),
+    db.Column(
+        "client_id",
+        db.Integer,
+        db.ForeignKey("client.client_id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
 
 # this is an Association Object, rather than a simple association table, because we want to
 # include an additional column aside from the foreign keys
@@ -85,13 +83,15 @@ class User(db.Model, UserMixin):
     markdown = db.Column(db.Integer)
 
     # relationships
-    documents = db.relationship('Documents',
-                                lazy='dynamic',
-                                backref=db.backref('user', cascade='all, delete'))
-    apps = db.relationship('Client',
-                           secondary=user_apps,
-                           lazy='joined',
-                           backref=db.backref('user', cascade='all, delete'))
+    documents = db.relationship(
+        "Documents", lazy="dynamic", backref=db.backref("user", cascade="all, delete")
+    )
+    apps = db.relationship(
+        "Client",
+        secondary=user_apps,
+        lazy="joined",
+        backref=db.backref("user", cascade="all, delete"),
+    )
 
     def __init__(self, username, password, salt, email):
         self.username = username
@@ -116,23 +116,25 @@ def user_loader(user_id):
 # SOURCES AND SOURCE TOKENS #
 #############################
 
+
 class Sources(db.Model):
-    '''
+    """
     Source of documents. Can be:
         1 - Mendeley
         2 - Goodreads
         3 - Native
-    '''
+    """
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(25), unique=True)
 
 
 class SourceToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer,
-                        db.ForeignKey('user.id', onupdate='CASCADE', ondelete='CASCADE')
-                        )
-    source_id = db.Column(db.Integer, db.ForeignKey('sources.id'))
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id", onupdate="CASCADE", ondelete="CASCADE")
+    )
+    source_id = db.Column(db.Integer, db.ForeignKey("sources.id"))
     access_token = db.Column(db.String(200))
     refresh_token = db.Column(db.String(200))
     access_token_secret = db.Column(db.String(200))
@@ -142,12 +144,14 @@ class SourceToken(db.Model):
 # DOCUMENT DATA #
 #################
 
+
 class Documents(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # TODO: can/should the onupdate can be deleted in user_id?
-    user_id = db.Column(db.Integer,
-                        db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE"))
-    source_id = db.Column(db.Integer, db.ForeignKey('sources.id'))
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id", onupdate="CASCADE", ondelete="CASCADE")
+    )
+    source_id = db.Column(db.Integer, db.ForeignKey("sources.id"))
     title = db.Column(db.String(300))
     link = db.Column(db.String(300))
     created = db.Column(db.DateTime)
@@ -159,20 +163,23 @@ class Documents(db.Model):
     native_doc_id = db.Column(db.String(50))  # needed for Mendeley and Goodreads
 
     # relationships
-    tags = db.relationship('Tags',
-                           secondary=document_tags,
-                           lazy='joined',
-                           backref=db.backref('documents', cascade='all, delete'))
-    authors = db.relationship('Authors',
-                              secondary=document_authors,
-                              lazy='joined',
-                              backref=db.backref('documents', cascade='all, delete'))
-    file_links = db.relationship('FileLinks',
-                                 lazy="joined",
-                                 backref="documents",
-                                 cascade="all, delete, delete-orphan")
+    tags = db.relationship(
+        "Tags",
+        secondary=document_tags,
+        lazy="joined",
+        backref=db.backref("documents", cascade="all, delete"),
+    )
+    authors = db.relationship(
+        "Authors",
+        secondary=document_authors,
+        lazy="joined",
+        backref=db.backref("documents", cascade="all, delete"),
+    )
+    file_links = db.relationship(
+        "FileLinks", lazy="joined", backref="documents", cascade="all, delete, delete-orphan"
+    )
 
-    def __init__(self, user_id, source_id, title, link='', created='', read='', year='', notes=''):
+    def __init__(self, user_id, source_id, title, link="", created="", read="", year="", notes=""):
         self.user_id = user_id
         self.source_id = source_id
         self.title = title
@@ -183,16 +190,16 @@ class Documents(db.Model):
         self.notes = notes
 
     def serialize(self):
-        return {'title': self.title,
-                'link': self.link,
-                # 'created': self.created.date(),
-                'created': self.created.strftime('%Y-%m-%d'),
-                'read': self.read,
-                'year': self.year,
-                'notes': self.notes,
-                'authors': [author.asdict() for author in self.authors],
-                'tags': [tag.name for tag in self.tags],
-                }
+        return {
+            "title": self.title,
+            "link": self.link,
+            'created': str(self.created.date()),
+            "read": self.read,
+            "year": self.year,
+            "notes": self.notes,
+            "authors": [author.asdict() for author in self.authors],
+            "tags": [tag.name for tag in self.tags],
+        }
 
 
 class Tags(db.Model):
@@ -213,15 +220,14 @@ class Authors(db.Model):
         self.last_name = last_name
 
     def asdict(self):
-        return {'id': self.id,
-                'first_name': self.first_name,
-                'last_name': self.last_name}
+        return {"id": self.id, "first_name": self.first_name, "last_name": self.last_name}
 
 
 class FileLinks(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    document_id = db.Column(db.Integer,
-                            db.ForeignKey('documents.id', onupdate="CASCADE", ondelete="CASCADE"))
+    document_id = db.Column(
+        db.Integer, db.ForeignKey("documents.id", onupdate="CASCADE", ondelete="CASCADE")
+    )
     file_link = db.Column(db.String(500))
     mime_type = db.Column(db.String(100))
 
@@ -232,16 +238,19 @@ class FileLinks(db.Model):
 
 class Bunches(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer,
-                        db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE"))
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id", onupdate="CASCADE", ondelete="CASCADE")
+    )
     selector = db.Column(db.String(4))  # "and" or "or"
     name = db.Column(db.String(100))
 
     # relationships
-    tags = db.relationship('Tags',
-                           secondary=bunch_tags,
-                           lazy='joined',
-                           backref=db.backref('bunches', cascade='all, delete'))
+    tags = db.relationship(
+        "Tags",
+        secondary=bunch_tags,
+        lazy="joined",
+        backref=db.backref("bunches", cascade="all, delete"),
+    )
 
     def __init__(self, user_id, selector, name):
         self.user_id = user_id
@@ -253,21 +262,23 @@ class Bunches(db.Model):
 # API #
 #######
 
+
 class Client(db.Model):
     client_id = db.Column(db.String(32), unique=True, primary_key=True)
     # TODO: can/should the onupdate can be deleted in user_id?
-    user_id = db.Column(db.Integer,
-                        db.ForeignKey('user.id', onupdate="CASCADE", ondelete="CASCADE"))
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id", onupdate="CASCADE", ondelete="CASCADE")
+    )
     client_type = db.Column(db.String(12))  # only allowing 'public' for now
     name = db.Column(db.String(50))
     description = db.Column(db.String(150))
     callback_url = db.Column(db.String(100))
     home_url = db.Column(db.String(100))
 
-    def __init__(self, client_id, user_id, name, description, callback_url, home_url=''):
+    def __init__(self, client_id, user_id, name, description, callback_url, home_url=""):
         self.client_id = client_id
         self.user_id = user_id
-        self.client_type = 'public'
+        self.client_type = "public"
         self.name = name
         self.description = description
         self.callback_url = callback_url
