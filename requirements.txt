@@ -1,6 +1,7 @@
 atomicwrites==1.2.1
 attrs==18.2.0
 beautifulsoup4==4.6.3
+black==19.3b0
 bs4==0.0.1
 certifi==2018.11.29
 cffi==1.11.5
@@ -23,6 +24,7 @@ more-itertools==5.0.0
 oauthlib==2.1.0
 passlib==1.7.1
 pluggy==0.8.0
+pre-commit==1.17.0
 py==1.7.0
 pycparser==2.19
 PyJWT==1.7.1
