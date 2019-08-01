@@ -11,8 +11,6 @@
 
 
 import datetime
-import json
-import time
 from urllib.parse import urlparse, parse_qs
 
 import jwt
@@ -28,8 +26,8 @@ from app import api
 ###################
 
 # for ad-hoc creation of client app
-valid_client_vars = {'submit': 'register', 
-                     'name': 'Tester App Ad Hoc', 
+valid_client_vars = {'submit': 'register',
+                     'name': 'Tester App Ad Hoc',
                      'description': 'This is a test client app',
                      'callback_url': 'https://www.test.com'}
 
@@ -39,7 +37,7 @@ def test_dev_app_fixture_info(dev_app, developer1):
     client = models.Client.query.first()
 
     assert (client.user_id == developer1.id and
-            client.name == 'Tester App 1' and 
+            client.name == 'Tester App 1' and
             client.description == 'Testing app development' and
             client.callback_url == 'https://www.whatyouveread.com/example')
 
@@ -47,26 +45,24 @@ def test_dev_app_fixture_info(dev_app, developer1):
 def test_create_client_redirect_log_in_page(flask_client, user3):
     '''Client registration takes developer to main page if not logged in.'''
     response = flask_client.post('/api/clients',
-                           data=valid_client_vars,
-                           follow_redirects=True)
+                                 data=valid_client_vars,
+                                 follow_redirects=True)
     clients = models.Client.query.all()
-    
-    assert (b'Welcome!' in response.data and
-            len(clients) == 0)
+
+    assert b'Welcome!' in response.data and len(clients) == 0
 
 
 def test_create_client_cancelled(flask_client, user4):
     ''' Test cancel client registration.'''
     response = flask_client.post('/api/clients',
-                           data=dict(submit='cancel',
-                                     name='Test',
-                                     description='This is a test client app',
-                                     callback_url='https://www.test.com'),
-                           follow_redirects=True)
+                                 data=dict(submit='cancel',
+                                           name='Test',
+                                           description='This is a test client app',
+                                           callback_url='https://www.test.com'),
+                                 follow_redirects=True)
     clients = models.Client.query.all()
-    
-    assert (b'Client registration canceled.' in response.data and
-            len(clients) == 0)
+
+    assert b'Client registration canceled.' in response.data and len(clients) == 0
 
 
 @pytest.mark.parametrize('name, description, callback_url',
@@ -77,13 +73,13 @@ def test_create_client_cancelled(flask_client, user4):
 def test_create_client_error1(flask_client, user4, name, description, callback_url):
     ''' Developer returned to registration page if any form data missing.'''
     response = flask_client.post('/api/clients',
-                           data=dict(submit='register',
-                                     name=name,
-                                     description=description,
-                                     callback_url=callback_url),
-                           follow_redirects=True)
+                                 data=dict(submit='register',
+                                           name=name,
+                                           description=description,
+                                           callback_url=callback_url),
+                                 follow_redirects=True)
     clients = models.Client.query.all()
-    
+
     assert (b'Please complete all required fields.' in response.data and
             len(clients) == 0)
 
@@ -91,13 +87,13 @@ def test_create_client_error1(flask_client, user4, name, description, callback_u
 def test_create_client_error2(flask_client, user4):
     ''' Callback_url must be HTTPS.'''
     response = flask_client.post('/api/clients',
-                           data=dict(submit='register',
-                                     name='Test',
-                                     description='This is a test client app',
-                                     callback_url='http://www.test.com'),
-                           follow_redirects=True)
+                                 data=dict(submit='register',
+                                           name='Test',
+                                           description='This is a test client app',
+                                           callback_url='http://www.test.com'),
+                                 follow_redirects=True)
     clients = models.Client.query.all()
-    
+
     assert (b'The callback URL must use HTTPS.' in response.data and
             len(clients) == 0)
 
@@ -108,18 +104,17 @@ def test_create_client_sucessful1(flask_client, developer1):
                       data=valid_client_vars,
                       follow_redirects=True)
     clients = models.Client.query.all()
-    
+
     assert len(clients) == 1
 
 
 def test_create_client_sucessful2(flask_client, developer1):
     ''' Proper response is given after client created and is listed in apps. '''
     response = flask_client.post('/api/clients',
-                           data=valid_client_vars,
-                           follow_redirects=True)
-    
-    assert (b'Client registered' in response.data and
-            b'Tester App Ad Hoc' in response.data)
+                                 data=valid_client_vars,
+                                 follow_redirects=True)
+
+    assert b'Client registered' in response.data and b'Tester App Ad Hoc' in response.data
 
 
 def test_create_client_sucessful3(flask_client, developer1, dev_app):
@@ -128,7 +123,7 @@ def test_create_client_sucessful3(flask_client, developer1, dev_app):
                       data=valid_client_vars,
                       follow_redirects=True)
     clients = models.Client.query.all()
-    
+
     assert len(clients) == 2
 
 
@@ -187,11 +182,11 @@ def test_check_token1(flask_client, user4, dev_app):
                                       'username': 'tester4'},
                                 follow_redirects=True)
     json_data = response.get_json()
-    
+
     assert (response.status_code == 200 and
             json_data['status'] == 'Ok' and
             json_data['message'] == 'Success! The token works.')
-            
+
 
 def test_check_token_returns_error1(flask_client):
     ''' If token not provided in call to check_token(), error provided to client. '''
@@ -199,7 +194,7 @@ def test_check_token_returns_error1(flask_client):
                                 json={'username': 'tester4'},
                                 follow_redirects=True)
     json_data = response.get_json()
-    
+
     assert (response.status_code == 403 and json_data['error'] == 91)
 
 
@@ -209,7 +204,7 @@ def test_check_token_returns_error2(flask_client):
                                 json={'token': 'some token'},
                                 follow_redirects=True)
     json_data = response.get_json()
-    
+
     assert (response.status_code == 403 and json_data['error'] == 95)
 
 
@@ -217,24 +212,24 @@ def test_check_token_returns_error3(flask_client, user4, user1, dev_app):
     ''' Username sent in request must match username in decoded token sent. '''
     user4_token = api.create_token(user4, dev_app.client_id)
     response = flask_client.get('/api/check_token',
-                                json={'token': user4_token, 
+                                json={'token': user4_token,
                                       'username': 'tester1'},
                                 follow_redirects=True)
     json_data = response.get_json()
-    
+
     assert (response.status_code == 403 and json_data['error'] == 96)
 
 
 def test_check_token_returns_error4(flask_client):
-    ''' 
+    '''
     Check that manipulated/incomplete token returns error resulting from DecodeError exception.
     '''
     response = flask_client.get('/api/check_token',
-                                json={'token': 'this is not a valid token', 
-                                              'username': 'tester4'},
+                                json={'token': 'this is not a valid token',
+                                      'username': 'tester4'},
                                 follow_redirects=True)
     json_data = response.get_json()
-    
+
     assert (response.status_code == 403 and json_data['error'] == 94)
 
 
@@ -262,7 +257,7 @@ def test_app_authorization_get2(flask_client, user6, client_id, response_type):
                                 query_string={'client_id': '1',
                                               'response_type': 'not_code'},
                                 follow_redirects=True)
-    
+
     assert b'Query parameter response_type must be set to ' in response.data
 
 
@@ -273,10 +268,10 @@ def test_app_authorization_get2(flask_client, user6, client_id, response_type):
 def test_app_authorization_get3(flask_client, user6, client_id, response_type):
     ''' *client_id* must be id of a registered client.'''
     response = flask_client.get('/api/authorize',
-                          query_string={'client_id': '500',
-                                        'response_type': 'code'},
-                          follow_redirects=True)
-    
+                                query_string={'client_id': '500',
+                                              'response_type': 'code'},
+                                follow_redirects=True)
+
     assert b'No third-party app found matching request. Authorization failed.' in response.data
 
 
@@ -286,7 +281,7 @@ def test_app_authorization_get4(flask_client, user6, dev_app):
                                 query_string={'client_id': dev_app.client_id,
                                               'response_type': 'code'},
                                 follow_redirects=True)
-    
+
     assert b'Authorize App' in response.data
 
 
@@ -297,9 +292,9 @@ def test_app_authorization_post1(flask_client, user6, dev_app):
                                            client_id=dev_app.client_id,
                                            state='xyz'),
                                  follow_redirects=False)
-    
+
     assert (dev_app.callback_url in response.headers['Location'] and
-            'code' in response.headers['Location'] and 
+            'code' in response.headers['Location'] and
             'state' in response.headers['Location'])
 
 
@@ -312,33 +307,31 @@ def test_get_access_token1(flask_client, user6, dev_app):
     # create authorization code, which the client would have received via authorize()
     code = api.create_token(user6, dev_app.client_id)
     response = flask_client.post('/api/token',
-                           data=dict(client_id=dev_app.client_id, 
-                                     grant_type='authorization_code',
-                                     code=code),
-                           follow_redirects=True)       
+                                 data=dict(client_id=dev_app.client_id,
+                                           grant_type='authorization_code',
+                                           code=code),
+                                 follow_redirects=True)
     access_token = jwt.decode(response.get_json()['access_token'], user6.salt)
 
-    assert (response.status_code == 200 and 
+    assert (response.status_code == 200 and
             response.headers['Cache-Control'] == 'no-store' and
-            response.headers['Pragma'] == 'no-cache' and 
-            response.is_json and 
-            access_token['username'] == 'tester6') 
+            response.headers['Pragma'] == 'no-cache' and
+            response.is_json and
+            access_token['username'] == 'tester6')
 
 
-@pytest.mark.parametrize('grant_type', 
-                         [('authorizationcode'),
-                          (''),]
-                        )
+@pytest.mark.parametrize('grant_type',
+                         [('authorizationcode'), ('')])
 def test_get_access_token_error1(flask_client, user6, dev_app, grant_type):
     ''' Return error if grant_type != authorization_code '''
     code = api.create_token(user6, dev_app.client_id)
     response = flask_client.post('/api/token',
-                                 data=dict(client_id=dev_app.client_id, 
+                                 data=dict(client_id=dev_app.client_id,
                                            grant_type=grant_type,
                                            code=code),
                                  follow_redirects=True)
     json_data = response.get_json()
-    
+
     assert (response.status_code == 400 and json_data['error'] == 97)
 
 
@@ -346,10 +339,10 @@ def test_get_access_token_error2(flask_client, user6, dev_app):
     '''Code can't be manipulated.'''
     code = "this is a bad code"
     response = flask_client.post('/api/token',
-                            data=dict(client_id=dev_app.client_id, 
-                                        grant_type='authorization_code',
-                                        code=code),
-                            follow_redirects=True)
+                                 data=dict(client_id=dev_app.client_id,
+                                           grant_type='authorization_code',
+                                           code=code),
+                                 follow_redirects=True)
     json_data = response.get_json()
 
     assert (response.status_code == 403 and json_data['error'] == 94)
@@ -360,7 +353,7 @@ def test_get_access_token_error4(flask_client, user6, dev_app):
     expiration = datetime.datetime.utcnow() + datetime.timedelta(seconds=-2)
     code = api.create_token(user6, dev_app.client_id, expiration)
     response = flask_client.post('/api/token',
-                                 data=dict(client_id=dev_app.client_id, 
+                                 data=dict(client_id=dev_app.client_id,
                                            grant_type='authorization_code',
                                            code=code),
                                  follow_redirects=True)
@@ -373,7 +366,7 @@ def test_get_access_token_error5(flask_client, user6, dev_app):
     '''User should get error if no matching client found.'''
     code = api.create_token(user6, '2')
     response = flask_client.post('/api/token',
-                                 data=dict(client_id='2', 
+                                 data=dict(client_id='2',
                                            grant_type='authorization_code',
                                            code=code),
                                  follow_redirects=True)
@@ -386,13 +379,14 @@ def test_get_access_token_error6(flask_client, user6, dev_app):
     '''User should get error if provided client_id does not match client_id in token.'''
     code = api.create_token(user6, '2')
     response = flask_client.post('/api/token',
-                                 data=dict(client_id=dev_app.client_id, 
+                                 data=dict(client_id=dev_app.client_id,
                                            grant_type='authorization_code',
                                            code=code),
                                  follow_redirects=True)
     json_data = response.get_json()
 
     assert (response.status_code == 403 and json_data['error'] == 98)
+
 
 #######################
 # PROTECTED RESOURCES #
@@ -406,14 +400,14 @@ def test_document_get1(flask_client, user4, dev_app):
                                 json={'token': token,
                                       'username': 'tester4'})
     json_data = response.get_json()
-    
-    assert (response.status_code == 200 and 
-            json_data['title'] == 'First user doc' and  
-            json_data['link'] ==  'http://whatyouveread.com/1' and 
+
+    assert (response.status_code == 200 and
+            json_data['title'] == 'First user doc' and
+            json_data['link'] == 'http://whatyouveread.com/1' and
             json_data['year'] == '2018' and
             json_data['created'] == datetime.datetime.now().date(),
             json_data['authors'][0]['first_name'] == 'Joe' and
-            json_data['authors'][0]['last_name'] == 'Smith' and  
+            json_data['authors'][0]['last_name'] == 'Smith' and
             json_data['authors'][0]['id'] == 1 and
             json_data['authors'][1]['first_name'] == 'Jane' and
             json_data['authors'][1]['last_name'] == 'Smith' and
@@ -430,7 +424,7 @@ def test_document_get_error1(flask_client, user4, dev_app):
                                 json={'token': token,
                                       'username': 'different_user'})
     json_data = response.get_json()
-    
+
     assert (response.status_code == 403 and json_data['error'] == 96)
 
 
@@ -441,7 +435,7 @@ def test_document_get_error2(flask_client, user4, dev_app):
                                 json={'token': token,
                                       'username': 'tester4'})
     json_data = response.get_json()
-    
+
     assert (response.status_code == 404 and json_data['error'] == 3)
 
 
@@ -464,14 +458,14 @@ def test_document_put1(flask_client, user4, dev_app):
     # have to do it this way because session is no longer available
     doc1 = models.Documents.query.filter_by(id=1).one()
 
-    assert (response.status_code == 200 and 
+    assert (response.status_code == 200 and
             json_data['message'] == 'Item edited.' and
-            doc1.title == 'new title' and  
-            doc1.link ==  'http://whatyouveread.com/1' and 
-            doc1.year == '2018' and 
-            len(doc1.authors) == 2 and 
+            doc1.title == 'new title' and
+            doc1.link == 'http://whatyouveread.com/1' and
+            doc1.year == '2018' and
+            len(doc1.authors) == 2 and
             len(doc1.tags) == 2 and
-            doc1.notes == 'This is a note.' and 
+            doc1.notes == 'This is a note.' and
             doc1.read == 1)
 
 
@@ -506,7 +500,7 @@ def test_document_put_error2(flask_client, user5, dev_app):
                                       'authors': [],
                                       'year': '',
                                       'notes': '',
-                                      'read': 1} # only change
+                                      'read': 1}  # only change
                                 )
     json_data = response.get_json()
 
@@ -547,8 +541,7 @@ def test_document_put_error5(flask_client, user4, dev_app):
                                       'authors': [],
                                       'year': '',
                                       'notes': '',
-                                      'read': 0} 
-                                )
+                                      'read': 0})
     json_data = response.get_json()
 
     assert json_data['error'] == 10
@@ -559,14 +552,14 @@ def test_document_delete1(flask_client, user4, dev_app):
     doc = user4.documents.first()
     token = api.create_token(user4, dev_app.client_id)
     response = flask_client.delete('/api/documents/' + str(doc.id),
-                                    json={'token': token,
-                                          'username': 'tester4'})
+                                   json={'token': token,
+                                         'username': 'tester4'})
     json_data = response.get_json()
 
     # have to do it this way because session is no longer available
     docs = models.Documents.query.filter_by(user_id=1).all()
 
-    assert (response.status_code == 200 and 
+    assert (response.status_code == 200 and
             json_data['message'] == 'Item deleted.' and
             len(docs) == 3)
 
@@ -576,8 +569,8 @@ def test_document_delete_error1(flask_client, user4, dev_app):
     doc = user4.documents.first()
     token = api.create_token(user4, dev_app.client_id)
     response = flask_client.delete('/api/documents/' + str(doc.id),
-                                    json={'token': token,
-                                          'username': 'different_user'})
+                                   json={'token': token,
+                                         'username': 'different_user'})
     json_data = response.get_json()
 
     assert json_data['error'] == 96
@@ -587,8 +580,8 @@ def test_document_delete_error2(flask_client, user5, dev_app):
     '''Client should not be able to delete non-WYR item.'''
     token = api.create_token(user5, dev_app.client_id)
     response = flask_client.delete('/api/documents/3',
-                                    json={'token': token,
-                                          'username': 'tester5'})
+                                   json={'token': token,
+                                         'username': 'tester5'})
     json_data = response.get_json()
 
     assert json_data['error'] == 21
@@ -598,8 +591,8 @@ def test_document_delete_error3(flask_client, user4, dev_app):
     '''User's client should receive error if document id not located in collection.'''
     token = api.create_token(user4, dev_app.client_id)
     response = flask_client.delete('/api/documents/5',
-                                json={'token': token,
-                                      'username': 'tester4'})
+                                   json={'token': token,
+                                         'username': 'tester4'})
     json_data = response.get_json()
 
     assert json_data['error'] == 13
@@ -609,8 +602,8 @@ def test_document_delete_error4(flask_client, user3, user4, dev_app):
     '''User's client should not be able to delete another user's document.'''
     token = api.create_token(user4, dev_app.client_id)
     response = flask_client.delete('/api/documents/1',
-                                json={'token': token,
-                                      'username': 'tester4'})
+                                   json={'token': token,
+                                         'username': 'tester4'})
     json_data = response.get_json()
 
     assert json_data['error'] == 13
@@ -623,7 +616,7 @@ def test_get_all_docs(flask_client, user4, dev_app):
                                 json={'username': user4.username,
                                       'token': access_token})
     json_data = response.get_json()
-    
+
     # print(json.dumps(json_data, indent=4))
     assert len(json_data) == 4
 
@@ -636,7 +629,7 @@ def test_get_all_read_docs(flask_client, user4, dev_app):
                                       'token': access_token},
                                 query_string={'read_status': 'read'})
     json_data = response.get_json()
-    
+
     assert len(json_data) == 1
 
 
@@ -648,7 +641,7 @@ def test_get_all_to_read_docs(flask_client, user4, dev_app):
                                       'token': access_token},
                                 query_string={'read_status': 'to-read'})
     json_data = response.get_json()
-    
+
     assert len(json_data) == 3
 
 
@@ -660,7 +653,7 @@ def test_get_docs_read_status_error(flask_client, user4, dev_app):
                                       'token': access_token},
                                 query_string={'read_status': 'toread'})
     json_data = response.get_json()
-    
+
     assert (response.status_code == 400 and json_data['error'] == 15)
 
 
@@ -672,7 +665,7 @@ def test_get_docs_by_tag1(flask_client, user4, dev_app):
                                       'token': access_token},
                                 query_string={'tag': 'tag0'})
     json_data = response.get_json()
-    
+
     assert (response.status_code == 200 and len(json_data) == 2)
 
 
@@ -684,7 +677,7 @@ def test_get_docs_by_non_existent_tag(flask_client, user4, dev_app):
                                       'token': access_token},
                                 query_string={'tag': 'not a tag'})
     json_data = response.get_json()
-    
+
     assert (response.status_code == 404 and json_data['error'] == 4)
 
 
@@ -696,7 +689,7 @@ def test_get_docs_by_non_existent_author_id(flask_client, user4, dev_app):
                                       'token': access_token},
                                 query_string={'author_id': '10'})
     json_data = response.get_json()
-    
+
     assert (response.status_code == 404 and json_data['error'] == 4)
 
 
@@ -708,7 +701,7 @@ def test_get_docs_by_non_existent_bunch(flask_client, user4, dev_app):
                                       'token': access_token},
                                 query_string={'bunch': 'not a bunch'})
     json_data = response.get_json()
-    
+
     assert (response.status_code == 404 and json_data['error'] == 4)
 
 
@@ -716,13 +709,13 @@ def test_documents_post1(flask_client, user4, dev_app):
     '''documents POST is successful with adding a new document.'''
     access_token = api.create_token(user4, dev_app.client_id)
     response = flask_client.post('/api/documents',
-                                 json={'username': user4.username, 
-                                       'token': access_token, 
+                                 json={'username': user4.username,
+                                       'token': access_token,
                                        'title': 'new doc title'})
     json_data = response.get_json()
     docs = models.Documents.query.filter_by(user_id=1).all()
-    
-    assert (response.status_code == 201 and 
+
+    assert (response.status_code == 201 and
             json_data['message'] == 'Item added.' and
             len(docs) == 5 and
             docs[4].title == 'new doc title')
@@ -732,13 +725,13 @@ def test_documents_post_error1(flask_client, user4, dev_app):
     '''User should be given error if no title providing when adding a new item.'''
     access_token = api.create_token(user4, dev_app.client_id)
     response = flask_client.post('/api/documents',
-                                 json={'username': user4.username, 
-                                       'token': access_token, 
+                                 json={'username': user4.username,
+                                       'token': access_token,
                                        'title': ''})
     json_data = response.get_json()
     docs = models.Documents.query.filter_by(user_id=1).all()
-    
-    assert (response.status_code == 400 and 
+
+    assert (response.status_code == 400 and
             json_data['error'] == 10 and
             len(docs) == 4)
 
@@ -747,14 +740,14 @@ def test_documents_post_error2(flask_client, user4, dev_app):
     '''User should be given error if link already exists for that item.'''
     access_token = api.create_token(user4, dev_app.client_id)
     response = flask_client.post('/api/documents',
-                                 json={'username': user4.username, 
-                                       'token': access_token, 
+                                 json={'username': user4.username,
+                                       'token': access_token,
                                        'title': 'new item duplicate link',
                                        'link': 'http://whatyouveread.com/1'})
     json_data = response.get_json()
     docs = models.Documents.query.filter_by(user_id=1).all()
-    
-    assert (response.status_code == 400 and 
+
+    assert (response.status_code == 400 and
             json_data['error'] == 11 and
             len(docs) == 4)
 
@@ -781,11 +774,11 @@ def test_integration(flask_client, dev_app, user4):
 
     # now get the access token
     response = flask_client.post('/api/token',
-                                 data=dict(client_id=dev_app.client_id, 
-                                 grant_type='authorization_code',
-                                 code=authorization_code),
-                                 follow_redirects=True)       
-    
+                                 data=dict(client_id=dev_app.client_id,
+                                           grant_type='authorization_code',
+                                           code=authorization_code),
+                                 follow_redirects=True)
+
     # now use the token to get the user's documents
     access_token = response.get_json()['access_token']
     response = flask_client.get('/api/documents',

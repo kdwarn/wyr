@@ -53,6 +53,7 @@ class NotDeleteableDocException(WyrException):
         self.error = 21
         self.http_status = 403
 
+
 # Tag- and Bunch-related Exceptions
 
 class NoBunchException(WyrException):
@@ -63,4 +64,3 @@ class NoBunchException(WyrException):
 
 
 # Author-related Exceptions
-

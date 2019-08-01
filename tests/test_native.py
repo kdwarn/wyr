@@ -1,9 +1,6 @@
 import pytest
-from flask import url_for
 
-from app import native, models, db, common
-from app import exceptions as ex
-from sqlalchemy.orm.exc import NoResultFound
+from app import native, common
 
 # Testing the functions in native.py
 
@@ -104,6 +101,7 @@ def one_author_first_name(request):
 def three_authors(request):
     return request.param
 
+
 ####################
 # HELPER FUNCTIONS #
 ####################
@@ -183,6 +181,7 @@ def test_three_authors(three_authors):
             authors[2]['last_name'] == 'Johnson' and
             authors[2]['first_name'] == 'Bill')
 
+
 ##########
 # ROUTES #
 ##########
@@ -199,6 +198,7 @@ def test_add1(flask_client, user4):
     docs = common.get_docs(user4)
 
     assert (b'Item added.' in response.data and len(docs) == 5)
+
 
 def test_add2(flask_client, user4):
     '''Adding item with all form variables works.'''
@@ -291,8 +291,3 @@ def test_edit4(flask_client, user5, user4):
     response = flask_client.post('/edit', data=content, follow_redirects=True)
 
     assert b'That document was not found in your collection.' in response.data
-
-
-
-
-

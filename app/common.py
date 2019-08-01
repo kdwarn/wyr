@@ -26,25 +26,25 @@ def get_docs(user, read_status='', tag='', author_id='', bunch=''):
     filters = []
 
     if read_status == 'to-read':
-        filters.append(Documents.read==0)
+        filters.append(Documents.read == 0)
     if read_status == 'read':
-        filters.append(Documents.read==1)
+        filters.append(Documents.read == 1)
     if tag:
         filters.append(Documents.tags.any(name=tag))
     if author_id:
         filters.append(Documents.authors.any(id=author_id))
     if bunch:
-            # get the name, tags, read_status, and selector for this bunch
-            try:
-                bunch = Bunches.query.filter(Bunches.user_id==user.id, Bunches.name==bunch).one()
-            except NoResultFound:
-                raise ex.NoBunchException
-            else:
-                if bunch.selector == 'or':
-                    filters.append(Documents.tags.any(Tags.id.in_([t.id for t in bunch.tags])))
-                if bunch.selector == 'and':
-                    for tag in bunch.tags:
-                        filters.append(Documents.tags.any(id=tag.id))
+        # get the name, tags, read_status, and selector for this bunch
+        try:
+            bunch = Bunches.query.filter(Bunches.user_id == user.id, Bunches.name == bunch).one()
+        except NoResultFound:
+            raise ex.NoBunchException
+        else:
+            if bunch.selector == 'or':
+                filters.append(Documents.tags.any(Tags.id.in_([t.id for t in bunch.tags])))
+            if bunch.selector == 'and':
+                for tag in bunch.tags:
+                    filters.append(Documents.tags.any(id=tag.id))
 
     docs = user.documents.filter(*filters).order_by(desc(Documents.created)).all()
 
@@ -58,7 +58,11 @@ def get_docs(user, read_status='', tag='', author_id='', bunch=''):
 def get_user_tags(user):
     '''Gets user's tags, as objects, in alphabetical order by tag.name.'''
 
-    tags = Tags.query.join(document_tags).join(Documents).filter(Documents.user_id==user.id).order_by(Tags.name).all()
+    tags = (Tags.query.join(document_tags)
+                      .join(Documents)
+                      .filter(Documents.user_id == user.id)
+                      .order_by(Tags.name)
+                      .all())
 
     return tags
 
@@ -67,7 +71,10 @@ def get_user_tag(user, tag_name):
     '''Get one tag object.'''
 
     try:
-        tag = Tags.query.join(document_tags).join(Documents).filter(Documents.user_id==user.id, Tags.name==tag_name).one()
+        tag = (Tags.query.join(document_tags)
+                         .join(Documents)
+                         .filter(Documents.user_id == user.id, Tags.name == tag_name)
+                         .one())
     except NoResultFound:
         raise
     else:
@@ -121,7 +128,11 @@ def delete_orphaned_tags():
 def get_user_authors(user):
     '''Get user's authors.'''
 
-    authors = Authors.query.join(document_authors).join(Documents).filter(Documents.user_id==user.id).order_by(Authors.last_name).all()
+    authors = (Authors.query.join(document_authors)
+                            .join(Documents)
+                            .filter(Documents.user_id == user.id)
+                            .order_by(Authors.last_name)
+                            .all())
 
     return authors
 
@@ -130,8 +141,12 @@ def get_user_author(user, first_name, last_name):
     '''Get one of the user's authors.'''
 
     try:
-        author = Authors.query.join(document_authors).join(Documents).filter(Documents.user_id==user.id, \
-                Authors.first_name==first_name, Authors.last_name==last_name).one()
+        author = (Authors.query.join(document_authors)
+                               .join(Documents)
+                               .filter(Documents.user_id == user.id,
+                                       Authors.first_name == first_name,
+                                       Authors.last_name == last_name)
+                               .one())
     except NoResultFound:
         raise
     else:
@@ -153,7 +168,8 @@ def add_or_update_authors(user, submitted_authors, doc):
 
     # remove any authors associated with this doc if not in new authors submitted with edit
     if doc.authors:
-        for author in [{'last_name': author.last_name, 'first_name': author.first_name} for author in doc.authors]:
+        for author in [{'last_name': author.last_name, 'first_name': author.first_name}
+                       for author in doc.authors]:
             if author not in submitted_authors:
                 author_to_remove = get_user_author(user, author['first_name'], author['last_name'])
                 doc.authors.remove(author_to_remove)
@@ -164,9 +180,12 @@ def add_or_update_authors(user, submitted_authors, doc):
         submitted_author['first_name'] = submitted_author.get('first_name', '')
         submitted_author['last_name'] = submitted_author.get('last_name', '')
 
-        if submitted_author not in [{'last_name': author.last_name, 'first_name': author.first_name} for author in doc.authors]:
+        if submitted_author not in [{'last_name': author.last_name, 'first_name': author.first_name}
+                                    for author in doc.authors]:
             try:
-                existing_author = get_user_author(user, submitted_author['first_name'], submitted_author['last_name'])
+                existing_author = get_user_author(user,
+                                                  submitted_author['first_name'],
+                                                  submitted_author['last_name'])
             except NoResultFound:
                 new_author = Authors(submitted_author['first_name'], submitted_author['last_name'])
                 doc.authors.append(new_author)
@@ -283,11 +302,13 @@ def edit_item(content, user, source=''):
                 link = 'http://' + link
 
         if source_id == 3 and link:
-            doc = user.documents.filter(Documents.link==link).filter(Documents.source_id==source_id).filter(Documents.id!=id).first()
+            doc = (user.documents.filter(Documents.link == link)
+                                 .filter(Documents.source_id == source_id)
+                                 .filter(Documents.id != id).first())
 
             if doc:
                 raise ex.DuplicateLinkException(doc.id)
-        
+
         if source in ['api', 'native'] and doc_to_edit.source_id != 3:
             raise ex.NotEditableDocException
 
@@ -336,14 +357,14 @@ def delete_item(id, user, source=''):
     '''Delete document.'''
 
     try:
-        doc = user.documents.filter(Documents.id==id).one()
+        doc = user.documents.filter(Documents.id == id).one()
     except NoResultFound:
         raise ex.NotUserDocException
     else:
         if source in ['api', 'native'] and doc.source_id != 3:
             raise ex.NotDeleteableDocException
-        
-        user.documents.filter(Documents.id==id).delete()
+
+        user.documents.filter(Documents.id == id).delete()
         db.session.commit()
 
         delete_orphaned_tags()
@@ -360,7 +381,9 @@ def delete_item(id, user, source=''):
 def remove_to_read(source):
     ''' Delete to-read docs if user changes pref from including to excluding them. '''
 
-    current_user.documents.filter(Documents.source_id==source, Documents.read==0).delete(synchronize_session='fetch')
+    (current_user.documents
+                 .filter(Documents.source_id == source, Documents.read == 0)
+                 .delete(synchronize_session='fetch'))
     db.session.commit()
 
     if source == 1:

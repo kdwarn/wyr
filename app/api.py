@@ -1,5 +1,5 @@
 '''
-TODO: 
+TODO:
     - might need to create get_user_doc() function to just get one doc, so I can put the exception
         there rather than manually do error checking for it elsewhere
     - paginate results for documents()
@@ -56,15 +56,11 @@ TODO:
 
 import datetime
 from functools import wraps
-import json
-import random
-import string
 import uuid
 
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
 import jwt
-import requests
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
@@ -95,11 +91,11 @@ def create_token(user, client_id, expiration=''):
     if not expiration:
         expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
 
-    return jwt.encode({'client_id': client_id, 
-                        'username': user.username, 
-                        'exp': expiration,
-                        }, 
-                        user.salt).decode('utf-8')
+    return jwt.encode({'client_id': client_id,
+                       'username': user.username,
+                       'exp': expiration,
+                       },
+                      user.salt).decode('utf-8')
 
 
 def token_required(f):
@@ -108,10 +104,10 @@ def token_required(f):
 
     First checks that request is in json format and returns error if not.
 
-    If not able to authenticate token, returns error. 
-    
+    If not able to authenticate token, returns error.
+
     Otherwise, returns calling function with user object and any *args and **kwargs passed.
-    
+
     Based on https://prettyprinted.com/blog/9857/authenicating-flask-api-using-json-web-tokens
     '''
     @wraps(f)
@@ -124,21 +120,21 @@ def token_required(f):
         username = content.get('username')
 
         if not username:
-            return jsonify({'message' : 'Username is missing', 'error' : 95 }), 403
+            return jsonify({'message': 'Username is missing', 'error': 95}), 403
 
         if not token:
-            return jsonify({'message' : 'Token is missing.', 'error': 91}), 403
+            return jsonify({'message': 'Token is missing.', 'error': 91}), 403
 
         # get the username - to then get user's salt, to verify signature below
         try:
-            unverified_token = jwt.decode(token, verify=False) 
+            unverified_token = jwt.decode(token, verify=False)
         except jwt.exceptions.DecodeError as e:
-            return jsonify({'message' : str(e), 'error': 94}), 403
+            return jsonify({'message': str(e), 'error': 94}), 403
         else:
             try:
                 user = User.query.filter_by(username=unverified_token['username']).one()
             except NoResultFound:
-                return jsonify({'message' : 'User could not be located.', 'error': 1}), 404
+                return jsonify({'message': 'User could not be located.', 'error': 1}), 404
 
         # check that token sent is for the username sent
         if user.username != username:
@@ -148,13 +144,13 @@ def token_required(f):
         try:
             jwt.decode(token, user.salt)
         except jwt.exceptions.InvalidSignatureError as e:
-            return jsonify({'message' : str(e), 'error': 92}), 403
+            return jsonify({'message': str(e), 'error': 92}), 403
         except jwt.exceptions.ExpiredSignatureError as e:
-            return jsonify({'message' : str(e), 'error': 93}), 403
+            return jsonify({'message': str(e), 'error': 93}), 403
         except jwt.exceptions.DecodeError as e:
-            return jsonify({'message' : str(e), 'error': 94}), 403
+            return jsonify({'message': str(e), 'error': 94}), 403
         except Exception as e:
-            return jsonify({'message' : str(e), 'error': 99}), 403
+            return jsonify({'message': str(e), 'error': 99}), 403
 
         return f(user, *args, **kwargs)
     return wrapper
@@ -164,23 +160,23 @@ def token_required(f):
 @login_required
 def clients():
     '''
-    Allow a user to register a client they developed and list their developed clients (not 
+    Allow a user to register a client they developed and list their developed clients (not
     a list of clients that a user authorized - that will be in main.settings).
-    
+
     Only registered users who are logged in can register clients.
     '''
     if request.method == 'GET':
         clients = Client.query.filter_by(user_id=current_user.id).all()
         return render_template('clients.html', clients=clients)
-    
+
     if request.form['submit'] != 'register':
         flash("Client registration canceled.")
-    else:  
+    else:
         name = request.form.get('name')
         description = request.form.get('description')
         callback_url = request.form.get('callback_url')
         home_url = request.form.get('home_url')
-        
+
         if not all([name, description, callback_url]):
             flash("Please complete all required fields.")
             return redirect(url_for('api.clients'))
@@ -209,13 +205,13 @@ def clients():
 @token_required
 def check_token(user):
     '''
-    Provides verficiation to client developer that the token works (or doesn't). 
-    
-    Token and username are fetched from request and validated via the @token_required decorator. 
-    All errors caught there. @t_r also returns *user*, which is not used here but is why it is 
+    Provides verficiation to client developer that the token works (or doesn't).
+
+    Token and username are fetched from request and validated via the @token_required decorator.
+    All errors caught there. @t_r also returns *user*, which is not used here but is why it is
     included in function parameters.
     '''
-    return jsonify({'message' : 'Success! The token works.',
+    return jsonify({'message': 'Success! The token works.',
                     'status': 'Ok'}), 200
 
 
@@ -225,17 +221,17 @@ def authorize():
     '''
     Allow a user to authorize an app.
 
-    In the Oauth2 protocol flow (https://tools.ietf.org/html/rfc6749#section-1.2), this is step A 
-    (Authorization Request) and step B (Authorization Grant). 
-    
-    Third-party app sends user to this route with *client_id*, *response_type*, and (optional) 
-    *state* parameters in url (Authorization Request). If client_id matches registered app, then 
+    In the Oauth2 protocol flow (https://tools.ietf.org/html/rfc6749#section-1.2), this is step A
+    (Authorization Request) and step B (Authorization Grant).
+
+    Third-party app sends user to this route with *client_id*, *response_type*, and (optional)
+    *state* parameters in url (Authorization Request). If client_id matches registered app, then
     user is then presented with form to authorize the app.
 
-    If user permits authorization, then they are redirected back to app's callback_url that was 
-    given at time of app creation, with an authorization code (jwt) and any state parameter passed 
+    If user permits authorization, then they are redirected back to app's callback_url that was
+    given at time of app creation, with an authorization code (jwt) and any state parameter passed
     to this route from client app (Authorization Grant).
-    
+
     '''
     if request.method == 'GET':
         client_id = request.args.get('client_id')
@@ -245,50 +241,50 @@ def authorize():
         if response_type != 'code':
             flash("Query parameter response_type must be set to 'code'. Authorization failed.")
             return redirect(url_for('main.index'))
-        
+
         try:
             client = Client.query.filter_by(client_id=client_id).one()
         except NoResultFound:
             flash("No third-party app found matching request. Authorization failed.")
             return redirect(url_for('main.index'))
-        
-        return render_template('authorize_app.html', 
-                               client_name=client.name, 
+
+        return render_template('authorize_app.html',
+                               client_name=client.name,
                                client_id=client_id,
                                state=state)
-    
+
     if request.form['submit'] != 'Yes':
         flash("Authorization not granted to app.")
         return redirect(url_for('main.index'))
-    
+
     client_id = request.form['client_id']
     state = request.form['state']
-    
+
     try:
         client = Client.query.filter_by(client_id=client_id).one()
     except NoResultFound:
         flash("No third-party app found matching request.")
         return redirect(url_for('main.index'))
-    
+
     expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
-    code = create_token(current_user, client_id, expiration) 
+    code = create_token(current_user, client_id, expiration)
     redirect_url = client.callback_url + '?code=' + code
 
     if state:
         redirect_url += '&state=' + state
-    
+
     return redirect(redirect_url, code=307)
-        
+
 
 @api_bp.route('/token', methods=['POST'])
 def token():
     '''
     Return access token to client, after authorization from user.
-    
-    In the Oauth2 protocol flow (https://tools.ietf.org/html/rfc6749#section-1.2), this is step C 
+
+    In the Oauth2 protocol flow (https://tools.ietf.org/html/rfc6749#section-1.2), this is step C
     (Authorization Grant) and Step D (Access Token). These steps would
     be better named Access Token Request and Access Token Grant. In Step C, the client provides
-    the previously given Authorization Grant, WYR authenticates the client, and then provides the 
+    the previously given Authorization Grant, WYR authenticates the client, and then provides the
     Access Token to the client.
 
     The client stores this access token for future calls to the user's protected resources (steps
@@ -299,27 +295,27 @@ def token():
     code = request.form['code']
 
     if grant_type != 'authorization_code':
-        return jsonify({'message' : 'grant_type must be set to "authorization_code"',
+        return jsonify({'message': 'grant_type must be set to "authorization_code"',
                         'error': 97}), 400
 
     try:
         client = Client.query.filter_by(client_id=client_id).one()
     except NoResultFound:
         return jsonify({'message': 'Client not found.',
-                    'error': 2}), 404
+                        'error': 2}), 404
 
     # decode code without verifying signature, to get user and their salt for verification
     try:
-        unverified_code = jwt.decode(code, verify=False) 
+        unverified_code = jwt.decode(code, verify=False)
     except jwt.exceptions.DecodeError as e:
-        return jsonify({'message' : str(e), 'error': 94}), 403
-    
+        return jsonify({'message': str(e), 'error': 94}), 403
+
     if unverified_code['client_id'] != client_id:
-        return jsonify({'message': 'Client does not match token.', 
+        return jsonify({'message': 'Client does not match token.',
                         'error': 98}), 403
 
     try:
-        user = User.query.filter(User.username==unverified_code['username']).one()
+        user = User.query.filter(User.username == unverified_code['username']).one()
     except NoResultFound:
         return jsonify({'message': 'Unable to locate user.', 'error': 1}), 404
 
@@ -327,18 +323,18 @@ def token():
     try:
         jwt.decode(code, user.salt)
     except jwt.exceptions.InvalidSignatureError as e:
-        return jsonify({'message' : str(e), 'error': 92}), 403
+        return jsonify({'message': str(e), 'error': 92}), 403
     except jwt.exceptions.ExpiredSignatureError as e:
-        return jsonify({'message' : str(e), 'error': 93}), 403
+        return jsonify({'message': str(e), 'error': 93}), 403
     except jwt.exceptions.DecodeError as e:
-        return jsonify({'message' : str(e), 'error': 94}), 400
+        return jsonify({'message': str(e), 'error': 94}), 400
     except Exception as e:
-        return jsonify({'message' : str(e), 'error': 99}), 403
+        return jsonify({'message': str(e), 'error': 99}), 403
 
     expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
     token = create_token(user, client_id, expiration)
     user.apps.append(client)
-    response = jsonify({'access_token': token, 
+    response = jsonify({'access_token': token,
                         'token_type': 'bearer'})
     response.headers['Cache-Control'] = 'no-store'
     response.headers['Pragma'] = 'no-cache'
@@ -351,29 +347,29 @@ def token():
 def document(user, id):
     '''
     Get, edit, or delete one document from user's collection.
-    
-    All error checking of token/username, json format is done by @token_required, which also 
-    returns *user* to this function. 
+
+    All error checking of token/username, json format is done by @token_required, which also
+    returns *user* to this function.
     '''
     if not id:
-        return jsonify({'message': 'ID of document not included in request.', 
+        return jsonify({'message': 'ID of document not included in request.',
                         'error': 14}), 400
 
     # get a document
     if request.method == 'GET':
         try:
-            doc = user.documents.filter(Documents.id==id).one()
+            doc = user.documents.filter(Documents.id == id).one()
         except NoResultFound:
             return jsonify({'message': 'Unable to locate document.', 'error': 3}), 404
-        
+
         return jsonify(doc.serialize()), 200
-    
+
     # edit a document
     if request.method == 'PUT':
         doc_content = get_doc_content(id, request.get_json())
-        
+
         try:
-            
+
             common.edit_item(doc_content, user, source='api')
         except ex.NotUserDocException as e:
             return jsonify({'message': str(e.message), 'error': e.error}), e.http_status
@@ -402,7 +398,7 @@ def documents(user, tag='', author_id='', bunch='', read_status=''):
     '''
     Get all documents from a user's collection or add a new document.
 
-    All error checking of token/username, json format is done by @token_required, which also 
+    All error checking of token/username, json format is done by @token_required, which also
     returns *user* to this function.
     '''
     # add a document
@@ -425,29 +421,27 @@ def documents(user, tag='', author_id='', bunch='', read_status=''):
         author_id = request.args.get('author_id')
         bunch = request.args.get('bunch')
         read_status = request.args.get('read_status')
-        
+
         if read_status:
             if read_status not in ['read', 'to-read']:
                 return jsonify({'message': "read_status should be 'read' or 'to-read'.",
                                 'error': 15}), 400
         try:
-            docs = common.get_docs(user, 
-                                   tag=tag, 
-                                   author_id=author_id, 
-                                   bunch=bunch, 
+            docs = common.get_docs(user,
+                                   tag=tag,
+                                   author_id=author_id,
+                                   bunch=bunch,
                                    read_status=read_status)
         except ex.NoBunchException:
             return jsonify({'message': 'No documents found matching supplied critieria.',
                             'error': 4}), 404
-                       
+
         if not docs:
             return jsonify({'message': 'No documents found matching supplied critieria.',
-                        'error': 4}), 404
-        
+                            'error': 4}), 404
+
         docs_as_json = []
         for doc in docs:
             docs_as_json.append(doc.serialize())
-        
+
         return jsonify(docs_as_json)
-        
-    

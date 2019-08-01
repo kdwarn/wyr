@@ -1,10 +1,8 @@
 from collections import namedtuple
 import datetime
-import pytz
 
 from bs4 import BeautifulSoup
-from flask import Blueprint, render_template, request, redirect, url_for, \
-    flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from sqlalchemy.orm.exc import NoResultFound
 from app import db
@@ -76,17 +74,25 @@ def add():
 
         # check if link already exists, redirect user to edit if so
         if link:
-            if current_user.documents.filter(Documents.link==link, Documents.source_id==3).count() >= 1:
-                doc = current_user.documents.filter(Documents.link==link, Documents.source_id==3).first()
+            if (current_user.documents.filter(Documents.link == link,
+                                              Documents.source_id == 3)
+                                      .count() >= 1):
+                doc = (current_user.documents.filter(Documents.link == link,
+                                                     Documents.source_id == 3)
+                                             .first())
                 read_type = 'read' if doc.read == 1 else 'to-read'
 
                 flash(f"You've already saved that link as {read_type}; "
-                    "you may edit it below.")
+                      "you may edit it below.")
                 return redirect(url_for('native.edit', id=doc.id))
 
-        return render_template('add.html', doc=doc, tags=tags, authors=authors,
-            all_tags=all_tags, all_authors=all_authors,
-            from_bookmarklet=from_bookmarklet)
+        return render_template('add.html',
+                               doc=doc,
+                               tags=tags,
+                               authors=authors,
+                               all_tags=all_tags,
+                               all_authors=all_authors,
+                               from_bookmarklet=from_bookmarklet)
 
     elif request.method == 'POST':
 
@@ -133,7 +139,7 @@ def edit():
         id = request.args.get('id', '')
 
         try:
-            doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).one()
+            doc = current_user.documents.filter(Documents.id == id, Documents.source_id == 3).one()
         except NoResultFound:
             flash('That document was not found in your collection.')
             return redirect(url_for('main.index'))
@@ -144,9 +150,8 @@ def edit():
 
             # have to format tags and authors for form
             if doc.tags:
-                # put names into list to sort
-                super_new_tag_list=[tag.name for tag in doc.tags]
-                super_new_tag_list.sort() # sort
+                super_new_tag_list = [tag.name for tag in doc.tags]
+                super_new_tag_list.sort()
                 for name in super_new_tag_list:
                     if name != super_new_tag_list[-1]:
                         new_tags += name + ', '
@@ -169,8 +174,13 @@ def edit():
             all_authors = common.get_user_authors(current_user)
             all_authors = [author.last_name + ', ' + author.first_name for author in all_authors]
 
-            return render_template('add.html', edit=1, doc=doc, tags=new_tags,
-                all_tags=all_tags, all_authors=all_authors, authors=new_authors)
+            return render_template('add.html',
+                                   edit=1,
+                                   doc=doc,
+                                   tags=new_tags,
+                                   all_tags=all_tags,
+                                   all_authors=all_authors,
+                                   authors=new_authors)
 
     elif request.method == 'POST':
 
@@ -207,7 +217,6 @@ def edit():
             return common.return_to_previous()
 
 
-
 @native_bp.route('/delete', methods=['GET', 'POST'])
 @login_required
 def delete():
@@ -218,7 +227,7 @@ def delete():
         id = request.args.get('id', '')
 
         try:
-            doc = current_user.documents.filter(Documents.id==id, Documents.source_id==3).one()
+            doc = current_user.documents.filter(Documents.id == id, Documents.source_id == 3).one()
         except NoResultFound:
             flash('That document was not found in your collection.')
             return redirect(url_for('main.index'))
@@ -272,7 +281,6 @@ def import_bookmarks():
                 flash("Sorry, that doesn't look like a .html file.")
                 return render_template('import.html')
 
-
             # put soupped file into a global variable accessed by username,
             # so we can work with it after step 2 (and so it's uniquely named)
             global soup
@@ -282,10 +290,10 @@ def import_bookmarks():
             for each in soup[current_user.username].find_all('h3'):
                 folders.append(each.string)
 
-            #return user to import to choose which folders to pull links from
+            # return user to import to choose which folders to pull links from
             return render_template('import.html', step2='yes', folders=folders)
 
-        #import bookmarks and their most immediate folder into db
+        # import bookmarks and their most immediate folder into db
         if 'step2' in request.form:
 
             if request.form['step2'] == 'Cancel':
@@ -314,7 +322,8 @@ def import_bookmarks():
                                 new_doc.link = each['href']
                                 new_doc.read = 1
                                 # convert add_date (seconds from epoch format) to datetime
-                                new_doc.created = datetime.datetime.fromtimestamp(int(each['add_date']))
+                                new_doc.created = (datetime.datetime
+                                                           .fromtimestamp(int(each['add_date'])))
                                 db.session.add(new_doc)
                                 db.session.commit()
                                 common.add_tags_to_doc(current_user, [h3.string], new_doc)
@@ -324,4 +333,3 @@ def import_bookmarks():
             return redirect(url_for('main.index'))
 
     return render_template('import.html')
-

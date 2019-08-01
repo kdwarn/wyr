@@ -1,10 +1,3 @@
-import pytest
-import flask_login
-
-# from app.models import User, Post
-from app import main, models, db, common
-
-
 def login(flask_client, username, password, remember='', next=''):
     return flask_client.post('/login', data=dict(
         wyr_username=username,
@@ -226,7 +219,7 @@ def test_docs_by_author1(flask_client, user4):
     response = flask_client.get('/all/author/2', follow_redirects=True)
     assert (b'First user doc' in response.data and
             b'Third user doc' in response.data and
-            b'Second user doc' not in response.data and 
+            b'Second user doc' not in response.data and
             b'Fourth user doc' not in response.data)
 
 
@@ -235,7 +228,7 @@ def test_docs_by_author2(flask_client, user4):
     response = flask_client.get('/read/author/2', follow_redirects=True)
     assert (b'First user doc' in response.data and
             b'Third user doc' not in response.data and
-            b'Second user doc' not in response.data and 
+            b'Second user doc' not in response.data and
             b'Fourth user doc' not in response.data)
 
 
@@ -244,7 +237,7 @@ def test_docs_by_author3(flask_client, user4):
     response = flask_client.get('/to-read/author/2', follow_redirects=True)
     assert (b'First user doc' not in response.data and
             b'Third user doc' in response.data and
-            b'Second user doc' not in response.data and 
+            b'Second user doc' not in response.data and
             b'Fourth user doc' not in response.data)
 
 
@@ -313,8 +306,8 @@ def test_bunch3(flask_client, user6):
 def test_bunch4(flask_client, user6):
     '''bunch() shows all docs in bunch (any read status).'''
     response = flask_client.get('all/bunch/bunch 1')
-    assert (b'First user doc' in response.data and 
-            b'Second user doc' in response.data and 
+    assert (b'First user doc' in response.data and
+            b'Second user doc' in response.data and
             b'Third user doc' in response.data and
             b'Fourth user doc' in response.data)
 
@@ -322,8 +315,8 @@ def test_bunch4(flask_client, user6):
 def test_bunch5(flask_client, user6):
     '''bunch() shows all read docs in bunch).'''
     response = flask_client.get('read/bunch/bunch 1')
-    assert (b'First user doc' in response.data and 
-            b'Second user doc' not in response.data and 
+    assert (b'First user doc' in response.data and
+            b'Second user doc' not in response.data and
             b'Third user doc' not in response.data and
             b'Fourth user doc' in response.data)
 
@@ -331,8 +324,8 @@ def test_bunch5(flask_client, user6):
 def test_bunch6(flask_client, user6):
     '''bunch() shows all read docs in bunch).'''
     response = flask_client.get('to-read/bunch/bunch 1')
-    assert (b'First user doc' not in response.data and 
-            b'Second user doc' in response.data and 
+    assert (b'First user doc' not in response.data and
+            b'Second user doc' in response.data and
             b'Third user doc' in response.data and
             b'Fourth user doc' not in response.data)
 
@@ -348,21 +341,21 @@ def test_bunches1(flask_client, user0):
 def test_bunches2(flask_client, user7):
     '''bunches() displays no tags message if user has no tags.'''
     response = flask_client.get('/bunches', follow_redirects=True)
-    assert (b'Bunches are groups of tags' in response.data and 
+    assert (b'Bunches are groups of tags' in response.data and
             b'You do not yet have any tags to sort into bunches.' in response.data)
 
 
 def test_bunches3(flask_client, user4):
     '''bunches() displays no tags message if user has no tags.'''
     response = flask_client.get('/bunches', follow_redirects=True)
-    assert (b'Create New Bunch' in response.data and 
+    assert (b'Create New Bunch' in response.data and
             b'You do not yet have any tags to sort into bunches.' not in response.data)
 
 
 def test_bunches4(flask_client, user6):
     '''bunches() displays list of user's bunches.'''
     response = flask_client.get('/bunches')
-    assert (b'bunch 1' in response.data and 
+    assert (b'bunch 1' in response.data and
             b'bunch 2' in response.data and
             b'bunch 3' in response.data and
             b'bunch 4' in response.data)
@@ -370,44 +363,40 @@ def test_bunches4(flask_client, user6):
 
 def test_bunches5(flask_client, user6):
     '''bunches() shows error messsage if user didn't select any tags.'''
-    response = flask_client.post('/bunches',  data=dict(
-        selector='or',
-        bunch_tags=[]
-    ), follow_redirects=True)
+    response = flask_client.post('/bunches',
+                                 data=dict(selector='or', bunch_tags=[]),
+                                 follow_redirects=True)
     assert b'You did not choose any tags.' in response.data
 
 
 def test_bunches6(flask_client, user6):
     '''bunches() returns proper docs given chosen selector and tags.'''
-    response = flask_client.post('/bunches',  data=dict(
-        selector='and',
-        bunch_tags=[3, 5]
-    ), follow_redirects=True)
-    assert (b'First user doc' not in response.data and 
-            b'Second user doc' in response.data and 
+    response = flask_client.post('/bunches',
+                                 data=dict(selector='and', bunch_tags=[3, 5]),
+                                 follow_redirects=True)
+    assert (b'First user doc' not in response.data and
+            b'Second user doc' in response.data and
             b'Third user doc' not in response.data and
             b'Fourth user doc' not in response.data)
 
 
 def test_bunches7(flask_client, user6):
     '''bunches() returns proper docs given chosen selector and tags.'''
-    response = flask_client.post('/bunches',  data=dict(
-        selector='or',
-        bunch_tags=[2, 4]
-    ), follow_redirects=True)
-    
-    assert (b'First user doc' in response.data and 
-            b'Second user doc' in response.data and 
+    response = flask_client.post('/bunches',
+                                 data=dict(selector='or', bunch_tags=[2, 4]),
+                                 follow_redirects=True)
+
+    assert (b'First user doc' in response.data and
+            b'Second user doc' in response.data and
             b'Third user doc' not in response.data and
             b'Fourth user doc' not in response.data)
 
 
 def test_bunches8(flask_client, user6):
     '''bunches() shows error message if no docs matching criteria.'''
-    response = flask_client.post('/bunches',  data=dict(
-        selector='and',
-        bunch_tags=[2, 3]
-    ), follow_redirects=True)
+    response = flask_client.post('/bunches',
+                                 data=dict(selector='and', bunch_tags=[2, 3]),
+                                 follow_redirects=True)
     assert (b'Sorry, no items matched your tag choices.' in response.data)
 
 

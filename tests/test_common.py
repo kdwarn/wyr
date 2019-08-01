@@ -310,6 +310,7 @@ def test_edit_str_read_value_converted_to_int2(user1):
     doc = user1.documents.first()
     assert doc.read == 1
 
+
 # tags
 
 def test_edit_remove_one_tag(user0, three_items_tags_only):
@@ -392,7 +393,7 @@ def test_edit_add_tag_no_previous_tags(user0, three_items_tags_only):
 
     common.edit_item(content, user0)
 
-    doc = user0.documents.filter(models.Documents.id==3).one()
+    doc = user0.documents.filter(models.Documents.id == 3).one()
 
     assert len(doc.tags) == 1 and doc.tags[0].name == 'new tag'
 
@@ -453,8 +454,8 @@ def test_edit_add_one_author(user0, three_items_authors_only):
     doc = user0.documents.first()
 
     assert (len(doc.authors) == 3 and
-           doc.authors[2].first_name == 'Regina' and
-           doc.authors[2].last_name == 'Williams')
+            doc.authors[2].first_name == 'Regina' and
+            doc.authors[2].last_name == 'Williams')
 
 
 def test_edit_only_one_author_correct_text(user0, three_items_authors_only):
@@ -488,12 +489,11 @@ def test_edit_add_author_no_previous_authors(user0, three_items_authors_only):
 
     common.edit_item(content, user0)
 
-    doc = user0.documents.filter(models.Documents.id==3).one()
+    doc = user0.documents.filter(models.Documents.id == 3).one()
 
     assert (len(doc.authors) == 1 and
             doc.authors[0].first_name == 'Jane' and
             doc.authors[0].last_name == 'Smith')
-
 
 
 def test_delete_orphaned_authors1(flask_client, user1):
@@ -512,21 +512,22 @@ def test_delete_orphaned_authors2(user1):
     '''Orphaned authors are deleted when item is edited.'''
 
     content = {'id': 1,
-              'title': 'Test',
-              'link': 'http://whatyouveread.com/1',
-              'tags': ['tag0', 'tag1'],
-              'authors': [
-                          {'last_name': 'Smith', 'first_name': 'Jane'}
+               'title': 'Test',
+               'link': 'http://whatyouveread.com/1',
+               'tags': ['tag0', 'tag1'],
+               'authors': [
+                           {'last_name': 'Smith', 'first_name': 'Jane'}
                           ],
-              'year': '2018',
-              'notes': 'This is a note.',
-              'read': 1}
+               'year': '2018',
+               'notes': 'This is a note.',
+               'read': 1}
 
     common.edit_item(content, user1)
 
     authors = common.get_user_authors(user1)
 
     assert len(authors) == 3
+
 
 # multiple different edits
 
@@ -708,7 +709,6 @@ def test_get_docs_by_author3(flask_client, user4, user5):
     assert not docs
 
 
-
 def test_get_docs_by_bunch1(flask_client, user6):
 
     docs = common.get_docs(user6, bunch="bunch 1")
@@ -727,7 +727,3 @@ def test_get_docs_by_bunch3(flask_client, user6):
 
     with pytest.raises(ex.NoBunchException):
         common.get_docs(user6, bunch='nobunch')
-
-
-
-

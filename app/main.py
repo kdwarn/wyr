@@ -14,7 +14,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 import stripe
 
-from app import db, cache
+from app import db
 from .models import User, Documents, Tags, Bunches, Authors
 from . import exceptions as ex
 from . import mendeley
@@ -25,12 +25,11 @@ from . import common
 bp = Blueprint('main', __name__)
 
 
-###########################
-### MAIN DISPLAY ROUTES ###
-###########################
+#######################
+# MAIN DISPLAY ROUTES #
+#######################
 
 @bp.route('/')
-#@cache.cached(timeout=3600)
 def index():
     ''' Return documents or settings page for authenticated page, else return
     main sign up/info page.
@@ -66,7 +65,6 @@ def index():
 
 @bp.route('/read')
 @login_required
-#@cache.cached(timeout=3600)
 def read():
     ''' Return all read items.'''
 
@@ -80,7 +78,6 @@ def read():
 
 @bp.route('/to-read')
 @login_required
-#@cache.cached(timeout=3600)
 def to_read():
     ''' Return all unread items.'''
 
@@ -94,7 +91,6 @@ def to_read():
 
 @bp.route('/tags')
 @login_required
-#@cache.cached(timeout=3600)
 def tags():
     ''' Return page of all tags, which user can select to display documents with that tag. '''
     tags = common.get_user_tags(current_user)
@@ -125,9 +121,8 @@ def tags():
 
 @bp.route('/<read_status>/tag/<tag>/')
 @login_required
-#@cache.cached(timeout=3600)
 def docs_by_tag(read_status, tag):
-    ''' Return all user's documents tagged <tag>. '''
+    '''Return all user's documents tagged <tag>.'''
 
     docs = common.get_docs(current_user, read_status=read_status, tag=tag)
 
@@ -143,14 +138,17 @@ def docs_by_tag(read_status, tag):
     # set var for returning to proper page
     session['return_to'] = url_for('main.docs_by_tag', tag=tag, read_status=read_status)
 
-    return render_template('read.html', docs=docs, tagpage=tag, read_status=read_status)  #tagpage is used for header
+    # tagpage is used for header
+    return render_template('read.html', docs=docs, tagpage=tag, read_status=read_status)
 
 
-@bp.route('/<read_status>/bunch/<name>') #, defaults={'read_status':'all'})
+@bp.route('/<read_status>/bunch/<name>')
 @login_required
-#@cache.cached(timeout=3600)
 def bunch(read_status, name):
-    ''' Display docs from saved bunch '''
+    '''
+    Display docs from saved bunch
+    defaults={'read_status':'all'}
+    '''
 
     try:
         docs = common.get_docs(current_user, read_status=read_status, bunch=name)
@@ -168,7 +166,8 @@ def bunch(read_status, name):
         # set var for returning to proper page
         session['return_to'] = url_for('main.bunch', read_status=read_status, name=name)
 
-        user_bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==name).one()
+        user_bunch = Bunches.query.filter(Bunches.user_id == current_user.id,
+                                          Bunches.name == name).one()
 
         return render_template('read.html', docs=docs,
                                bunch_tag_names=[tag.name for tag in user_bunch.tags],
@@ -179,13 +178,12 @@ def bunch(read_status, name):
 
 @bp.route('/bunches', methods=['GET', 'POST'])
 @login_required
-#@cache.cached(timeout=3600)
 def bunches():
     '''
     Let user select multiple tags and display the docs that fit the criteria.
     Include link to save the bunch, which takes place through bunch_save().
     '''
-    
+
     if request.method == 'GET':
         tags = common.get_user_tags(current_user)
 
@@ -194,7 +192,7 @@ def bunches():
             bunches = ''
             flash("You do not yet have any tags to sort into bunches.")
         else:
-            bunches = Bunches.query.filter(Bunches.user_id==current_user.id).all()
+            bunches = Bunches.query.filter(Bunches.user_id == current_user.id).all()
 
             # set var for returning to proper page
             session['return_to'] = url_for('main.bunches')
@@ -202,8 +200,8 @@ def bunches():
         return render_template('bunches.html', tags=tags, bunches=bunches)
 
     elif request.method == 'POST':
-        selector = request.form['selector'] # "and" or "or"
-        bunch_tags = request.form.getlist('bunch_tags') # these are ids of chosen tags
+        selector = request.form['selector']  # "and" or "or"
+        bunch_tags = request.form.getlist('bunch_tags')  # these are ids of chosen tags
 
         if not bunch_tags:
             flash("You did not choose any tags.")
@@ -227,17 +225,18 @@ def bunches():
         bunch_tag_names = []
 
         for tag in bunch_tags:
-            tag = Tags.query.filter(Tags.id==tag).one()
+            tag = Tags.query.filter(Tags.id == tag).one()
             bunch_tag_names.append(tag.name)
 
         # convert bunch_tags into string for hidden input in form
         bunch_tag_ids = ','.join(bunch_tags)
 
         # return docs as well as list of tags and how they were chosen
-        return render_template('read.html', docs=docs,
-                                bunch_tag_names=bunch_tag_names,
-                                bunch_tag_ids=bunch_tag_ids,
-                                selector=selector)
+        return render_template('read.html',
+                               docs=docs,
+                               bunch_tag_names=bunch_tag_names,
+                               bunch_tag_ids=bunch_tag_ids,
+                               selector=selector)
 
 
 @bp.route('/bunch/save', methods=['GET', 'POST'])
@@ -255,7 +254,7 @@ def bunch_save():
 
     # get each tag object and append to new_bunch.tags
     for tag in bunch_tag_ids.split(','):
-        existing_tag = Tags.query.filter(Tags.id==tag).one()
+        existing_tag = Tags.query.filter(Tags.id == tag).one()
         new_bunch.tags.append(existing_tag)
 
     db.session.commit()
@@ -272,8 +271,8 @@ def bunch_edit():
     # show page to edit bunch name, selector, and tags
     if request.method == 'GET':
         bunch_name = request.args.get('name', '')
-        bunch = Bunches.query.filter(Bunches.user_id==current_user.id, 
-                                     Bunches.name==bunch_name).one()
+        bunch = Bunches.query.filter(Bunches.user_id == current_user.id,
+                                     Bunches.name == bunch_name).one()
         tags = common.get_user_tags(current_user)
         return render_template('bunch_edit.html', bunch=bunch, tags=tags)
 
@@ -293,15 +292,16 @@ def bunch_edit():
             return redirect(url_for('main.bunches'))
 
         try:
-            bunch = Bunches.query.filter(Bunches.user_id==current_user.id,
-                Bunches.name==old_bunch_name).one()
+            bunch = Bunches.query.filter(Bunches.user_id == current_user.id,
+                                         Bunches.name == old_bunch_name).one()
         except NoResultFound:
             flash('Sorry, there was an error fetching the bunch.')
             return redirect(url_for('main.bunches'))
 
         # check that name isn't duplicate
         if old_bunch_name != new_bunch_name:
-            if Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==new_bunch_name).first() != None:
+            if Bunches.query.filter(Bunches.user_id == current_user.id,
+                                    Bunches.name == new_bunch_name).first() != None:
                 flash(f'You already have a bunch named {new_bunch_name}.')
                 return redirect(url_for('main.bunch_edit', name=bunch.name))
 
@@ -314,19 +314,19 @@ def bunch_edit():
         # add new tags
         for tag in bunch_tags[:]:
             if tag not in old_bunch_tags:
-                tag = Tags.query.filter(Tags.id==tag).one()
+                tag = Tags.query.filter(Tags.id == tag).one()
                 bunch.tags.append(tag)
 
         # remove old tags
         for old_tag in old_bunch_tags[:]:
             if old_tag not in bunch_tags:
-                old_tag = Tags.query.filter(Tags.id==old_tag).one()
+                old_tag = Tags.query.filter(Tags.id == old_tag).one()
                 bunch.tags.remove(old_tag)
 
         db.session.commit()
 
         flash('Bunch edited.')
-        return redirect(url_for('main.bunches')) # or maybe this should go to bunch/<name>?
+        return redirect(url_for('main.bunches'))  # TODO: or maybe this should go to bunch/<name>?
 
 
 @bp.route('/bunch/delete', methods=['GET', 'POST'])
@@ -345,9 +345,9 @@ def bunch_delete():
 
         bunch_name = request.form['bunch_name']
 
-        # should do a try/except here
-        bunch = Bunches.query.filter(Bunches.user_id==current_user.id, Bunches.name==bunch_name).one()
-
+        # TODO: should do a try/except here
+        bunch = Bunches.query.filter(Bunches.user_id == current_user.id,
+                                     Bunches.name == bunch_name).one()
         db.session.delete(bunch)
         db.session.commit()
 
@@ -357,7 +357,6 @@ def bunch_delete():
 
 @bp.route('/authors')
 @login_required
-#@cache.cached(timeout=3600)
 def authors():
     '''Display all authors for user's documents.'''
     authors = common.get_user_authors(current_user)
@@ -388,7 +387,6 @@ def authors():
 
 @bp.route('/<read_status>/author/<author_id>')
 @login_required
-#@cache.cached(timeout=3600)
 def docs_by_author(read_status, author_id):
     '''Return all documents by particular author.'''
 
@@ -405,18 +403,24 @@ def docs_by_author(read_status, author_id):
 
     else:
         # set var for returning to proper page
-        session['return_to'] = url_for('main.docs_by_author', author_id=author_id, read_status=read_status)
+        session['return_to'] = url_for('main.docs_by_author',
+                                       author_id=author_id,
+                                       read_status=read_status)
 
         author = Authors.query.filter_by(id=author_id).one()
 
         # authorpage, first_name, last_name used for header
-        return render_template('read.html', docs=docs, authorpage=1, \
-            author=author, first_name=author.first_name, last_name=author.last_name, read_status=read_status)
+        return render_template('read.html',
+                               docs=docs,
+                               authorpage=1,
+                               author=author,
+                               first_name=author.first_name,
+                               last_name=author.last_name,
+                               read_status=read_status)
 
 
 @bp.route('/lastmonth')
 @login_required
-#@cache.cached(timeout=3600)
 def last_month():
     '''Return all read items from last month, in chronological order.'''
 
@@ -425,8 +429,11 @@ def last_month():
 
     one_month_ago = datetime.datetime.today() - datetime.timedelta(days=31)
 
-    docs = Documents.query.filter(Documents.user_id==current_user.id, Documents.read==1,
-                                  Documents.created >= one_month_ago).order_by(Documents.created).all()
+    docs = (Documents.query.filter(Documents.user_id == current_user.id,
+                                   Documents.read == 1,
+                                   Documents.created >= one_month_ago)
+                           .order_by(Documents.created)
+                           .all())
 
     if not docs:
         flash("You have no read items in the last month.")
@@ -435,9 +442,9 @@ def last_month():
     return render_template('read.html', docs=docs, read_status='read', last_month=1)
 
 
-############################
-### COMMON SOURCE ROUTES ###
-############################
+########################
+# COMMON SOURCE ROUTES #
+########################
 
 # verification from authorizing a source, storing of initial data
 @bp.route('/authorized/<source>', methods=['GET', 'POST'])
@@ -460,6 +467,7 @@ def verify_authorization(source):
 
     else:
         return redirect(url_for('main.index'))
+
 
 @bp.route('/deauthorize', methods=['GET', 'POST'])
 @login_required
@@ -508,9 +516,9 @@ def refresh():
             return render_template('settings.html')
 
 
-#############################
-### ADMIN/SETTINGS ROUTES ###
-#############################
+#########################
+# ADMIN/SETTINGS ROUTES #
+#########################
 
 @bp.route('/u/<username>')
 @login_required
@@ -533,12 +541,9 @@ def sign_up():
     if request.method == 'GET':
         return render_template('index.html')
     elif request.method == 'POST':
-        # do checks, send email to user to complete sign up
-
         username = request.form['wyr_username']
         email = request.form['email']
 
-        #checks
         error = 0
         if User.query.filter_by(username=username).count() > 0:
             error = 1
@@ -552,10 +557,8 @@ def sign_up():
         if error == 1:
             return redirect(url_for('main.sign_up'))
 
-        #generate the token, send the email, then return user to index
         serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
         email_hash = serializer.dumps([username, email], salt='sign_up')
-
         subject = 'Activate your account'
         text = """Please activate your account by following
         <a href="http://www.whatyouveread.com/activate?code={}">this link</a>.<br>
@@ -564,7 +567,6 @@ def sign_up():
 
         common.send_simple_message(email, subject, text)
 
-        #redirect them back to home page
         flash('Please check your email to activate your account.')
         return redirect(url_for('main.index'))
     else:
@@ -577,10 +579,9 @@ def activate():
     is verified - get user's password, do checks on it, and insert user into database
     '''
 
-    #send user to form to set password if hash is good
     if request.method == 'GET':
 
-        #first, pull user's email and username out of hash
+        # first, pull user's email and username out of hash
         hash = request.args.get('code')
         serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
         try:
@@ -596,33 +597,27 @@ def activate():
 
     # get user's desired password, check, add account
     if request.method == 'POST':
-
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
         confirm_password = request.form['confirm_password']
 
-        #checks - password
         if password != confirm_password:
             flash("Your passwords did not match. Please try again.")
             return render_template('activate.html', username=username, email=email)
         if len(password) < 5:
             flash("Your password is too short. Please try again.")
             return render_template('activate.html', username=username, email=email)
-        #checks - if user already completed sign up, redirect
         if User.query.filter_by(username=username).count() > 0:
             flash("You've already activated your account.")
             return redirect(url_for('main.index'))
 
-        # use passlib to encrypt password
         myctx = CryptContext(schemes=['pbkdf2_sha256'])
         hashed_password = myctx.hash(password)
 
-        # create a salt
         alphabet = string.ascii_letters + string.digits
         salt = ''.join(secrets.choice(alphabet) for i in range(32))
 
-        #add user
         user = User(username, hashed_password, salt, email)
         db.session.add(user)
         db.session.commit()
@@ -650,7 +645,7 @@ def login():
             flash('Username does not exist.')
         else:
             myctx = CryptContext(schemes=['pbkdf2_sha256'])
-            if myctx.verify(password, user.password) == True:
+            if myctx.verify(password, user.password):
                 if remember:
                     login_user(user, remember=True)
                 else:
@@ -732,11 +727,9 @@ def change_password():
         current_password = request.form['wyr_current_password']
         new_password = request.form['wyr_new_password']
         confirm_password = request.form['wyr_confirm_password']
-
-        #first verify current password
         myctx = CryptContext(schemes=['pbkdf2_sha256'])
-        if myctx.verify(current_password, current_user.password) == True:
-            #password checks
+
+        if myctx.verify(current_password, current_user.password):
             if len(new_password) < 5:
                 flash('Password is too short. Please try again.')
                 return redirect(url_for('main.change_password'))
@@ -744,15 +737,13 @@ def change_password():
                 flash('The confirmation password did not match the new password you entered.')
                 return redirect(url_for('main.change_password'))
             else:
-                #use passlib to encrypt password
                 myctx = CryptContext(schemes=['pbkdf2_sha256'])
                 hash = myctx.hash(new_password)
-
                 current_user.password = hash
                 db.session.commit()
 
                 # send user email to confirm, allow reset of password
-                #hash for confirm change
+                # hash for confirm change
                 serializer = URLSafeSerializer(current_app.config['SECRET_KEY'])
                 email_hash = serializer.dumps([current_user.email], salt='reset_password')
 
@@ -797,9 +788,9 @@ def forgot_password():
 
         email = request.form['email']
 
-        #check we have the email
+        # check we have the email
         if User.query.filter_by(email=email).count() > 0:
-            #generate the token, send the email, then return user to login
+            # generate the token, send the email, then return user to login
             serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
             email_hash = serializer.dumps([email], salt='forgot_password')
 
@@ -831,8 +822,9 @@ def reset_password():
     # changing their email address
     if request.method == 'GET':
         if request.args.get('code'):
-            return render_template('reset_password.html', hash=request.args.get('code'), 
-                    untimed='true')
+            return render_template('reset_password.html',
+                                   hash=request.args.get('code'),
+                                   untimed='true')
         return redirect(url_for('main.index'))
 
     # process the password reset request
@@ -855,7 +847,7 @@ def reset_password():
                 flash("Sorry, there was an error. Please try again.")
                 return redirect(url_for('main.index'))
 
-        #use timed version - user forgot password and was sent link to reset
+        # use timed version - user forgot password and was sent link to reset
         else:
             serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
             try:
@@ -867,7 +859,7 @@ def reset_password():
                 flash("Sorry, there was an error. Please try again.")
                 return redirect(url_for('main.index'))
 
-        #try to update password
+        # try to update password
         try:
             user = User.query.filter_by(email=decoded[0]).one()
         except NoResultFound:
@@ -884,12 +876,10 @@ def reset_password():
                 flash('The confirmation password did not match the new password you entered.')
                 return render_template('reset_password.html', hash=hash, untimed=untimed)
             else:
-                #use passlib to encrypt password and then update it
                 myctx = CryptContext(schemes=['pbkdf2_sha256'])
                 hashed_password = myctx.hash(password)
                 user.password = hashed_password
                 db.session.commit()
-
                 flash('Your password has been updated. Please use it to login.')
                 return redirect(url_for('main.login'))
 
@@ -916,7 +906,7 @@ def change_email():
                 us if this problem continues to exist.""")
                 return redirect(url_for('main.settings'))
 
-            #if for some reason some other logged in user clicks the link
+            # if for some reason some other logged in user clicks the link
             if decoded[0] != current_user.username:
                 flash("Username does not match. Email not changed.")
                 redirect(url_for('main.index'))
@@ -937,7 +927,7 @@ def change_email():
             follow the link provided to confirm it.""")
             return redirect(url_for('main.settings'))
 
-        #if this is coming from the link sent to confirm the change, change it
+        # if this is coming from the link sent to confirm the change, change it
         if request.args.get('confirm'):
             hash = request.args.get('confirm')
             serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
@@ -948,7 +938,7 @@ def change_email():
                 us if this problem continues to exist.""")
                 return redirect(url_for('main.settings'))
 
-            #if for some reason some other logged in user clicks the link
+            # if for some reason some other logged in user clicks the link
             if decoded[0] != current_user.username:
                 flash("Username does not match. Email not changed.")
                 redirect(url_for('main.index'))
@@ -958,7 +948,7 @@ def change_email():
             flash('Your email has been changed.')
             return redirect(url_for('main.settings'))
 
-        #else, display the original form to request the email change
+        # else, display the original form to request the email change
         return render_template('change_email.html')
 
     # send email to current email address to confirm the change
@@ -970,21 +960,21 @@ def change_email():
         new_email = request.form['new_email']
         password = request.form['password']
 
-        #minimum check that it's an email:
+        # minimum check that it's an email:
         if '@' not in new_email:
             flash('That didn\'t look like an email address. Please try again.')
             return redirect(url_for('main.change_email'))
 
-        #check if email already in use in another account
+        # check if email already in use in another account
         if User.query.filter_by(email=new_email).count() > 0:
             flash('Sorry, that email address is already in use.')
             return redirect(url_for('main.change_email'))
 
         # verify password
         myctx = CryptContext(schemes=['pbkdf2_sha256'])
-        if myctx.verify(password, current_user.password) == True:
+        if myctx.verify(password, current_user.password):
 
-            #hash for confirm change
+            # hash for confirm change
             serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
             email_hash = serializer.dumps([current_user.username, new_email], salt='change_email')
 
@@ -1023,14 +1013,12 @@ def screenshots():
     return render_template('screenshots.html')
 
 
-@bp.route('/contact', methods = ['GET', 'POST'])
+@bp.route('/contact', methods=['GET', 'POST'])
 def contact():
     ''' contact me '''
     if request.method == 'GET':
         return render_template('contact.html')
     elif request.method == 'POST':
-
-        #if user is logged in, we already have their info, else have to get it
         if current_user.is_authenticated:
             name = current_user.username
             email = current_user.email
@@ -1050,7 +1038,7 @@ def contact():
 
         to = 'whatyouveread@gmail.com'
         subject = 'Submitted comments on WYR'
-        text = '{} ({}) submitted these comments:<br>{}'.format(name, email, comments)
+        text = f'{name} ({email}) submitted these comments:<br>{comments}'
 
         common.send_simple_message(to, subject, text)
 
@@ -1062,16 +1050,16 @@ def contact():
 @bp.route('/delete_account', methods=['GET', 'POST'])
 @login_required
 def delete_account():
-    ''' delete account, after password validation '''
+    '''delete account, after password validation'''
     if request.method == 'GET':
         return render_template('delete_account.html')
     elif request.method == 'POST':
         confirm = request.form['delete_account']
         if confirm == 'Yes':
             current_password = request.form['wyr_current_password']
-            #verify current password
             myctx = CryptContext(schemes=['pbkdf2_sha256'])
-            if myctx.verify(current_password, current_user.password) == True:
+
+            if myctx.verify(current_password, current_user.password):
                 User.query.filter_by(id=current_user.id).delete()
                 db.session.commit()
 
@@ -1096,20 +1084,21 @@ def get_stripe_info():
     if current_user.stripe_id is not None:
         donor = stripe.Customer.retrieve(current_user.stripe_id)
 
-        #simplify object a bit, see if user has current subscription to plan
+        # simplify object a bit, see if user has current subscription to plan
         try:
             subscription = donor.subscriptions['data'][0]
         except IndexError:
             subscription = ''
 
-        #drop everything else from donor
-        #to do
+        # drop everything else from donor
+        # TODO
 
     else:
         donor = ''
         subscription = ''
 
     return donor, subscription
+
 
 @bp.route('/donate')
 @login_required
@@ -1118,8 +1107,10 @@ def donate():
     ''' get user stripe info and send to donate page'''
     donor, subscription = get_stripe_info()
 
-    return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, 
-            subscription=subscription)
+    return render_template('donate.html',
+                           key=stripe_keys['publishable_key'],
+                           donor=donor,
+                           subscription=subscription)
 
 
 @bp.route('/cancel_donation', methods=['GET', 'POST'])
@@ -1133,24 +1124,20 @@ def cancel_donation():
         return render_template('cancel_donation.html')
 
     if request.method == 'POST':
-        #get user stripe info
         donor, subscription = get_stripe_info()
 
-        #otherwise process form
         if request.form['cancel_next_donation'] == 'Yes':
-            #cancel it
+            # cancel it
             subscription = stripe.Subscription.retrieve(subscription.id)
             subscription.delete()
-
             flash('Your scheduled donation has been cancelled.')
         else:
             flash('Your scheduled donation has NOT been cancelled.')
 
-        #get user stripe info
-        donor, subscription = get_stripe_info()
-
-        return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, 
-                subscription=subscription)
+        return render_template('donate.html',
+                               key=stripe_keys['publishable_key'],
+                               donor=donor,
+                               subscription=subscription)
 
 
 @bp.route('/charge', methods=['GET', 'POST'])
@@ -1169,54 +1156,47 @@ def charge():
 
         # Create the charge on Stripe's servers - this will charge the user's card
         try:
-            #if current subscription, update it, else create new customer (and subscription)
+            # if current subscription, update it, else create new customer (and subscription)
             if sub_id != '':
                 customer = stripe.Customer.retrieve(customer_id)
                 subscription = stripe.Subscription.retrieve(sub_id)
-                if plan == '0': #################I'm fairly certain I can delete this if
-                    #cancel it
+                if plan == '0':  # TODO: I'm fairly certain I can delete this if
+                    # cancel it
                     subscription.delete()
                 else:
-                    #update it
+                    # update it
                     subscription.plan = plan
                     subscription.save()
             else:
                 customer = stripe.Customer.create(email=current_user.email, plan=plan, source=token)
-
-        except stripe.error.CardError as e:
+        except stripe.error.CardError:
             flash('Sorry, your card has been declined. Please try again.')
             return redirect(url_for('main.donate'))
-        except stripe.error.RateLimitError as e:
+        except stripe.error.RateLimitError:
             # Too many requests made to the API too quickly
             flash('Sorry, the server has been overloaded. Please try again in a moment.')
             return redirect(url_for('main.donate'))
-
-        except stripe.error.InvalidRequestError as e:
+        except stripe.error.InvalidRequestError:
             # Invalid parameters were supplied to Stripe's API
             flash('Sorry, we have made an error(1). Please try again later.')
             return redirect(url_for('main.donate'))
-
-        except stripe.error.AuthenticationError as e:
+        except stripe.error.AuthenticationError:
             # Authentication with Stripe's API failed
             # (maybe you changed API keys recently)
             flash('Sorry, we have made an error(2). Please try again later.')
             return redirect(url_for('main.donate'))
-
-        except stripe.error.APIConnectionError as e:
+        except stripe.error.APIConnectionError:
             # Network communication with Stripe failed
             flash('Sorry, we have made an error(3). Please try again later.')
             return redirect(url_for('main.donate'))
-
-        except stripe.error.StripeError as e:
+        except stripe.error.StripeError:
             # Display a very generic error to the user, and maybe send yourself an email
             pass
-
-        except Exception as e:
+        except Exception:
             # Something else happened, completely unrelated to Stripe
             flash('Sorry, we have made an error(4). Please try again later.')
             return redirect(url_for('main.donate'))
 
-        #add the customer.id to user table, as stripe_id
         current_user.stripe_id = customer.id
         db.session.commit()
 
@@ -1225,7 +1205,7 @@ def charge():
 
     donor, subscription = get_stripe_info()
 
-    return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor, 
+    return render_template('donate.html', key=stripe_keys['publishable_key'], donor=donor,
                            subscription=subscription)
 
 
@@ -1234,11 +1214,11 @@ def paypal():
     return render_template('donate_paypal.html')
 
 
-#handle 404 - this was throwing errors where it shouldn't, so disabled
-#@bp.errorhandler(404)
-#def page_not_found(e):
-#    flash("Sorry, that page wasn't found.")
-#    return redirect(url_for('index'))
+# handle 404 - this was throwing errors where it shouldn't, so disabled
+# @bp.errorhandler(404)
+# def page_not_found(e):
+#     flash("Sorry, that page wasn't found.")
+#     return redirect(url_for('index'))
 
 
 @bp.errorhandler(413)
