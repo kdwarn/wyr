@@ -385,7 +385,8 @@ def test_bunches4(flask_client, user6):
         b"bunch 1" in response.data
         and b"bunch 2" in response.data
         and b"bunch 3" in response.data
-        and b"bunch 4" in response.data)
+        and b"bunch 4" in response.data
+    )
 
 
 def test_bunches5(flask_client, user6):
