@@ -29,10 +29,7 @@ def https_redirect():
 def csrf_protect():
 
     # don't add csrf protection for API calls, except authorizing and registering a client
-    if request.blueprint == "api" and request.endpoint not in [
-        "api.authorize",
-        "api.register_client",
-    ]:
+    if request.blueprint == "api" and request.endpoint not in ["api.authorize", "api.clients"]:
         return
 
     if request.method == "POST":
