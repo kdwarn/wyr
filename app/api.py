@@ -268,6 +268,8 @@ def authorize():
         flash("No third-party app found matching request.")
         return redirect(url_for("main.index"))
 
+    current_user.apps.append(client)
+
     expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
     code = create_token(current_user, client_id, expiration)
     redirect_url = client.callback_url + "?code=" + code
