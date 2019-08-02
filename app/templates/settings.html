@@ -100,9 +100,9 @@
     <br>
     <div class="box">
         <h2>Thirdy Party Apps</h2>
-        {% if current_user.user_apps: %}
-            {% for app in current_user.user_apps %}
-                {{ app.name }}<br>>
+        {% if current_user.apps: %}
+            {% for app in current_user.apps %}
+                {{ app.name }}
             {% endfor %}
         {% else %}
             You haven't authorized any third-party apps.
@@ -129,7 +129,7 @@
     <br>
     <div class="box">
         <h2>Developers</h2>
-        <p class="left">If you are a developer and would like to create a third-party app, 
+        <p class="left">If you are a developer and would like to create a third-party app,
             please register it <a href="{{url_for('api.clients')}}">here</a>.
         </p>
     </div>

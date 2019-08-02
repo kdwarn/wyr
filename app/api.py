@@ -269,6 +269,8 @@ def authorize():
         return redirect(url_for("main.index"))
 
     current_user.apps.append(client)
+    db.session.commit()
+    print('test')
 
     expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
     code = create_token(current_user, client_id, expiration)

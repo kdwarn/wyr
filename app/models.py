@@ -94,10 +94,6 @@ class User(db.Model, UserMixin):
         backref=db.backref("user", cascade="all, delete"),
     )
 
-    # apps = db.relationship(
-    #     "Client", lazy="dynamic", backref=db.backref("user", cascade="all, delete")
-    # )
-
     def __init__(self, username, password, salt, email):
         self.username = username
         self.password = password
