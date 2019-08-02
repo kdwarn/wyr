@@ -87,16 +87,16 @@ class User(db.Model, UserMixin):
         "Documents", lazy="dynamic", backref=db.backref("user", cascade="all, delete")
     )
 
-    # apps = db.relationship(
-    #     "Client",
-    #     secondary=user_apps,
-    #     lazy="joined",
-    #     backref=db.backref("user", cascade="all, delete"),
-    # )
-
     apps = db.relationship(
-        "Client", lazy="dynamic", backref=db.backref("user", cascade="all, delete")
+        "Client",
+        secondary=user_apps,
+        lazy="joined",
+        backref=db.backref("user", cascade="all, delete"),
     )
+
+    # apps = db.relationship(
+    #     "Client", lazy="dynamic", backref=db.backref("user", cascade="all, delete")
+    # )
 
     def __init__(self, username, password, salt, email):
         self.username = username
