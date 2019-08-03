@@ -192,6 +192,7 @@ class Documents(db.Model):
 
     def serialize(self):
         return {
+            "id": self.id,
             "title": self.title,
             "link": self.link,
             "created": str(self.created.date()),
