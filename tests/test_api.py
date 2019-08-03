@@ -262,7 +262,6 @@ def test_app_authorization_get2(flask_client, user6, client_id, response_type):
         query_string={"client_id": "1", "response_type": "not_code"},
         follow_redirects=True,
     )
-
     assert b"Query parameter response_type must be set to " in response.data
 
 
@@ -404,9 +403,7 @@ def test_get_access_token_error6(flask_client, user6, dev_app):
 def test_document_get1(flask_client, user4, dev_app):
     """document() GET should return all fields correctly."""
     token = api.create_token(user4, dev_app.client_id)
-    response = flask_client.get(
-        "/api/documents/1", json={"token": token, "username": "tester4"}
-    )
+    response = flask_client.get("/api/documents/1", json={"token": token, "username": "tester4"})
     json_data = response.get_json()
     # print(str(json_data['created']))
 
@@ -785,7 +782,6 @@ def test_documents_post_error2(flask_client, user4, dev_app):
 ####################
 
 
-@pytest.mark.now
 def test_integration(flask_client, dev_app, user4):
     """ Test from initial authorization to getting a document."""
     response = flask_client.post(

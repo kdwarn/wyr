@@ -1,5 +1,6 @@
 """
 TODO:
+    - put in requirement that the POST method to authorize has to come from WYR
     - make sure json response message/status/error messages are consistent
     - create a function to print proper error codes/messages and also use it in the API
         documentation so they don't get out of sync.
@@ -62,7 +63,9 @@ def get_doc_content(id, content):
 def create_token(user, client_id, expiration=""):
     """Create both authorization code (in authorize()) and access token (in token())."""
     if not expiration:
-        expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+        return jwt.encode({"client_id": client_id, "username": user.username}, user.salt).decode(
+            "utf-8"
+        )
 
     return jwt.encode(
         {"client_id": client_id, "username": user.username, "exp": expiration}, user.salt
@@ -133,7 +136,8 @@ def token_required(f):
 
 @api_bp.route("/documentation", methods=["GET"])
 def api_doc():
-    return render_template('api_documentation.html')
+    return render_template("api_documentation.html")
+
 
 @api_bp.route("/clients", methods=["GET", "POST"])
 @login_required
@@ -311,8 +315,9 @@ def token():
     except Exception as e:
         return jsonify({"message": str(e), "error": 99}), 403
 
-    expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
-    token = create_token(user, client_id, expiration)
+    # expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
+    # token = create_token(user, client_id, expiration)
+    token = create_token(user, client_id)
     user.apps.append(client)
     response = jsonify({"access_token": token, "token_type": "bearer"})
     response.headers["Cache-Control"] = "no-store"
