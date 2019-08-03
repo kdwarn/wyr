@@ -1,0 +1,95 @@
+{% extends 'header.html' %}
+{% block title %} - API Documentation {% endblock %}
+{% block content %}
+<div id="main">
+
+<div class="center" style="font-size:1.75rem">WYR API Documentation</div>
+<br>
+
+{% filter markdown %}
+
+# Introduction
+
+Welcome to the documentation for What You've Read's API.
+
+Contact: whatyouveread@protonmail.com or submit an issue on [Github](https://github.com/kdwarn/wyr/issues).
+
+Version: 0.1
+
+# Overview
+
+At present, the API provides access to a user's documents, but not the user's tags, authors, or settings. These resources will be available as this initial version of the API is extended.
+
+# Registering A Client
+
+The first step in accessing the API is to register a client. To do so, log into your WYR account, go to settings, and in the Developers section, click the link to register your client. You will need to provide the following:
+
+- Name of the app
+- Description
+- A callback url (https only)
+
+# Authorization and Access Tokens
+
+The API uses the [Oauth 2.0 protocol](RFC 6749: https://tools.ietf.org/html/rfc6749) for authorizing clients and providing access tokens.
+
+In order for a WYR user to authorize your app, they will need to be redirected from your app to the /authorize endpoint on WYR, with the proper parameters. If the user authorizes the app, they will be redirected from WYR to the callback url you provided when you registered the client, at which point the `code` provided will need to be used to request an access token (via /token). Once a token has been received, you should store it and provide it with all requests to the user's protected resources.
+
+Authorization codes are valid for 10 minutes; access tokens do not expire.
+
+See the /authorize, /token, and /check_token endpoints in the API specification.
+
+# API Specification
+
+**TO COME**
+
+# Responses
+
+Response codes are documented for each endpoint in the API. Here is a list of all response codes currently in use:
+
+200: OK
+201: Added
+400: Bad Request
+403: Forbidden
+404: Not Found
+
+# Error Messages
+
+All non-200 Response codes will provide additional information about the error that occurred. See below for the list of errors.
+
+_1-9: db/account issues_
+
+1: can't locate user
+2: can't locate client
+3: can't locate document
+4: no documents matching supplied criteria (tag, read_status, etc.)
+
+_10-19: field issues_
+
+10: title not supplied, but required
+11: link already exists in attempted added item
+12: No bunch by that name.
+13: not one of the user's items.
+14: ID not provided
+15: read_status has to be either "read' or 'to-read' if provided
+
+_20-29: external source restrictions_
+
+20: cannot edit Mendeley or Goodreads document
+21: cannot delete Mendely or Goodreads document
+
+_90-99: authorization/submitted json issues_
+
+90: Parameters not submitted in json format
+91: Missing token
+92: Invalid token
+93: Expired token
+94: Decode json/manipulated token error
+95: Username not supplied in API request
+96: Username in token does not match username supplied
+97: response\_type must be set to authorization_code
+98: Client\_id in token does not match client\_id supplied.
+99: Other authorization/json issue
+
+{% endfilter %}
+</div>
+{% endblock %}

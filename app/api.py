@@ -160,6 +160,10 @@ def token_required(f):
     return wrapper
 
 
+@api_bp.route("/documentation", methods=["GET"])
+def api_doc():
+    return render_template('api_documentation.html')
+
 @api_bp.route("/clients", methods=["GET", "POST"])
 @login_required
 def clients():
