@@ -1,5 +1,8 @@
 """
 TODO:
+    - make sure json response message/status/error messages are consistent
+    - create a function to print proper error codes/messages and also use it in the API
+        documentation so they don't get out of sync.
     - might need to create get_user_doc() function to just get one doc, so I can put the exception
         there rather than manually do error checking for it elsewhere
     - paginate results for documents()
@@ -10,47 +13,15 @@ TODO:
       protection (excluded these endpoints in the skipping of api blueprint)
     - allow developers to edit details of app
     - move api/clients to dev/clients?
-    - make sure json response message/status/error messages are consistent
+
     - add endpoint for settings and preferences
 """
 
 """
-    - user proper error response codes
-        https://www.narwhl.com/http-response-codes/
+    use proper error response codes: https://www.narwhl.com/http-response-codes/
 
-    - list of error codes I'm using:
-        1-9: db/account issues
-            1: can't locate user
-            2: can't locate client
-            3: can't locate document
-            4: no documents matching supplied criteria (tag, read_status, etc.)
-        10-19: field issues
-            10: title not supplied, but required
-            11: link already exists in attempted added item
-            12: No bunch by that name.
-            13: not one of the user's items.
-            14: ID not provided
-            15: read_status has to be either "read' or 'to-read' if provided
-        20-29: external source restrictions
-            20: cannot edit Mendeley or Goodreads document
-            21: cannot delete Mendely or Goodreads document
-        90-99: authorization/submitted json issues
-            90: Parameters not submitted in json format
-            91: Missing token
-            92: Invalid token
-            93: Expired token
-            94: Decode json/manipulated token error
-            95: Username not supplied in API request
-            96: Username in token does not match username supplied
-            97: response_type must be set to authorization_code
-            98: Client_id in token does not match client_id supplied.
-            99: Other authorization/json issue
+    See https://www.whatyouveread.com/api/documentation for list of error codes and messages.
 
-"""
-
-"""
-    Oauth2 resources:
-        - RFC 6749: https://tools.ietf.org/html/rfc6749
 """
 
 

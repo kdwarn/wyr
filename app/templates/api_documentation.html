@@ -18,7 +18,9 @@ Version: 0.1
 
 # Overview
 
-At present, the API provides access to a user's documents, but not the user's tags, authors, or settings. These resources will be available as this initial version of the API is extended.
+The WYR API is a JSON API that allows developers to programmatically interact with WYR.
+
+At present, the API provides access to a user's documents, but not the user's authors, tags, bunches, or settings. These resources will become available as this initial version of the API is extended.
 
 # Registering A Client
 
@@ -30,9 +32,9 @@ The first step in accessing the API is to register a client. To do so, log into 
 
 # Authorization and Access Tokens
 
-The API uses the [Oauth 2.0 protocol](RFC 6749: https://tools.ietf.org/html/rfc6749) for authorizing clients and providing access tokens.
+The API uses the [Oauth 2.0 protocol](https://tools.ietf.org/html/rfc6749) for authorizing clients and providing access tokens.
 
-In order for a WYR user to authorize your app, they will need to be redirected from your app to the /authorize endpoint on WYR, with the proper parameters. If the user authorizes the app, they will be redirected from WYR to the callback url you provided when you registered the client, at which point the `code` provided will need to be used to request an access token (via /token). Once a token has been received, you should store it and provide it with all requests to the user's protected resources.
+In order for a WYR user to authorize your app, they will need to be redirected from your app to the /authorize endpoint on WYR, with the proper parameters. If the user authorizes the app, they will be redirected from WYR to the callback url you provided when you registered the client, at which point the `code` provided will need to be used to request an access token (via /token). Once an `acccess_token` has been received, you must store it and provide it with all requests to the user's protected resources.
 
 Authorization codes are valid for 10 minutes; access tokens do not expire.
 
@@ -44,7 +46,9 @@ See the /authorize, /token, and /check_token endpoints in the API specification.
 
 # Responses
 
-Response codes are documented for each endpoint in the API. Here is a list of all response codes currently in use:
+All responses are in JSON format.
+
+Response status codes are documented for each endpoint in the API. Here is a list of all response codes currently in use:
 
 200: OK
 201: Added
@@ -52,9 +56,9 @@ Response codes are documented for each endpoint in the API. Here is a list of al
 403: Forbidden
 404: Not Found
 
-# Error Messages
+# Error Messages and Codes
 
-All non-200 Response codes will provide additional information about the error that occurred. See below for the list of errors.
+All Response status codes other than 200 and 201 will provide additional information about the error that occurred. See below for the list of error codes and their corresponding messages.
 
 _1-9: db/account issues_
 
