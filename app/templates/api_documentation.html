@@ -38,6 +38,10 @@ In order for a WYR user to authorize your app, they will need to be redirected f
 
 Authorization codes are valid for 10 minutes; access tokens do not expire.
 
+Both are issued as JSON Web Tokens ([JWT](https://tools.ietf.org/html/rfc7519)), and do not require decoding or any sort of use aside from storage and provision during requests.
+
+The authorization code should be sent as a query parameter to /authorize, and the access token should be sent in an Authorization header to the endpoints of protected resources.
+
 See the /authorize, /token, and /check_token endpoints in the API specification.
 
 # API Specification
@@ -72,7 +76,7 @@ _10-19: field issues_
 10: title not supplied, but required
 11: link already exists in attempted added item
 12: No bunch by that name.
-13: not one of the user's items.
+13: Deprecated
 14: ID not provided
 15: read_status has to be either "read' or 'to-read' if provided
 

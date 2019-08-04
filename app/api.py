@@ -1,21 +1,21 @@
 """
 TODO:
-    - put in requirement that the POST method to authorize has to come from WYR
+    - renumber/reorder error messages
     - make sure json response message/status/error messages are consistent
+    - put in requirement that the POST method to authorize() has to come from WYR
+    
     - create a function to print proper error codes/messages and also use it in the API
         documentation so they don't get out of sync.
     - might need to create get_user_doc() function to just get one doc, so I can put the exception
         there rather than manually do error checking for it elsewhere
     - paginate results for documents()
     - add endpoints for viewing user's tags, authors, and bunches
+    - add endpoint for settings and preferences
     - add endpoint for logging in?
     - send email notification to WYR that client registered
     - check that wyr.py is properly including register_client() and authorize() in CSRF
       protection (excluded these endpoints in the skipping of api blueprint)
     - allow developers to edit details of app
-    - move api/clients to dev/clients?
-
-    - add endpoint for settings and preferences
 """
 
 """
@@ -24,7 +24,6 @@ TODO:
     See https://www.whatyouveread.com/api/documentation for list of error codes and messages.
 
 """
-
 
 import datetime
 from functools import wraps
@@ -61,7 +60,11 @@ def get_doc_content(id, content):
 
 
 def create_token(user, client_id, expiration=""):
-    """Create both authorization code (in authorize()) and access token (in token())."""
+    """
+    Create both authorization code (in authorize()) and access token (in token()).
+
+    The .decode part returns the token as a string object rather than bytes.
+    """
     if not expiration:
         return jwt.encode({"client_id": client_id, "username": user.username}, user.salt).decode(
             "utf-8"
@@ -87,20 +90,30 @@ def token_required(f):
 
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if not request.is_json:
-            return (
-                jsonify({"message": "Parameters must be submitted in json format.", "error": 90}),
-                400,
-            )
-        content = request.get_json()
-        token = content.get("token")
-        username = content.get("username")
+        auth_header = request.headers.get("Authorization")
 
-        if not username:
-            return jsonify({"message": "Username is missing", "error": 95}), 403
+        if not auth_header:
+            return jsonify({"message": "No Authorization header provided.", "error": 82}), 403
+
+        try:
+            auth_type, token = auth_header.split(" ")
+        except ValueError:
+            return (
+                jsonify({"message": "Authorization header not in proper format.", "error": 81}),
+                403,
+            )
+
+        if auth_type != "Bearer":
+            return (
+                jsonify({"message": "Authorization Header must be set to 'Bearer'", "error": 80}),
+                403,
+            )
 
         if not token:
-            return jsonify({"message": "Token is missing.", "error": 91}), 403
+            return (
+                jsonify({"message": "No token provided in Authorization header", "error": 91}),
+                403,
+            )
 
         # get the username - to then get user's salt, to verify signature below
         try:
@@ -114,8 +127,8 @@ def token_required(f):
                 return (jsonify({"message": "User could not be located.", "error": 1}), 404)
 
         # check that token sent is for the username sent
-        if user.username != username:
-            return jsonify({"message": "Token does not match user.", "error": 96}), 403
+        # if user.username != username:
+        #     return jsonify({"message": "Token does not match user.", "error": 96}), 403
 
         # verify token with user's salt
         try:
@@ -317,9 +330,9 @@ def token():
 
     # expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
     # token = create_token(user, client_id, expiration)
-    token = create_token(user, client_id)
+    access_token = create_token(user, client_id)
     user.apps.append(client)
-    response = jsonify({"access_token": token, "token_type": "bearer"})
+    response = jsonify({"access_token": access_token, "token_type": "bearer"})
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"
 
@@ -338,13 +351,13 @@ def document(user, id):
     if not id:
         return (jsonify({"message": "ID of document not included in request.", "error": 14}), 400)
 
+    try:
+        doc = user.documents.filter(Documents.id == id).one()
+    except NoResultFound:
+        return jsonify({"message": "Unable to locate document.", "error": 3}), 404
+
     # get a document
     if request.method == "GET":
-        try:
-            doc = user.documents.filter(Documents.id == id).one()
-        except NoResultFound:
-            return jsonify({"message": "Unable to locate document.", "error": 3}), 404
-
         return jsonify(doc.serialize()), 200
 
     # edit a document
@@ -352,7 +365,6 @@ def document(user, id):
         doc_content = get_doc_content(id, request.get_json())
 
         try:
-
             common.edit_item(doc_content, user, source="api")
         except ex.NotUserDocException as e:
             return jsonify({"message": str(e.message), "error": e.error}), e.http_status
@@ -384,8 +396,14 @@ def documents(user, tag="", author_id="", bunch="", read_status=""):
     All error checking of token/username, json format is done by @token_required, which also
     returns *user* to this function.
     """
+
     # add a document
     if request.method == "POST":
+        if not request.is_json:
+            return (
+                jsonify({"message": "Parameters must be submitted in json format.", "error": 90}),
+                400,
+            )
 
         doc_content = get_doc_content(id, request.get_json())
 
