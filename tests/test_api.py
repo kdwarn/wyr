@@ -153,14 +153,6 @@ def test_create_token1(user6):
     assert decoded["username"] == "tester6"
 
 
-def test_create_token2(user6):
-    """ create_token creates default expiration if expiration not passed to it """
-    code = api.create_token(user6, 1)
-    decoded = jwt.decode(code, verify=False)
-
-    assert decoded["exp"]
-
-
 def test_decode_token_raises_ex_with_bad_salt(user6, dev_app):
     """ Not using the correct salt will raise exception. """
     code = api.create_token(user6, dev_app.client_id)
@@ -405,14 +397,13 @@ def test_document_get1(flask_client, user4, dev_app):
     token = api.create_token(user4, dev_app.client_id)
     response = flask_client.get("/api/documents/1", json={"token": token, "username": "tester4"})
     json_data = response.get_json()
-    # print(str(json_data['created']))
 
     assert (
         response.status_code == 200
         and json_data["title"] == "First user doc"
         and json_data["link"] == "http://whatyouveread.com/1"
         and json_data["year"] == "2018"
-        and json_data["created"] == str(datetime.datetime.now().date())
+        and json_data["created"] == str(datetime.datetime.utcnow().date())
         and json_data["authors"][0]["first_name"] == "Joe"
         and json_data["authors"][0]["last_name"] == "Smith"
         and json_data["authors"][0]["id"] == 1
