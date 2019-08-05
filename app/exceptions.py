@@ -63,7 +63,7 @@ class NoBunchException(WyrException):
     def __init__(self):
         self.message = "No bunch with that name found."
         self.error = 12
-        self.http_status = 400
+        self.http_status = 404
 
 
 # Author-related Exceptions

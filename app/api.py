@@ -1,9 +1,10 @@
 """
 TODO:
+    - in the documents/ endpoints, add check that user still has the app authorized. 
+        - this is done on the existing tests, need to checking for any missing cases.
     - renumber/reorder error messages
     - make sure json response message/status/error messages are consistent
     - put in requirement that the POST method to authorize() has to come from WYR
-    
     - create a function to print proper error codes/messages and also use it in the API
         documentation so they don't get out of sync.
     - might need to create get_user_doc() function to just get one doc, so I can put the exception
@@ -124,11 +125,21 @@ def token_required(f):
             try:
                 user = User.query.filter_by(username=unverified_token["username"]).one()
             except NoResultFound:
-                return (jsonify({"message": "User could not be located.", "error": 1}), 404)
+                return jsonify({"message": "User could not be located.", "error": 1}), 404
 
-        # check that token sent is for the username sent
-        # if user.username != username:
-        #     return jsonify({"message": "Token does not match user.", "error": 96}), 403
+        # user.documents.filter(Documents.id == id).one()
+        try:
+            user.apps.filter(Client.client_id == unverified_token["client_id"]).one()
+        except NoResultFound:
+            return (
+                jsonify(
+                    {
+                        "message": "User has not authorized this client or has revoked authorization.",
+                        "error": 83,
+                    }
+                ),
+                403,
+            )
 
         # verify token with user's salt
         try:
@@ -227,6 +238,8 @@ def authorize():
     given at time of app creation, with an authorization code (jwt) and any state parameter passed
     to this route from client app (Authorization Grant).
 
+    NOTE: the app is not associated with user.apps until the token has been properly retrieved.
+
     """
     if request.method == "GET":
         client_id = request.args.get("client_id")
@@ -259,9 +272,6 @@ def authorize():
     except NoResultFound:
         flash("No third-party app found matching request.")
         return redirect(url_for("main.index"))
-
-    current_user.apps.append(client)
-    db.session.commit()
 
     expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
     code = create_token(current_user, client_id, expiration)
@@ -324,7 +334,7 @@ def token():
     except jwt.exceptions.ExpiredSignatureError as e:
         return jsonify({"message": str(e), "error": 93}), 403
     except jwt.exceptions.DecodeError as e:
-        return jsonify({"message": str(e), "error": 94}), 400
+        return jsonify({"message": str(e), "error": 94}), 403
     except Exception as e:
         return jsonify({"message": str(e), "error": 99}), 403
 
@@ -332,6 +342,8 @@ def token():
     # token = create_token(user, client_id, expiration)
     access_token = create_token(user, client_id)
     user.apps.append(client)
+    db.session.commit()
+
     response = jsonify({"access_token": access_token, "token_type": "bearer"})
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"

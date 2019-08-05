@@ -286,6 +286,40 @@ def user7(flask_client):
 
 
 @pytest.fixture
+def user8(flask_client, four_items, dev_app):
+    """
+    Create a user with hashed password and salt, as in the registration
+    process, with four WYR items, and log them in.
+
+    This is the main user for testing the API with, since the app is already authorized and 
+    associated with their account.
+    """
+
+    myctx = CryptContext(schemes=["pbkdf2_sha256"])
+    hashed_password = myctx.hash("testing8")
+
+    user8 = models.User("tester8", hashed_password, "salt8", "test8@whatyouveread.com")
+    db.session.add(user8)
+    db.session.commit()
+
+    common.add_item(four_items[0], user8, source="api")
+    common.add_item(four_items[1], user8, source="api")
+    common.add_item(four_items[2], user8, source="mendeley")
+    common.add_item(four_items[3], user8, source="goodreads")
+
+    user8.apps.append(dev_app)
+    db.session.commit()
+
+    flask_client.post(
+        "/login",
+        data=dict(wyr_username="tester8", wyr_password="testing8", remember="", next=""),
+        follow_redirects=True,
+    )
+
+    return user8
+
+
+@pytest.fixture
 def developer1(flask_client):
     """
     Create a user with hashed password and salt, as in the registration

@@ -90,7 +90,7 @@ class User(db.Model, UserMixin):
     apps = db.relationship(
         "Client",
         secondary=user_apps,
-        lazy="joined",
+        lazy="dynamic",
         backref=db.backref("user", cascade="all, delete"),
     )
 
