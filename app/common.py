@@ -2,7 +2,6 @@ import datetime
 
 from flask import flash, current_app, session, redirect, url_for
 from flask_login import current_user
-import pytz
 import requests
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
@@ -263,7 +262,7 @@ def add_item(content, user, source=""):
         if doc:
             raise ex.DuplicateLinkException(doc.id)
 
-    created = datetime.datetime.now(pytz.utc)
+    created = datetime.datetime.utcnow()
 
     doc = Documents(
         user.id, source_id, title, link=link, year=year, notes=notes, read=read, created=created
@@ -346,10 +345,10 @@ def edit_item(content, user, source=""):
 
         # if changed from to-read to read, updated created, delete last_modified
         if doc_to_edit.read == 0 and read == 1:
-            doc_to_edit.created = datetime.datetime.now(pytz.utc)
+            doc_to_edit.created = datetime.datetime.utcnow()
             doc_to_edit.last_modified = ""
         else:
-            doc_to_edit.last_modified = datetime.datetime.now(pytz.utc)
+            doc_to_edit.last_modified = datetime.datetime.utcnow()
 
         doc_to_edit.read = read
 

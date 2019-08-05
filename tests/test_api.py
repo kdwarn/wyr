@@ -11,7 +11,6 @@
 """
 
 import datetime
-import pytz
 from urllib.parse import urlparse, parse_qs
 
 import jwt
