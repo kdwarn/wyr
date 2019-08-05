@@ -62,41 +62,25 @@ Response status codes are documented for each endpoint in the API. Here is a lis
 
 # Error Messages and Codes
 
-All Response status codes other than 200 and 201 will provide additional information about the error that occurred. See below for the list of error codes and their corresponding messages.
+All Response status codes other than 200 and 201 will provide additional information about the error that occurred. See below for the list of error codes and their corresponding messages. Any number
+not listed is not (yet) in use.
 
-_1-9: db/account issues_
+_1-19: db or account errors_
+{% endfilter %}
 
-1: can't locate user
-2: can't locate client
-3: can't locate document
-4: no documents matching supplied criteria (tag, read_status, etc.)
+{% for k, v in error_codes.items() %}
+    {% if 1 <= int(k) <= 19 %} 
+        {{k}}: {{v}}
+    {% endif %}
+{% endfor %}
 
-_10-19: field issues_
+{% filter markdown %}
 
-10: title not supplied, but required
-11: link already exists in attempted added item
-12: No bunch by that name.
-13: Deprecated
-14: ID not provided
-15: read_status has to be either "read' or 'to-read' if provided
+_20-39: authorization or authorization code errors_
 
-_20-29: external source restrictions_
+_40-59: access_token errors_
 
-20: cannot edit Mendeley or Goodreads document
-21: cannot delete Mendely or Goodreads document
-
-_90-99: authorization/submitted json issues_
-
-90: Parameters not submitted in json format
-91: Missing token
-92: Invalid token
-93: Expired token
-94: Decode json/manipulated token error
-95: Username not supplied in API request
-96: Username in token does not match username supplied
-97: response\_type must be set to authorization_code
-98: Client\_id in token does not match client\_id supplied.
-99: Other authorization/json issue
+_60-79: Request paramaters and body errors_
 
 {% endfilter %}
 </div>

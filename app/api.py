@@ -2,8 +2,8 @@
 TODO:
     - in the documents/ endpoints, add check that user still has the app authorized. 
         - this is done on the existing tests, need to checking for any missing cases.
+        - make sure json response message/status/error messages are consistent
     - renumber/reorder error messages
-    - make sure json response message/status/error messages are consistent
     - put in requirement that the POST method to authorize() has to come from WYR
     - create a function to print proper error codes/messages and also use it in the API
         documentation so they don't get out of sync.
@@ -42,6 +42,38 @@ from .models import Documents, User, Client
 
 
 api_bp = Blueprint("api", __name__)  # url prefix of /api set in init
+
+error_codes = {
+    "1": "Can't locate user",
+    "2": "Can't locate client",
+    "3": "Can't locate document",
+    # 20-39: authorization or authorization code errors
+    "20": "User has not authorized client or has revoked authorization",
+    "21": "Invalid signature on authorization code",
+    "22": "Authorization code has expired",
+    "23": "Error decoding authorization code",
+    "24": "Other authorization code decoding error",
+    "25": "Grant_type must be set to 'authorization_code'",
+    "26": "Client does not match code provided",
+    # 40-59: access_token errors
+    "40": "No Authorization Header provided",
+    "41": "Authorization Header not in proper format",
+    "42": "Authorization Header must be set to 'Bearer'",
+    "43": "No token provided in Authorization Header",
+    "44": "Erroring decoding access token",
+    "45": "Invalid signature on access token",
+    "46": "Access token has expired [Not implemented]",
+    "47": "Other decoding access token error",
+    # 60-79: Request paramaters and body errors
+    "60": "Request body must be submitted in json format",
+    "61": "ID not provided",
+    "62": "title not supplied, but required",
+    "63": "link already exists in attempted added item",
+    "64": "Cannot edit Mendeley or Goodreads document",
+    "65": "Cannot delete Mendely or Goodreads document",
+    "66": "read_status has to be either 'read' or 'to-read' if provided",
+    "67": "No documents matching supplied criteria (tag, read_status, etc.)",
+}
 
 
 def get_doc_content(id, content):
@@ -94,25 +126,25 @@ def token_required(f):
         auth_header = request.headers.get("Authorization")
 
         if not auth_header:
-            return jsonify({"message": "No Authorization header provided.", "error": 82}), 403
+            return jsonify({"message": "No Authorization Header provided", "error": 40}), 403
 
         try:
-            auth_type, token = auth_header.split(" ")
+            auth_type, token = auth_header.split(" ", maxsplit=1)
         except ValueError:
             return (
-                jsonify({"message": "Authorization header not in proper format.", "error": 81}),
+                jsonify({"message": "Authorization Header not in proper format", "error": 41}),
                 403,
             )
 
         if auth_type != "Bearer":
             return (
-                jsonify({"message": "Authorization Header must be set to 'Bearer'", "error": 80}),
+                jsonify({"message": "Authorization Header must be set to 'Bearer'", "error": 42}),
                 403,
             )
 
         if not token:
             return (
-                jsonify({"message": "No token provided in Authorization header", "error": 91}),
+                jsonify({"message": "No token provided in Authorization Header", "error": 43}),
                 403,
             )
 
@@ -120,7 +152,7 @@ def token_required(f):
         try:
             unverified_token = jwt.decode(token, verify=False)
         except jwt.exceptions.DecodeError as e:
-            return jsonify({"message": str(e), "error": 94}), 403
+            return jsonify({"message": str(e), "error": 44}), 403
         else:
             try:
                 user = User.query.filter_by(username=unverified_token["username"]).one()
@@ -134,8 +166,8 @@ def token_required(f):
             return (
                 jsonify(
                     {
-                        "message": "User has not authorized this client or has revoked authorization.",
-                        "error": 83,
+                        "message": "User has not authorized client or has revoked authorization",
+                        "error": 20,
                     }
                 ),
                 403,
@@ -145,13 +177,13 @@ def token_required(f):
         try:
             jwt.decode(token, user.salt)
         except jwt.exceptions.InvalidSignatureError as e:
-            return jsonify({"message": str(e), "error": 92}), 403
+            return jsonify({"message": str(e), "error": 45}), 403
         except jwt.exceptions.ExpiredSignatureError as e:
-            return jsonify({"message": str(e), "error": 93}), 403
+            return jsonify({"message": str(e), "error": 46}), 403
         except jwt.exceptions.DecodeError as e:
-            return jsonify({"message": str(e), "error": 94}), 403
+            return jsonify({"message": str(e), "error": 44}), 403
         except Exception as e:
-            return jsonify({"message": str(e), "error": 99}), 403
+            return jsonify({"message": str(e), "error": 47}), 403
 
         return f(user, *args, **kwargs)
 
@@ -160,7 +192,7 @@ def token_required(f):
 
 @api_bp.route("/documentation", methods=["GET"])
 def api_doc():
-    return render_template("api_documentation.html")
+    return render_template("api_documentation.html", error_codes=error_codes)
 
 
 @api_bp.route("/clients", methods=["GET", "POST"])
@@ -303,7 +335,7 @@ def token():
 
     if grant_type != "authorization_code":
         return (
-            jsonify({"message": 'grant_type must be set to "authorization_code"', "error": 97}),
+            jsonify({"message": 'grant_type must be set to "authorization_code"', "error": 25}),
             400,
         )
 
@@ -316,10 +348,10 @@ def token():
     try:
         unverified_code = jwt.decode(code, verify=False)
     except jwt.exceptions.DecodeError as e:
-        return jsonify({"message": str(e), "error": 94}), 403
+        return jsonify({"message": str(e), "error": 23}), 403
 
     if unverified_code["client_id"] != client_id:
-        return jsonify({"message": "Client does not match token.", "error": 98}), 403
+        return jsonify({"message": "Client does not match code.", "error": 26}), 403
 
     try:
         user = User.query.filter(User.username == unverified_code["username"]).one()
@@ -330,13 +362,13 @@ def token():
     try:
         jwt.decode(code, user.salt)
     except jwt.exceptions.InvalidSignatureError as e:
-        return jsonify({"message": str(e), "error": 92}), 403
+        return jsonify({"message": str(e), "error": 21}), 403
     except jwt.exceptions.ExpiredSignatureError as e:
-        return jsonify({"message": str(e), "error": 93}), 403
+        return jsonify({"message": str(e), "error": 22}), 403
     except jwt.exceptions.DecodeError as e:
-        return jsonify({"message": str(e), "error": 94}), 403
+        return jsonify({"message": str(e), "error": 23}), 403
     except Exception as e:
-        return jsonify({"message": str(e), "error": 99}), 403
+        return jsonify({"message": str(e), "error": 24}), 403
 
     # expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
     # token = create_token(user, client_id, expiration)
@@ -361,7 +393,7 @@ def document(user, id):
     returns *user* to this function.
     """
     if not id:
-        return (jsonify({"message": "ID of document not included in request.", "error": 14}), 400)
+        return (jsonify({"message": "ID of document not included in request.", "error": 61}), 400)
 
     try:
         doc = user.documents.filter(Documents.id == id).one()
@@ -413,7 +445,7 @@ def documents(user, tag="", author_id="", bunch="", read_status=""):
     if request.method == "POST":
         if not request.is_json:
             return (
-                jsonify({"message": "Parameters must be submitted in json format.", "error": 90}),
+                jsonify({"message": "Parameters must be submitted in json format.", "error": 60}),
                 400,
             )
 
@@ -438,7 +470,7 @@ def documents(user, tag="", author_id="", bunch="", read_status=""):
         if read_status:
             if read_status not in ["read", "to-read"]:
                 return (
-                    jsonify({"message": "read_status should be 'read' or 'to-read'.", "error": 15}),
+                    jsonify({"message": "read_status should be 'read' or 'to-read'.", "error": 66}),
                     400,
                 )
         try:
@@ -447,13 +479,17 @@ def documents(user, tag="", author_id="", bunch="", read_status=""):
             )
         except ex.NoBunchException:
             return (
-                jsonify({"message": "No documents found matching supplied critieria.", "error": 4}),
+                jsonify(
+                    {"message": "No documents found matching supplied critieria.", "error": 67}
+                ),
                 404,
             )
 
         if not docs:
             return (
-                jsonify({"message": "No documents found matching supplied critieria.", "error": 4}),
+                jsonify(
+                    {"message": "No documents found matching supplied critieria.", "error": 67}
+                ),
                 404,
             )
 

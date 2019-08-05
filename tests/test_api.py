@@ -191,7 +191,7 @@ def test_check_token_returns_error1(flask_client):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 403 and json_data["error"] == 91
+    assert response.status_code == 403 and json_data["error"] == 43
 
 
 def test_check_token_returns_error2(flask_client):
@@ -200,12 +200,12 @@ def test_check_token_returns_error2(flask_client):
     """
     response = flask_client.get(
         "/api/check_token",
-        headers={"authorization": "Bearer " + "this is not a valid token"},
+        headers={"authorization": "Bearer" + "therewasnospaceafterBearer"},
         follow_redirects=True,
     )
     json_data = response.get_json()
 
-    assert response.status_code == 403 and json_data["error"] == 81
+    assert response.status_code == 403 and json_data["error"] == 41
 
 
 def test_check_token_returns_error3(flask_client, user8):
@@ -220,7 +220,7 @@ def test_check_token_returns_error3(flask_client, user8):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 403 and json_data["error"] == 83
+    assert response.status_code == 403 and json_data["error"] == 20
 
 
 def test_check_token_returns_error4(flask_client):
@@ -331,12 +331,12 @@ def test_get_access_token_error1(flask_client, user6, dev_app, grant_type):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 400 and json_data["error"] == 97
+    assert response.status_code == 400 and json_data["error"] == 25
 
 
 def test_get_access_token_error2(flask_client, user6, dev_app):
     """Code can't be manipulated."""
-    code = "this is a bad code"
+    code = "thisisabadcode"
     response = flask_client.post(
         "/api/token",
         data=dict(client_id=dev_app.client_id, grant_type="authorization_code", code=code),
@@ -344,10 +344,10 @@ def test_get_access_token_error2(flask_client, user6, dev_app):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 403 and json_data["error"] == 94
+    assert response.status_code == 403 and json_data["error"] == 23
 
 
-def test_get_access_token_error4(flask_client, user6, dev_app):
+def test_get_access_token_error3(flask_client, user6, dev_app):
     """ Code cannot be expired """
     expiration = datetime.datetime.utcnow() + datetime.timedelta(seconds=-2)
     code = api.create_token(user6, dev_app.client_id, expiration)
@@ -358,10 +358,10 @@ def test_get_access_token_error4(flask_client, user6, dev_app):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 403 and json_data["error"] == 93
+    assert response.status_code == 403 and json_data["error"] == 22
 
 
-def test_get_access_token_error5(flask_client, user6, dev_app):
+def test_get_access_token_error4(flask_client, user6, dev_app):
     """User should get error if no matching client found."""
     code = api.create_token(user6, "2")
     response = flask_client.post(
@@ -384,7 +384,7 @@ def test_get_access_token_error6(flask_client, user6, dev_app):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 403 and json_data["error"] == 98
+    assert response.status_code == 403 and json_data["error"] == 26
 
 
 #######################
@@ -496,7 +496,7 @@ def test_document_put_error1(flask_client, user8, dev_app):
     )
     json_data = response.get_json()
 
-    assert json_data["error"] == 20
+    assert json_data["error"] == 64
 
 
 def test_document_put_error2(flask_client, user8, dev_app):
@@ -539,7 +539,7 @@ def test_document_put_error4(flask_client, user8, dev_app):
     )
     json_data = response.get_json()
 
-    assert json_data["error"] == 10
+    assert json_data["error"] == 62
 
 
 def test_document_delete1(flask_client, user8, dev_app):
@@ -567,7 +567,7 @@ def test_document_delete_error3(flask_client, user8, dev_app):
     )
     json_data = response.get_json()
 
-    assert json_data["error"] == 21
+    assert json_data["error"] == 65
 
 
 def test_document_delete_error4(flask_client, user8, dev_app):
@@ -640,7 +640,7 @@ def test_get_docs_read_status_error(flask_client, user8, dev_app):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 400 and json_data["error"] == 15
+    assert response.status_code == 400 and json_data["error"] == 66
 
 
 def test_get_docs_by_tag1(flask_client, user8, dev_app):
@@ -666,7 +666,7 @@ def test_get_docs_by_non_existent_tag(flask_client, user8, dev_app):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 404 and json_data["error"] == 4
+    assert response.status_code == 404 and json_data["error"] == 67
 
 
 def test_get_docs_by_non_existent_author_id(flask_client, user8, dev_app):
@@ -679,7 +679,7 @@ def test_get_docs_by_non_existent_author_id(flask_client, user8, dev_app):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 404 and json_data["error"] == 4
+    assert response.status_code == 404 and json_data["error"] == 67
 
 
 def test_get_docs_by_non_existent_bunch(flask_client, user8, dev_app):
@@ -692,7 +692,7 @@ def test_get_docs_by_non_existent_bunch(flask_client, user8, dev_app):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 404 and json_data["error"] == 4
+    assert response.status_code == 404 and json_data["error"] == 87
 
 
 @pytest.mark.now
@@ -724,7 +724,7 @@ def test_documents_post_error1(flask_client, user8, dev_app):
     json_data = response.get_json()
     docs = models.Documents.query.filter_by(user_id=user8.id).all()
 
-    assert response.status_code == 400 and json_data["error"] == 10 and len(docs) == 4
+    assert response.status_code == 400 and json_data["error"] == 82 and len(docs) == 4
 
 
 @pytest.mark.now
@@ -739,7 +739,7 @@ def test_documents_post_error2(flask_client, user8, dev_app):
     json_data = response.get_json()
     docs = models.Documents.query.filter_by(user_id=user8.id).all()
     print(json_data)
-    assert response.status_code == 400 and json_data["error"] == 11 and len(docs) == 4
+    assert response.status_code == 400 and json_data["error"] == 63 and len(docs) == 4
 
 
 ####################
