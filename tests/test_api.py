@@ -177,11 +177,7 @@ def test_check_token1(flask_client, user8, dev_app):
     )
     json_data = response.get_json()
 
-    assert (
-        response.status_code == 200
-        and json_data["status"] == "Ok"
-        and json_data["message"] == "Success! The token works."
-    )
+    assert response.status_code == 200 and json_data["message"] == "Success! The token works."
 
 
 def test_check_token_returns_error1(flask_client):
@@ -692,7 +688,7 @@ def test_get_docs_by_non_existent_bunch(flask_client, user8, dev_app):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 404 and json_data["error"] == 87
+    assert response.status_code == 404 and json_data["error"] == 67
 
 
 @pytest.mark.now
@@ -724,7 +720,7 @@ def test_documents_post_error1(flask_client, user8, dev_app):
     json_data = response.get_json()
     docs = models.Documents.query.filter_by(user_id=user8.id).all()
 
-    assert response.status_code == 400 and json_data["error"] == 82 and len(docs) == 4
+    assert response.status_code == 400 and json_data["error"] == 62 and len(docs) == 4
 
 
 @pytest.mark.now

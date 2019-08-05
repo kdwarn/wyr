@@ -1,9 +1,8 @@
 """
 TODO:
+    - get error messages from error_codes - started
     - in the documents/ endpoints, add check that user still has the app authorized. 
         - this is done on the existing tests, need to checking for any missing cases.
-        - make sure json response message/status/error messages are consistent
-    - renumber/reorder error messages
     - put in requirement that the POST method to authorize() has to come from WYR
     - create a function to print proper error codes/messages and also use it in the API
         documentation so they don't get out of sync.
@@ -126,27 +125,18 @@ def token_required(f):
         auth_header = request.headers.get("Authorization")
 
         if not auth_header:
-            return jsonify({"message": "No Authorization Header provided", "error": 40}), 403
+            return jsonify({"message": error_codes["40"], "error": 40}), 403
 
         try:
             auth_type, token = auth_header.split(" ", maxsplit=1)
         except ValueError:
-            return (
-                jsonify({"message": "Authorization Header not in proper format", "error": 41}),
-                403,
-            )
+            return (jsonify({"message": error_codes["41"], "error": 41}), 403)
 
         if auth_type != "Bearer":
-            return (
-                jsonify({"message": "Authorization Header must be set to 'Bearer'", "error": 42}),
-                403,
-            )
+            return (jsonify({"message": error_codes["42"], "error": 42}), 403)
 
         if not token:
-            return (
-                jsonify({"message": "No token provided in Authorization Header", "error": 43}),
-                403,
-            )
+            return (jsonify({"message": error_codes["43"], "error": 43}), 403)
 
         # get the username - to then get user's salt, to verify signature below
         try:
@@ -157,21 +147,13 @@ def token_required(f):
             try:
                 user = User.query.filter_by(username=unverified_token["username"]).one()
             except NoResultFound:
-                return jsonify({"message": "User could not be located.", "error": 1}), 404
+                return jsonify({"message": error_codes["1"], "error": 1}), 404
 
         # user.documents.filter(Documents.id == id).one()
         try:
             user.apps.filter(Client.client_id == unverified_token["client_id"]).one()
         except NoResultFound:
-            return (
-                jsonify(
-                    {
-                        "message": "User has not authorized client or has revoked authorization",
-                        "error": 20,
-                    }
-                ),
-                403,
-            )
+            return (jsonify({"message": error_codes["20"], "error": 20}), 403)
 
         # verify token with user's salt
         try:
@@ -250,7 +232,7 @@ def check_token(user):
     All errors caught there. @t_r also returns *user*, which is not used here but is why it is
     included in function parameters.
     """
-    return jsonify({"message": "Success! The token works.", "status": "Ok"}), 200
+    return jsonify({"message": "Success! The token works."}), 200
 
 
 @api_bp.route("/authorize", methods=["GET", "POST"])
@@ -334,15 +316,12 @@ def token():
     code = request.form["code"]
 
     if grant_type != "authorization_code":
-        return (
-            jsonify({"message": 'grant_type must be set to "authorization_code"', "error": 25}),
-            400,
-        )
+        return (jsonify({"message": error_codes["25"], "error": 25}), 400)
 
     try:
         client = Client.query.filter_by(client_id=client_id).one()
     except NoResultFound:
-        return jsonify({"message": "Client not found.", "error": 2}), 404
+        return jsonify({"message": error_codes["2"], "error": 2}), 404
 
     # decode code without verifying signature, to get user and their salt for verification
     try:
@@ -351,12 +330,12 @@ def token():
         return jsonify({"message": str(e), "error": 23}), 403
 
     if unverified_code["client_id"] != client_id:
-        return jsonify({"message": "Client does not match code.", "error": 26}), 403
+        return jsonify({"message": error_codes["26"], "error": 26}), 403
 
     try:
         user = User.query.filter(User.username == unverified_code["username"]).one()
     except NoResultFound:
-        return jsonify({"message": "Unable to locate user.", "error": 1}), 404
+        return jsonify({"message": error_codes["1"], "error": 1}), 404
 
     # now verify signature
     try:
@@ -393,12 +372,12 @@ def document(user, id):
     returns *user* to this function.
     """
     if not id:
-        return (jsonify({"message": "ID of document not included in request.", "error": 61}), 400)
+        return (jsonify({"message": error_codes["61"], "error": 61}), 400)
 
     try:
         doc = user.documents.filter(Documents.id == id).one()
     except NoResultFound:
-        return jsonify({"message": "Unable to locate document.", "error": 3}), 404
+        return jsonify({"message": error_codes["3"], "error": 3}), 404
 
     # get a document
     if request.method == "GET":
@@ -444,10 +423,7 @@ def documents(user, tag="", author_id="", bunch="", read_status=""):
     # add a document
     if request.method == "POST":
         if not request.is_json:
-            return (
-                jsonify({"message": "Parameters must be submitted in json format.", "error": 60}),
-                400,
-            )
+            return (jsonify({"message": error_codes["60"], "error": 60}), 400)
 
         doc_content = get_doc_content(id, request.get_json())
 
@@ -469,29 +445,16 @@ def documents(user, tag="", author_id="", bunch="", read_status=""):
 
         if read_status:
             if read_status not in ["read", "to-read"]:
-                return (
-                    jsonify({"message": "read_status should be 'read' or 'to-read'.", "error": 66}),
-                    400,
-                )
+                return (jsonify({"message": error_codes["66"], "error": 66}), 400)
         try:
             docs = common.get_docs(
                 user, tag=tag, author_id=author_id, bunch=bunch, read_status=read_status
             )
         except ex.NoBunchException:
-            return (
-                jsonify(
-                    {"message": "No documents found matching supplied critieria.", "error": 67}
-                ),
-                404,
-            )
+            return (jsonify({"message": error_codes["67"], "error": 67}), 404)
 
         if not docs:
-            return (
-                jsonify(
-                    {"message": "No documents found matching supplied critieria.", "error": 67}
-                ),
-                404,
-            )
+            return (jsonify({"message": error_codes["67"], "error": 67}), 404)
 
         docs_as_json = []
         for doc in docs:
