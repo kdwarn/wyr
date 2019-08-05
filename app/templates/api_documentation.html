@@ -62,26 +62,46 @@ Response status codes are documented for each endpoint in the API. Here is a lis
 
 # Error Messages and Codes
 
-All Response status codes other than 200 and 201 will provide additional information about the error that occurred. See below for the list of error codes and their corresponding messages. Any number
-not listed is not (yet) in use.
+All Response status codes other than 200 and 201 will provide additional information about the error that occurred. See below for the list of error codes and their corresponding messages. Any number not listed is not (yet) in use.
 
-_1-19: db or account errors_
+_1-19: database/account errors_
 {% endfilter %}
 
 {% for k, v in error_codes.items() %}
-    {% if 1 <= int(k) <= 19 %} 
-        {{k}}: {{v}}
+    {% if 1 <= k|int <= 19 %}
+        {{k}}: {{v}}<br>
     {% endif %}
 {% endfor %}
 
 {% filter markdown %}
-
 _20-39: authorization or authorization code errors_
-
-_40-59: access_token errors_
-
-_60-79: Request paramaters and body errors_
-
 {% endfilter %}
+
+{% for k, v in error_codes.items() %}
+    {% if 20 <= k|int <= 39 %}
+        {{k}}: {{v}}<br>
+    {% endif %}
+{% endfor %}
+
+{% filter markdown %}
+_40-59: access token errors_
+{% endfilter %}
+
+{% for k, v in error_codes.items() %}
+    {% if 40 <= k|int <= 59 %}
+        {{k}}: {{v}}<br>
+    {% endif %}
+{% endfor %}
+
+{% filter markdown %}
+_60-79: request parameters and request body errors_
+{% endfilter %}
+
+{% for k, v in error_codes.items() %}
+    {% if 60 <= k|int <= 79 %}
+        {{k}}: {{v}}<br>
+    {% endif %}
+{% endfor %}
+
 </div>
 {% endblock %}
