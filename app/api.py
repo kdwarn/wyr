@@ -1,27 +1,19 @@
 """
 TODO:
-    - get error messages from error_codes - started
-    - in the documents/ endpoints, add check that user still has the app authorized. 
-        - this is done on the existing tests, need to checking for any missing cases.
     - put in requirement that the POST method to authorize() has to come from WYR
-    - create a function to print proper error codes/messages and also use it in the API
-        documentation so they don't get out of sync.
-    - might need to create get_user_doc() function to just get one doc, so I can put the exception
-        there rather than manually do error checking for it elsewhere
+    - allow developers to edit details of app
     - paginate results for documents()
     - add endpoints for viewing user's tags, authors, and bunches
     - add endpoint for settings and preferences
-    - add endpoint for logging in?
     - send email notification to WYR that client registered
     - check that wyr.py is properly including register_client() and authorize() in CSRF
       protection (excluded these endpoints in the skipping of api blueprint)
-    - allow developers to edit details of app
 """
 
 """
     use proper error response codes: https://www.narwhl.com/http-response-codes/
 
-    See https://www.whatyouveread.com/api/documentation for list of error codes and messages.
+    See https://www.whatyouveread.com/api/documentation for full documentation.
 
 """
 
@@ -43,6 +35,7 @@ from .models import Documents, User, Client
 api_bp = Blueprint("api", __name__)  # url prefix of /api set in init
 
 error_codes = {
+    # 1-19: database/account errors
     "1": "Can't locate user",
     "2": "Can't locate client",
     "3": "Can't locate document",
@@ -111,11 +104,8 @@ def token_required(f):
     """
     Decorator for routes requiring tokens.
 
-    First checks that request is in json format and returns error if not.
-
-    If not able to authenticate token, returns error.
-
-    Otherwise, returns calling function with user object and any *args and **kwargs passed.
+    Return calling function with user object and any *args and **kwargs passed if no errors found
+    in token provision.
 
     Based on https://prettyprinted.com/blog/9857/authenicating-flask-api-using-json-web-tokens
     """
@@ -125,47 +115,45 @@ def token_required(f):
         auth_header = request.headers.get("Authorization")
 
         if not auth_header:
-            return jsonify({"message": error_codes["40"], "error": 40}), 403
+            return jsonify({"message": error_codes["40"], "error": 40}), 401
 
         try:
             auth_type, token = auth_header.split(" ", maxsplit=1)
         except ValueError:
-            return (jsonify({"message": error_codes["41"], "error": 41}), 403)
+            return (jsonify({"message": error_codes["41"], "error": 41}), 401)
 
         if auth_type != "Bearer":
-            return (jsonify({"message": error_codes["42"], "error": 42}), 403)
+            return (jsonify({"message": error_codes["42"], "error": 42}), 401)
 
         if not token:
-            return (jsonify({"message": error_codes["43"], "error": 43}), 403)
+            return (jsonify({"message": error_codes["43"], "error": 43}), 401)
 
-        # get the username - to then get user's salt, to verify signature below
+        # get the username from the token, to then get user's salt, to verify signature below
         try:
             unverified_token = jwt.decode(token, verify=False)
         except jwt.exceptions.DecodeError as e:
-            return jsonify({"message": str(e), "error": 44}), 403
+            return jsonify({"message": str(e), "error": 44}), 401
         else:
             try:
                 user = User.query.filter_by(username=unverified_token["username"]).one()
             except NoResultFound:
                 return jsonify({"message": error_codes["1"], "error": 1}), 404
 
-        # user.documents.filter(Documents.id == id).one()
         try:
             user.apps.filter(Client.client_id == unverified_token["client_id"]).one()
         except NoResultFound:
             return (jsonify({"message": error_codes["20"], "error": 20}), 403)
 
-        # verify token with user's salt
         try:
             jwt.decode(token, user.salt)
         except jwt.exceptions.InvalidSignatureError as e:
-            return jsonify({"message": str(e), "error": 45}), 403
+            return jsonify({"message": str(e), "error": 45}), 401
         except jwt.exceptions.ExpiredSignatureError as e:
-            return jsonify({"message": str(e), "error": 46}), 403
+            return jsonify({"message": str(e), "error": 46}), 401
         except jwt.exceptions.DecodeError as e:
-            return jsonify({"message": str(e), "error": 44}), 403
+            return jsonify({"message": str(e), "error": 44}), 401
         except Exception as e:
-            return jsonify({"message": str(e), "error": 47}), 403
+            return jsonify({"message": str(e), "error": 47}), 401
 
         return f(user, *args, **kwargs)
 
@@ -228,7 +216,7 @@ def check_token(user):
     """
     Provides verficiation to client developer that the token works (or doesn't).
 
-    Token and username are fetched from request and validated via the @token_required decorator.
+    Token is fetched from request and validated via the @token_required decorator.
     All errors caught there. @t_r also returns *user*, which is not used here but is why it is
     included in function parameters.
     """
@@ -316,7 +304,7 @@ def token():
     code = request.form["code"]
 
     if grant_type != "authorization_code":
-        return (jsonify({"message": error_codes["25"], "error": 25}), 400)
+        return (jsonify({"message": error_codes["25"], "error": 25}), 401)
 
     try:
         client = Client.query.filter_by(client_id=client_id).one()
@@ -327,10 +315,10 @@ def token():
     try:
         unverified_code = jwt.decode(code, verify=False)
     except jwt.exceptions.DecodeError as e:
-        return jsonify({"message": str(e), "error": 23}), 403
+        return jsonify({"message": str(e), "error": 23}), 401
 
     if unverified_code["client_id"] != client_id:
-        return jsonify({"message": error_codes["26"], "error": 26}), 403
+        return jsonify({"message": error_codes["26"], "error": 26}), 401
 
     try:
         user = User.query.filter(User.username == unverified_code["username"]).one()
@@ -341,13 +329,13 @@ def token():
     try:
         jwt.decode(code, user.salt)
     except jwt.exceptions.InvalidSignatureError as e:
-        return jsonify({"message": str(e), "error": 21}), 403
+        return jsonify({"message": str(e), "error": 21}), 401
     except jwt.exceptions.ExpiredSignatureError as e:
-        return jsonify({"message": str(e), "error": 22}), 403
+        return jsonify({"message": str(e), "error": 22}), 401
     except jwt.exceptions.DecodeError as e:
-        return jsonify({"message": str(e), "error": 23}), 403
+        return jsonify({"message": str(e), "error": 23}), 401
     except Exception as e:
-        return jsonify({"message": str(e), "error": 24}), 403
+        return jsonify({"message": str(e), "error": 24}), 401
 
     # expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
     # token = create_token(user, client_id, expiration)

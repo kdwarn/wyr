@@ -1,13 +1,8 @@
 """
     TODO:
-        - test that client id matches that parameter in the decoded authorization_code
-        - test that cookies/sessions are not sent in responses (shouldn't be)
-        - all error testing for document() and documents()
-        - integration(?) testing - the whole process from authorization to adding/editing/deleting/
-            getting doc(s) (new section at bottom)
-        - disable email to WYR about client registration unless explicitly enabled? (to avoid
-          emails while testing) (haven't set this up yet in api.py)
-        - testing editing client info
+        - test that cookies/sessions/csrf tokens are not sent in responses (shouldn't be)
+            - postman and ngrok should help determine this.
+        - testing editing client info, once implemented
 """
 
 import datetime
@@ -187,7 +182,7 @@ def test_check_token_returns_error1(flask_client):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 403 and json_data["error"] == 43
+    assert response.status_code == 401 and json_data["error"] == 43
 
 
 def test_check_token_returns_error2(flask_client):
@@ -201,12 +196,13 @@ def test_check_token_returns_error2(flask_client):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 403 and json_data["error"] == 41
+    assert response.status_code == 401 and json_data["error"] == 41
 
 
 def test_check_token_returns_error3(flask_client, user8):
     """
-    @token_required returns error if the user has not authorized the app or has revoked authorization. 
+    @token_required returns error if the user has not authorized the app or has revoked
+    authorization.
     """
     access_token = api.create_token(user8, "123")
     response = flask_client.get(
@@ -327,7 +323,7 @@ def test_get_access_token_error1(flask_client, user6, dev_app, grant_type):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 400 and json_data["error"] == 25
+    assert response.status_code == 401 and json_data["error"] == 25
 
 
 def test_get_access_token_error2(flask_client, user6, dev_app):
@@ -340,7 +336,7 @@ def test_get_access_token_error2(flask_client, user6, dev_app):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 403 and json_data["error"] == 23
+    assert response.status_code == 401 and json_data["error"] == 23
 
 
 def test_get_access_token_error3(flask_client, user6, dev_app):
@@ -354,7 +350,7 @@ def test_get_access_token_error3(flask_client, user6, dev_app):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 403 and json_data["error"] == 22
+    assert response.status_code == 401 and json_data["error"] == 22
 
 
 def test_get_access_token_error4(flask_client, user6, dev_app):
@@ -370,7 +366,7 @@ def test_get_access_token_error4(flask_client, user6, dev_app):
     assert response.status_code == 404 and json_data["error"] == 2
 
 
-def test_get_access_token_error6(flask_client, user6, dev_app):
+def test_get_access_token_error5(flask_client, user6, dev_app):
     """User should get error if provided client_id does not match client_id in token."""
     code = api.create_token(user6, "2")
     response = flask_client.post(
@@ -380,7 +376,7 @@ def test_get_access_token_error6(flask_client, user6, dev_app):
     )
     json_data = response.get_json()
 
-    assert response.status_code == 403 and json_data["error"] == 26
+    assert response.status_code == 401 and json_data["error"] == 26
 
 
 #######################
@@ -399,7 +395,6 @@ def test_get_access_token_error6(flask_client, user6, dev_app):
 #     assert False
 
 
-@pytest.mark.now1
 def test_document_get1(flask_client, user8, dev_app):
     """document() GET should return all fields correctly."""
     access_token = api.create_token(user8, dev_app.client_id)
@@ -723,7 +718,6 @@ def test_documents_post_error1(flask_client, user8, dev_app):
     assert response.status_code == 400 and json_data["error"] == 62 and len(docs) == 4
 
 
-@pytest.mark.now
 def test_documents_post_error2(flask_client, user8, dev_app):
     """User should be given error if link already exists for that item."""
     access_token = api.create_token(user8, dev_app.client_id)
