@@ -337,12 +337,12 @@ def token():
     except Exception as e:
         return jsonify({"message": str(e), "error": 24}), 401
 
-    # expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # TODO: change later
-    # token = create_token(user, client_id, expiration)
-    access_token = create_token(user, client_id)
-    user.apps.append(client)
-    db.session.commit()
+    # only add app is user hasn't already authorized it
+    if not user.apps.filter(client_id=client.client_id).one():
+        user.apps.append(client)
+        db.session.commit()
 
+    access_token = create_token(user, client_id)
     response = jsonify({"access_token": access_token, "token_type": "bearer"})
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"
