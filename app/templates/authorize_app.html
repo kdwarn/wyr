@@ -4,13 +4,13 @@
 <div id="main">
     <div class="block-center">
         <h2>Authorize App</h2>
-        <p>Are you sure you want to authorize {{client_name}} to access your account? 
+        <p>Are you sure you want to authorize {{client_name}} to access your account?
             This will permit it to add, edit, and delete native items on What You've Read.
         </p>
         <form name="login" action="{{ url_for('api.authorize') }}" method="post">
             <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
             <input name="client_id" type="hidden" value="{{ client_id }}">
-            <input name="state" type="hidden" value="{{ state}}">
+            <input name="state" type="hidden" value="{{ state }}">
             <button type="submit" name="submit" value="Yes">Authorize</button>&nbsp;
             <button type="submit" name="submit" value="No">Do Not Authorize</button>
         </form>

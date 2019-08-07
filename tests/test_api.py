@@ -2,6 +2,8 @@
     TODO:
         - test that cookies/sessions/csrf tokens are not sent in responses (shouldn't be)
             - postman and ngrok should help determine this.
+        - check that wyr.py is properly including register_client() and authorize() in CSRF
+            protection (excluded these endpoints in the skipping of api blueprint)
         - testing editing client info, once implemented
 """
 

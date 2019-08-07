@@ -1,13 +1,13 @@
 """
 TODO:
     - put in requirement that the POST method to authorize() has to come from WYR
+        - not sure if this is necessary with the CSRF protection
     - allow developers to edit details of app
     - paginate results for documents()
     - add endpoints for viewing user's tags, authors, and bunches
     - add endpoint for settings and preferences
     - send email notification to WYR that client registered
-    - check that wyr.py is properly including register_client() and authorize() in CSRF
-      protection (excluded these endpoints in the skipping of api blueprint)
+
 """
 
 """
@@ -246,7 +246,7 @@ def authorize():
     if request.method == "GET":
         client_id = request.args.get("client_id")
         response_type = request.args.get("response_type")
-        state = request.args.get("state")
+        state = request.args.get("state", '')
 
         if response_type != "code":
             flash("Query parameter response_type must be set to 'code'. Authorization failed.")
@@ -266,8 +266,9 @@ def authorize():
         flash("Authorization not granted to app.")
         return redirect(url_for("main.index"))
 
-    client_id = request.form["client_id"]
-    state = request.form["state"]
+    client_id = request.form.get("client_id")
+    state = request.form.get("state")
+    print('state in post: ', state)
 
     try:
         client = Client.query.filter_by(client_id=client_id).one()
@@ -282,7 +283,7 @@ def authorize():
     if state:
         redirect_url += "&state=" + state
 
-    return redirect(redirect_url, code=307)
+    return redirect(redirect_url)
 
 
 @api_bp.route("/token", methods=["POST"])
@@ -338,7 +339,7 @@ def token():
         return jsonify({"message": str(e), "error": 24}), 401
 
     # only add app is user hasn't already authorized it
-    if not user.apps.filter(client_id=client.client_id).one():
+    if not user.apps.filter_by(client_id=client.client_id).one():
         user.apps.append(client)
         db.session.commit()
 
