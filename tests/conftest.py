@@ -8,7 +8,7 @@ from app import create_app, models, db
 from app import common
 
 """
-    NOTE: Although the Flask testing documentation uses "client" for the testing app instance, 
+    NOTE: Although the Flask testing documentation uses "client" for the testing app instance,
           it's confusing with the use of "client" as third-party apps, which is the term
           used in Oauth2. So I've used "flask_client" to referring to the testing app fixture.
 """
@@ -291,7 +291,7 @@ def user8(flask_client, four_items, dev_app):
     Create a user with hashed password and salt, as in the registration
     process, with four WYR items, and log them in.
 
-    This is the main user for testing the API with, since the app is already authorized and 
+    This is the main user for testing the API with, since the app is already authorized and
     associated with their account.
     """
 

@@ -2,8 +2,14 @@
     TODO:
         - test that cookies/sessions/csrf tokens are not sent in responses (shouldn't be)
             - postman and ngrok should help determine this.
+            - could also test the response values
         - check that wyr.py is properly including register_client() and authorize() in CSRF
             protection (excluded these endpoints in the skipping of api blueprint)
+            - try postman for this.
+                -works for Authorize.
+            - after that, see if I can add the CSRF from in wyr.py to the test app and make tests
+                for this. It would basically just ensure that that the endpoint function doesn't
+                change.
         - testing editing client info, once implemented
 """
 
@@ -274,6 +280,7 @@ def test_app_authorization_get4(flask_client, user6, dev_app):
     assert b"Authorize App" in response.data
 
 
+@pytest.mark.now
 def test_app_authorization_post1(flask_client, user6, dev_app):
     """callback_url and code and state passed into redirect."""
     response = flask_client.post(
@@ -593,7 +600,6 @@ def test_get_all_docs(flask_client, user8, dev_app):
     )
     json_data = response.get_json()
 
-    # print(json.dumps(json_data, indent=4))
     assert len(json_data) == 4
 
 
@@ -688,7 +694,6 @@ def test_get_docs_by_non_existent_bunch(flask_client, user8, dev_app):
     assert response.status_code == 404 and json_data["error"] == 67
 
 
-@pytest.mark.now
 def test_documents_post1(flask_client, user8, dev_app):
     """documents POST is successful with adding a new document."""
     access_token = api.create_token(user8, dev_app.client_id)

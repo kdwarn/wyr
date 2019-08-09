@@ -1,13 +1,13 @@
 """
 TODO:
-    - put in requirement that the POST method to authorize() has to come from WYR
-        - not sure if this is necessary with the CSRF protection
+    - send email notification to WYR that client registered
     - allow developers to edit details of app
+    - allow users to revoke authorizations (in settings via main.py)
+    - doc.serialize should return source_id so app can show source/users can know they can't edit
+        those ones (this will need to be adding to specification, as well as the ref link to it)
     - paginate results for documents()
     - add endpoints for viewing user's tags, authors, and bunches
     - add endpoint for settings and preferences
-    - send email notification to WYR that client registered
-
 """
 
 """
@@ -21,7 +21,16 @@ import datetime
 from functools import wraps
 import uuid
 
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
+from flask import (
+    Blueprint,
+    current_app,
+    request,
+    jsonify,
+    render_template,
+    redirect,
+    url_for,
+    flash,
+)
 from flask_login import login_required, current_user
 import jwt
 from sqlalchemy.orm.exc import NoResultFound
@@ -207,6 +216,13 @@ def clients():
         db.session.commit()
         flash("Client registered.")
 
+        if not current_app.testing:
+            common.send_simple_message(
+                "whatyouveread@protonmail.com",
+                "New client created",
+                f"User {current_user.username} created a client named {name}.",
+            )
+
     return redirect(url_for("api.clients"))
 
 
@@ -246,7 +262,7 @@ def authorize():
     if request.method == "GET":
         client_id = request.args.get("client_id")
         response_type = request.args.get("response_type")
-        state = request.args.get("state", '')
+        state = request.args.get("state", "")
 
         if response_type != "code":
             flash("Query parameter response_type must be set to 'code'. Authorization failed.")
@@ -268,7 +284,6 @@ def authorize():
 
     client_id = request.form.get("client_id")
     state = request.form.get("state")
-    print('state in post: ', state)
 
     try:
         client = Client.query.filter_by(client_id=client_id).one()
@@ -339,7 +354,9 @@ def token():
         return jsonify({"message": str(e), "error": 24}), 401
 
     # only add app is user hasn't already authorized it
-    if not user.apps.filter_by(client_id=client.client_id).one():
+    try:
+        user.apps.filter_by(client_id=client.client_id).one()
+    except NoResultFound:
         user.apps.append(client)
         db.session.commit()
 
