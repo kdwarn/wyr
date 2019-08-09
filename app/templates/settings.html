@@ -88,7 +88,6 @@
             <a href="{{ url_for('goodreads.goodreads_login') }}">Authorize</a>
         {% endif %}
         </p>
-        <p>Others coming!</p>
         <p class="info left">Note: What You've Read will only check for changes
         1 week since the last time it did so. So, if you load the site, make a change
         on one of these sources,
@@ -96,17 +95,6 @@
         you manually refresh it, by clicking on the "Refresh" link next to the source.</p>
         <p class="info left">Also note: You must empty your Mendeley trash in order
         for deleted items from Mendeley to be removed here.</p>
-    </div>
-    <br>
-    <div class="box">
-        <h2>Thirdy Party Apps</h2>
-        {% if current_user.apps: %}
-            {% for app in current_user.apps %}
-                {{ app.name }}
-            {% endfor %}
-        {% else %}
-            You haven't authorized any third-party apps.
-        {% endif %}
     </div>
     <br>
     <div class="box">
@@ -125,6 +113,17 @@
         save. It will open a form (with title and URL pre-populated) to add
         a new item. Fill in any additional information (like author, year, and tags)
         and submit it.</p>
+    </div>
+    <br>
+    <div class="box">
+        <h2>Third Party Apps</h2>
+        {% if current_user.apps: %}
+            {% for app in current_user.apps %}
+                {{ app.name }}
+            {% endfor %}
+        {% else %}
+            You haven't authorized any third-party apps.
+        {% endif %}
     </div>
     <br>
     <div class="box">
