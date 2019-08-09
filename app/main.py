@@ -24,7 +24,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import stripe
 
 from app import db
-from .models import User, Documents, Tags, Bunches, Authors
+from .models import User, Documents, Tags, Bunches, Authors, Client
 from . import exceptions as ex
 from . import mendeley
 from . import goodreads
@@ -712,7 +712,10 @@ def logout():
 def settings():
     """ Settings page. """
     if request.method == "GET":
-        return render_template("settings.html")
+        apps = current_user.apps.all()
+        clients = Client.query.filter_by(user_id=current_user.id).all()
+
+        return render_template("settings.html", apps=apps, clients=clients)
     elif request.method == "POST":
         current_user.auto_close = request.form["auto_close"]
         current_user.markdown = request.form["markdown"]
@@ -1270,6 +1273,37 @@ def charge():
 @bp.route("/donate_paypal")
 def paypal():
     return render_template("donate_paypal.html")
+
+
+####################
+# THIRD PARTY APPS #
+####################
+
+# from the user's perspective
+
+@bp.route("/revoke", methods=["GET", "POST"])
+@login_required
+def revoke():
+    '''Revoke app authorization.'''
+    if request.method == 'GET':
+        app_id = request.args.get('app_id')
+        app = Client.query.filter_by(client_id=app_id).one()
+        return render_template('revoke_app.html', app=app)
+
+    app_id = request.form['app_id']
+    app_name = request.form['app_name']
+    confirm = request.form["revoke"]
+
+    if confirm == "Yes":
+        app = current_user.apps.filter_by(client_id=app_id).one()
+        current_user.apps.remove(app)
+        db.session.commit()
+        message = f'Authorization for {app_name} has been revoked.'
+    else:
+        message = "Revoke authorization cancelled."
+
+    flash(message)
+    return redirect(url_for("main.settings"))
 
 
 # handle 404 - this was throwing errors where it shouldn't, so disabled

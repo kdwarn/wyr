@@ -117,9 +117,9 @@
     <br>
     <div class="box">
         <h2>Third Party Apps</h2>
-        {% if current_user.apps: %}
-            {% for app in current_user.apps %}
-                {{ app.name }}
+        {% if apps %}
+            {% for app in apps %}
+                {{ app.name }} | <a href="{{url_for('main.revoke', app_id=app.client_id)}}">Revoke Authorization</a>
             {% endfor %}
         {% else %}
             You haven't authorized any third-party apps.
@@ -130,8 +130,18 @@
         <h2>Developers</h2>
         <p class="left">If you are a developer and would like to create a third-party app,
             please register it <a href="{{url_for('api.clients')}}">here</a>. View
-            the API documentation <a href="{{url_for('api.api_doc')}}">here</a>.
-        </p>
+            the API documentation <a href="{{url_for('api.api_doc')}}">here</a>.</p>
+        {% if clients %}
+            <p class="center">Your Registered Apps:</p>
+            {% for client in clients %}
+                <p class="left">
+                Name: {{client.name}}<br>
+                Client_id: {{client.client_id}}<br>
+                Description: {{client.description}}<br>
+                Callback URL: {{client.callback_url}}<br>
+                Homepage: {{client.homepage}}</p>
+            {% endfor %}
+        {% endif %}
     </div>
     <br><br><br>
 </div>

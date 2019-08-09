@@ -3,23 +3,11 @@
 {% block content %}
 <div id="main">
     <div class="block-center">
-        <h2>Clients</h2>
-        {% if clients %}
-            {% for client in clients %}
-            <p>
-            <b>{{client.name}}</b><br>
-            Client ID: {{client.client_id}}<br>
-            Description: {{client.description}}<br>
-            Callback URL: {{client.callback_url}}
-            </p>
-            {% endfor %}
-        {% else %}
-            <p>You currently have no clients.</p>
-        {% endif %}
         <h2>Register New Client</h2>
-        <p>Please provide the information requested about your client below. A client_id and 
+        <p>Please provide the information requested about your client below. A client_id and
             client_secret will be provided upon registration.
         </p>
+        <div class="left">
         <form name="login" action="{{ url_for('api.clients') }}" method="post">
             <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
             <label class="sr-only" for="name"></label>
@@ -37,6 +25,7 @@
             <button type="submit" name="submit" value="register">Register</button>&nbsp;
             <button type="submit" name="submit" value="cancel">Cancel</button>
         </form>
+        </div>
     </div>
 </div>
 {% endblock %}

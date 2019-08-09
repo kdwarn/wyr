@@ -1,8 +1,6 @@
 """
 TODO:
-    - send email notification to WYR that client registered
-    - allow developers to edit details of app
-    - allow users to revoke authorizations (in settings via main.py)
+    - allow developers to edit details of app - put in edit link and send to clients.html
     - doc.serialize should return source_id so app can show source/users can know they can't edit
         those ones (this will need to be adding to specification, as well as the ref link to it)
     - paginate results for documents()
@@ -184,8 +182,7 @@ def clients():
     Only registered users who are logged in can register clients.
     """
     if request.method == "GET":
-        clients = Client.query.filter_by(user_id=current_user.id).all()
-        return render_template("clients.html", clients=clients)
+        return render_template("clients.html")
 
     if request.form["submit"] != "register":
         flash("Client registration canceled.")
