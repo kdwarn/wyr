@@ -34,7 +34,8 @@ nav {
     position: fixed;
     top:0px;
     width:100%;
-    background: #0A0A2A;
+    /*background: #0A0A2A;*/
+    background: #0066CA;
     height: 2rem;
     color: white;
     text-align: right;
