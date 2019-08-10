@@ -3,26 +3,37 @@
 {% block content %}
 <div id="main">
     <div class="block-center">
-        <h2>Register New Client</h2>
-        <p>Please provide the information requested about your client below. A client_id
-            will be provided upon registration.
-        </p>
+        {% if not edit %}
+            <h2>Register New Client</h2>
+            <p>Please provide the information requested about your client below. A client_id
+                will be provided upon registration.
+            </p>
+        {% else %}
+            <h2>Edit {{client.name}}</h2>
+            <p>Edit your app's info below:</p>
+        {% endif %}
+
         <div class="left">
         <form name="login" action="{{ url_for('api.clients') }}" method="post">
             <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
             <label class="sr-only" for="name"></label>
             <input class="login_form" type="text" size="50" id="name" name="name"
-                placeholder="Name"><br>
+                value="{{client.name}}" placeholder="Name"><br>
             <label class="sr-only" for="description"></label>
             <input class="login_form" type="text" size="150" id="description" name="description"
-                placeholder="Description of your client"><br>
+                value="{{client.description}}" placeholder="Description of your client"><br>
             <label class="sr-only" for="callback_url"></label>
             <input class="login_form" type="text" size="100" id="callback_url" name="callback_url"
-                placeholder="Callback URL"><br>
+                value="{{client.callback_url}}" placeholder="Callback URL"><br>
             <label class="sr-only" for="home_url"></label>
             <input class="login_form" type="text" size="40" id="home_url" name="home_url"
-                placeholder="Homepage URL (if applicable)"><br>
-            <button type="submit" name="submit" value="register">Register</button>&nbsp;
+                value="{{home_url}}" placeholder="Homepage URL (if applicable)"><br>
+            {% if not edit %}
+                <button type="submit" name="submit" value="register">Register</button>&nbsp;
+            {% else %}
+                <input name="client_id" type="hidden" value="{{client.client_id}}">
+                <button type="submit" name="submit" value="edit">Submit</button>&nbsp;
+            {% endif %}
             <button type="submit" name="submit" value="cancel">Cancel</button>
         </form>
         </div>

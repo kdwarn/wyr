@@ -1,6 +1,5 @@
 """
 TODO:
-    - allow developers to edit details of app - put in edit link and send to clients.html
     - doc.serialize should return source_id so app can show source/users can know they can't edit
         those ones (this will need to be adding to specification, as well as the ref link to it)
     - paginate results for documents()
@@ -15,6 +14,7 @@ TODO:
 
 """
 
+from collections import namedtuple
 import datetime
 from functools import wraps
 import uuid
@@ -69,7 +69,7 @@ error_codes = {
     "62": "title not supplied, but required",
     "63": "link already exists in attempted added item",
     "64": "Cannot edit Mendeley or Goodreads document",
-    "65": "Cannot delete Mendely or Goodreads document",
+    "65": "Cannot delete Mendeley or Goodreads document",
     "66": "read_status has to be either 'read' or 'to-read' if provided",
     "67": "No documents matching supplied criteria (tag, read_status, etc.)",
 }
@@ -182,9 +182,26 @@ def clients():
     Only registered users who are logged in can register clients.
     """
     if request.method == "GET":
-        return render_template("clients.html")
 
-    if request.form["submit"] != "register":
+        if request.args.get("edit"):
+            client_id = request.args.get("client_id")
+            try:
+                client = Client.query.filter(
+                    Client.client_id == client_id,
+                    Client.user_id == current_user.id,
+                    ).one()
+            except NoResultFound:
+                flash("No client with that client_id found.")
+                return redirect(url_for("main.settings"))
+
+            return render_template("clients.html", edit=1, client=client)
+
+        DummyClient = namedtuple('Client', ['name', 'description', 'callback_url', 'home_url'])
+        client = DummyClient('', '', '', '')
+
+        return render_template("clients.html", client=client)
+
+    if request.form["submit"] not in ['register', 'edit']:
         flash("Client registration canceled.")
     else:
         name = request.form.get("name")
@@ -200,27 +217,45 @@ def clients():
             flash("The callback URL must use HTTPS.")
             return redirect(url_for("api.clients"))
 
-        # create id, check that it is unique
-        id = uuid.uuid4().hex
-        clients = Client.query.all()
-        if clients:
-            client_ids = [client.client_id for client in clients]
-            while id in client_ids:
-                id = uuid.uuid4().hex
+        if request.form["submit"] == 'register':
+            # create id, check that it is unique
+            id = uuid.uuid4().hex
+            clients = Client.query.all()
+            if clients:
+                client_ids = [client.client_id for client in clients]
+                while id in client_ids:
+                    id = uuid.uuid4().hex
 
-        client = Client(id, current_user.id, name, description, callback_url, home_url=home_url)
-        db.session.add(client)
-        db.session.commit()
-        flash("Client registered.")
+            client = Client(id, current_user.id, name, description, callback_url, home_url=home_url)
+            db.session.add(client)
+            db.session.commit()
+            flash("Client registered.")
 
-        if not current_app.testing:
-            common.send_simple_message(
-                "whatyouveread@protonmail.com",
-                "New client created",
-                f"User {current_user.username} created a client named {name}.",
-            )
+            if not current_app.testing:
+                common.send_simple_message(
+                    "whatyouveread@protonmail.com",
+                    "New client created",
+                    f"User {current_user.username} created a client named {name}.",
+                )
+        elif request.form["submit"] == 'edit':
+            client_id = request.form.get("client_id")
+            try:
+                client = Client.query.filter(
+                    Client.client_id == client_id,
+                    Client.user_id == current_user.id,
+                    ).one()
+            except NoResultFound:
+                flash("No client with that client_id found.")
+                return redirect(url_for("main.settings"))
 
-    return redirect(url_for("api.clients"))
+            client.name = name
+            client.description = description
+            client.callback_url = callback_url
+            client.home_url = home_url
+            db.session.commit()
+            flash("App edited.")
+
+    return redirect(url_for("main.settings"))
 
 
 @api_bp.route("/check_token", methods=["GET"])

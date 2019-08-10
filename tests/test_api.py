@@ -1,5 +1,6 @@
 """
     TODO:
+        - add tests for editing client info
         - test that cookies/sessions/csrf tokens are not sent in responses (shouldn't be)
             - postman and ngrok should help determine this.
             - could also test the response values
@@ -10,7 +11,6 @@
             - after that, see if I can add the CSRF from in wyr.py to the test app and make tests
                 for this. It would basically just ensure that that the endpoint function doesn't
                 change.
-        - testing editing client info, once implemented
 """
 
 import datetime

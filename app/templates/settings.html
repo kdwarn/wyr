@@ -139,7 +139,8 @@
                 Client_id: {{client.client_id}}<br>
                 Description: {{client.description}}<br>
                 Callback URL: {{client.callback_url}}<br>
-                Homepage: {{client.homepage}}</p>
+                Homepage: {{client.homepage}}<br>
+                <a href="{{url_for('api.clients', client_id=client.client_id, edit=1)}}">Edit</a></p>
             {% endfor %}
         {% endif %}
     </div>
