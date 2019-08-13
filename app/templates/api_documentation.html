@@ -1,0 +1,106 @@
+{% extends 'header.html' %}
+{% block title %} - API Documentation {% endblock %}
+{% block content %}
+<div id="main">
+
+<div class="center" style="font-size:1.75rem">WYR API Documentation</div>
+<br>
+
+{% filter markdown %}
+
+# Introduction
+
+Welcome to the documentation for What You've Read's API.
+
+Contact: whatyouveread@protonmail.com or submit an issue on [Github](https://github.com/kdwarn/wyr/issues).
+
+Version: 0.1
+
+# Overview
+
+The WYR API is a JSON API that allows developers to programmatically interact with WYR.
+
+At present, the API provides access to a user's documents, but not the user's authors, tags, bunches, or settings. These resources will become available as this initial version of the API is extended.
+
+# Registering A Client
+
+The first step in accessing the API is to register a client. To do so, log into your WYR account, go to settings, and in the Developers section, click the link to register your client. You will need to provide the following:
+
+- Name of the app
+- Description
+- A callback url (https only)
+
+# Authorization and Access Tokens
+
+The API uses the [Oauth 2.0 protocol](https://tools.ietf.org/html/rfc6749) for authorizing clients and providing access tokens.
+
+In order for a WYR user to authorize your app, they will need to be redirected from your app to the /authorize endpoint on WYR, with the proper parameters. If the user authorizes the app, they will be redirected from WYR to the callback url you provided when you registered the client, at which point the `code` provided will need to be used to request an access token (via /token). Once an `acccess_token` has been received, you must store it and provide it with all requests to the user's protected resources.
+
+Authorization codes are valid for 10 minutes; access tokens do not expire.
+
+Both are issued as JSON Web Tokens ([JWT](https://tools.ietf.org/html/rfc7519)), and do not require decoding or any sort of use aside from storage and provision during requests.
+
+See the /authorize, /token, and /check_token endpoints in the API specification.
+
+# API Specification
+
+[View on SwaggerHub](https://app.swaggerhub.com/apis-docs/kdwarn/wyr/0.1.0).
+
+# Responses
+
+All responses are in JSON format.
+
+Response status codes are documented for each endpoint in the API. Here is a list of all response codes currently in use:
+
+200: OK
+201: Added
+400: Bad Request
+401: Unauthorized
+403: Forbidden
+404: Not Found
+
+# Error Messages and Codes
+
+All Response status codes other than 200 and 201 will provide additional information about the error that occurred. See below for the list of error codes and their corresponding messages. Any number not listed is not (yet) in use.
+
+_1-19: database/account errors_
+{% endfilter %}
+
+{% for k, v in error_codes.items() %}
+    {% if 1 <= k|int <= 19 %}
+        {{k}}: {{v}}<br>
+    {% endif %}
+{% endfor %}
+
+{% filter markdown %}
+_20-39: authorization or authorization code errors_
+{% endfilter %}
+
+{% for k, v in error_codes.items() %}
+    {% if 20 <= k|int <= 39 %}
+        {{k}}: {{v}}<br>
+    {% endif %}
+{% endfor %}
+
+{% filter markdown %}
+_40-59: access token errors_
+{% endfilter %}
+
+{% for k, v in error_codes.items() %}
+    {% if 40 <= k|int <= 59 %}
+        {{k}}: {{v}}<br>
+    {% endif %}
+{% endfor %}
+
+{% filter markdown %}
+_60-79: request parameters and request body errors_
+{% endfilter %}
+
+{% for k, v in error_codes.items() %}
+    {% if 60 <= k|int <= 79 %}
+        {{k}}: {{v}}<br>
+    {% endif %}
+{% endfor %}
+
+</div>
+{% endblock %}

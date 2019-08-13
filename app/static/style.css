@@ -5,8 +5,13 @@
 body {
     margin: 0px;
     font-family: Helvetica, Arial, Sans-Serif;
-    background: white;
-    color: #070719;}
+    /*background: white;*/
+    /*background: #FDFDFD;*/
+    background: #FAFAFA;
+    /*color: #070719;*/
+    color:#252322;
+    font-size: 16px;
+}
 
 h1 {font-size: 1.25rem;
     text-align:center;
@@ -16,18 +21,21 @@ h2 {text-align:center;
     font-size:medium;}
 
 a:link, a:visited {
-    color:blue;
+    /*color:blue;*/
+    color: #0066CA;
     text-decoration: none;}
 
 a:hover {
-    color:blue;
+    /*color:blue;*/
+    color: #0066CA;
     text-decoration:underline;}
 
 nav {
     position: fixed;
     top:0px;
     width:100%;
-    background: #0A0A2A;
+    /*background: #0A0A2A;*/
+    background: #0066CA;
     height: 2rem;
     color: white;
     text-align: right;
@@ -89,7 +97,7 @@ nav input[type=checkbox]:checked ~ #menu {
 	}
 	/*Create vertical spacing*/
 	nav li {
-		background: #0A0A2A;
+		background: #0066CA;
 		display: block;
 	    padding: 10px 20px 10px 20px;
 	    clear: both;
@@ -186,7 +194,7 @@ a.clear_filter:hover {text-decoration:none; color:red;}
     padding: 5px 7px 5px 7px;}
 
 button[type=submit] {
-    background-color: #0A0A2A;
+    background-color: #0066CA;
     border: 1px solid #CECEF6;
     color: white;
     text-decoration: none;
@@ -197,7 +205,7 @@ button[type=submit] {
 
 button[type=submit]:hover {
     background-color: #CECEF6;
-    border:1px solid #0A0A2A;
+    border:1px solid #0066CA;
     color: #0A0A2A;}
 
 
@@ -212,20 +220,20 @@ button[type=submit]:hover {
     display: none;}
 
 #multiple_tags input[type="checkbox"]:checked + label {
-    background: #0A0A2A;
+    background: #0066CA;
     color: white;
     padding: 1px 3px 1px 3px;
-    border: 1px solid #0A0A2A;
+    border: 1px solid #0066CA;
     border-radius: 3px;}
 
 #multiple_tags input[type=radio] {display: none;}
 
 
 #multiple_tags input[type="radio"]:checked + label {
-    background: #0A0A2A;
+    background: #0066CA;
     color: white;
     padding: 1px 3px 1px 3px;
-    border: 1px solid #0A0A2A;
+    border: 1px solid #0066CA;
     border-radius: 3px;}
 
 /* Remove all decorations to make button look like simple text*/

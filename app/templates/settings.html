@@ -1,3 +1,4 @@
+<!-- TODO: add link to deauthorize client -->
 {% extends 'header.html' %}
 {% block title %} - Settings {% endblock %}
 {% block content %}
@@ -68,7 +69,7 @@
     </div>
     <br>
     <div class="box">
-        <h2>Sources</h2>
+        <h2>External Sources</h2>
         <p>Mendeley |
         {% if current_user.mendeley == 1 %}
             Authorized &#10003; &nbsp;
@@ -87,7 +88,6 @@
             <a href="{{ url_for('goodreads.goodreads_login') }}">Authorize</a>
         {% endif %}
         </p>
-        <p>Others coming!</p>
         <p class="info left">Note: What You've Read will only check for changes
         1 week since the last time it did so. So, if you load the site, make a change
         on one of these sources,
@@ -113,6 +113,36 @@
         save. It will open a form (with title and URL pre-populated) to add
         a new item. Fill in any additional information (like author, year, and tags)
         and submit it.</p>
+    </div>
+    <br>
+    <div class="box">
+        <h2>Third Party Apps</h2>
+        {% if apps %}
+            {% for app in apps %}
+                {{ app.name }} | <a href="{{url_for('main.revoke', app_id=app.client_id)}}">Revoke Authorization</a>
+            {% endfor %}
+        {% else %}
+            You haven't authorized any third-party apps.
+        {% endif %}
+    </div>
+    <br>
+    <div class="box">
+        <h2>Developers</h2>
+        <p class="left">If you are a developer and would like to create a third-party app,
+            please register it <a href="{{url_for('api.clients')}}">here</a>. View
+            the API documentation <a href="{{url_for('api.api_doc')}}">here</a>.</p>
+        {% if clients %}
+            <p class="center">Your Registered Apps:</p>
+            {% for client in clients %}
+                <p class="left">
+                Name: {{client.name}}<br>
+                Client_id: {{client.client_id}}<br>
+                Description: {{client.description}}<br>
+                Callback URL: {{client.callback_url}}<br>
+                Homepage: {{client.homepage}}<br>
+                <a href="{{url_for('api.clients', client_id=client.client_id, edit=1)}}">Edit</a></p>
+            {% endfor %}
+        {% endif %}
     </div>
     <br><br><br>
 </div>
