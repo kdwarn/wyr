@@ -1,0 +1,18 @@
+{% extends 'header.html' %}
+{% block title %} - Revoke App Authorization {% endblock %}
+{% block content %}
+<div id="main">
+    <div class="block-center">
+        <h2>Revoke App Authorization</h2>
+        <p class="left">Are you sure you want to revoke the authorization for {{ app.name }}? </p>
+        <form method="POST" action="{{url_for('main.revoke')}}">
+            <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+            <input type="hidden" name="app_id" value="{{ app.client_id }}">
+            <input type="hidden" name="app_name" value="{{ app.name }}">
+            <button type="submit" name="revoke" value="Yes">Yes</button>&nbsp;
+            <button type="submit" name="revoke" value="No">No</button>
+        </form>
+    </div>
+    <p></p>
+</div>
+{% endblock %}
