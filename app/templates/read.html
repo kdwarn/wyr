@@ -230,8 +230,12 @@
 
                     {% if doc.source_id == 3 %}
                         <a href="{{ url_for('native.edit', id=doc.id) }}">Edit</a> |
-                        <a href="{{ url_for('native.delete', id=doc.id) }}">Delete</a>
+                        <a href="{{ url_for('native.delete', id=doc.id) }}">Delete</a> |
+                        <a href="{{ url_for('main.permalink', id=doc.id) }}">Permalink</a>
+                    {% else %}
+                        <a href="{{ url_for('main.permalink', id=doc.id) }}">Permalink</a>
                     {% endif %}
+
                     </span>
 
                     {% if doc.notes %}

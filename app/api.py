@@ -1,17 +1,16 @@
 """
 TODO:
-    - doc.serialize should return source_id so app can show source/users can know they can't edit
-        those ones (this will need to be adding to specification, as well as the ref link to it)
+    - doc.serialize should return source_id so users editing/deleting can be disabled, will need to
+        be added to specification
+    - after adding item, also return ref link in response
+        https://www.vinaysahni.com/best-practices-for-a-pragmatic-restful-api#useful-post-responses
+        https://stackoverflow.com/questions/11159449/rest-response-should-i-put-the-url-of-the-new-resource-in-the-header-body-or
+        https://stackoverflow.com/questions/49054408/restful-post-response
+
+        I'm going to have to add the doc.id to common.add_item return
     - paginate results for documents()
     - add endpoints for viewing user's tags, authors, and bunches
     - add endpoint for settings and preferences
-"""
-
-"""
-    use proper error response codes: https://www.narwhl.com/http-response-codes/
-
-    See https://www.whatyouveread.com/api/documentation for full documentation.
-
 """
 
 from collections import namedtuple
@@ -176,32 +175,30 @@ def api_doc():
 @login_required
 def clients():
     """
-    Allow a user to register a client they developed and list their developed clients (not
-    a list of clients that a user authorized - that will be in main.settings).
+    Register a client or edit client details.
 
-    Only registered users who are logged in can register clients.
+    Only registered users who are logged in can register/edit clients.
     """
     if request.method == "GET":
-
         if request.args.get("edit"):
             client_id = request.args.get("client_id")
             try:
                 client = Client.query.filter(
-                    Client.client_id == client_id,
-                    Client.user_id == current_user.id,
-                    ).one()
+                    Client.client_id == client_id, Client.user_id == current_user.id
+                ).one()
             except NoResultFound:
                 flash("No client with that client_id found.")
                 return redirect(url_for("main.settings"))
 
             return render_template("clients.html", edit=1, client=client)
 
-        DummyClient = namedtuple('Client', ['name', 'description', 'callback_url', 'home_url'])
-        client = DummyClient('', '', '', '')
+        # DummyClient enables passing in empty values to form
+        DummyClient = namedtuple("Client", ["name", "description", "callback_url", "home_url"])
+        client = DummyClient("", "", "", "")
 
         return render_template("clients.html", client=client)
 
-    if request.form["submit"] not in ['register', 'edit']:
+    if request.form["submit"] not in ["register", "edit"]:
         flash("Client registration canceled.")
     else:
         name = request.form.get("name")
@@ -217,7 +214,7 @@ def clients():
             flash("The callback URL must use HTTPS.")
             return redirect(url_for("api.clients"))
 
-        if request.form["submit"] == 'register':
+        if request.form["submit"] == "register":
             # create id, check that it is unique
             id = uuid.uuid4().hex
             clients = Client.query.all()
@@ -237,13 +234,12 @@ def clients():
                     "New client created",
                     f"User {current_user.username} created a client named {name}.",
                 )
-        elif request.form["submit"] == 'edit':
+        elif request.form["submit"] == "edit":
             client_id = request.form.get("client_id")
             try:
                 client = Client.query.filter(
-                    Client.client_id == client_id,
-                    Client.user_id == current_user.id,
-                    ).one()
+                    Client.client_id == client_id, Client.user_id == current_user.id
+                ).one()
             except NoResultFound:
                 flash("No client with that client_id found.")
                 return redirect(url_for("main.settings"))
@@ -466,12 +462,17 @@ def documents(user, tag="", author_id="", bunch="", read_status=""):
         doc_content = get_doc_content(id, request.get_json())
 
         try:
+            # doc_id = common.add_item(doc_content, user, source="api")
             common.add_item(doc_content, user, source="api")
         except ex.NoTitleException as e:
             return jsonify({"message": str(e.message), "error": e.error}), e.http_status
         except ex.DuplicateLinkException as e:
             return jsonify({"message": str(e.message), "error": e.error}), e.http_status
         else:
+            # response = jsonify({"message": "Item added."})
+            # response.headers["Location"] = "https://www.whatyouvread.com/" + doc_id
+            # return response, 201
+
             return jsonify({"message": "Item added."}), 201
 
     # get all documents
@@ -483,16 +484,16 @@ def documents(user, tag="", author_id="", bunch="", read_status=""):
 
         if read_status:
             if read_status not in ["read", "to-read"]:
-                return (jsonify({"message": error_codes["66"], "error": 66}), 400)
+                return jsonify({"message": error_codes["66"], "error": 66}), 400
         try:
             docs = common.get_docs(
                 user, tag=tag, author_id=author_id, bunch=bunch, read_status=read_status
             )
         except ex.NoBunchException:
-            return (jsonify({"message": error_codes["67"], "error": 67}), 404)
+            return jsonify({"message": error_codes["67"], "error": 67}), 404
 
         if not docs:
-            return (jsonify({"message": error_codes["67"], "error": 67}), 404)
+            return jsonify({"message": error_codes["67"], "error": 67}), 404
 
         docs_as_json = []
         for doc in docs:
