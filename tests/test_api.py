@@ -280,7 +280,6 @@ def test_app_authorization_get4(flask_client, user6, dev_app):
     assert b"Authorize App" in response.data
 
 
-@pytest.mark.now
 def test_app_authorization_post1(flask_client, user6, dev_app):
     """callback_url and code and state passed into redirect."""
     response = flask_client.post(

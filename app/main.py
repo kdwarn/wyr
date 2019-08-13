@@ -73,10 +73,27 @@ def index():
     return render_template("index.html")
 
 
+@bp.route("/<id>/")
+@login_required
+def permalink(id):
+    """Return one document."""
+
+    # set var for returning to proper page
+    session["return_to"] = url_for("main.permalink", id=id)
+
+    try:
+        doc = current_user.documents.filter(Documents.id == id).one()
+    except NoResultFound:
+        flash("That document was not found in your collection.")
+        return redirect(url_for("main.index"))
+    else:
+        return render_template("permalink.html", doc=doc)
+
+
 @bp.route("/read")
 @login_required
 def read():
-    """ Return all read items."""
+    """Return all read items."""
 
     # set var for returning to proper page
     session["return_to"] = url_for("main.read")
@@ -1281,24 +1298,25 @@ def paypal():
 
 # from the user's perspective
 
+
 @bp.route("/revoke", methods=["GET", "POST"])
 @login_required
 def revoke():
-    '''Revoke app authorization.'''
-    if request.method == 'GET':
-        app_id = request.args.get('app_id')
+    """Revoke app authorization."""
+    if request.method == "GET":
+        app_id = request.args.get("app_id")
         app = Client.query.filter_by(client_id=app_id).one()
-        return render_template('revoke_app.html', app=app)
+        return render_template("revoke_app.html", app=app)
 
-    app_id = request.form['app_id']
-    app_name = request.form['app_name']
+    app_id = request.form["app_id"]
+    app_name = request.form["app_name"]
     confirm = request.form["revoke"]
 
     if confirm == "Yes":
         app = current_user.apps.filter_by(client_id=app_id).one()
         current_user.apps.remove(app)
         db.session.commit()
-        message = f'Authorization for {app_name} has been revoked.'
+        message = f"Authorization for {app_name} has been revoked."
     else:
         message = "Revoke authorization cancelled."
 
