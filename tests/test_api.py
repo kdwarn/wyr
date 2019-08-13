@@ -223,6 +223,7 @@ def test_check_token_returns_error3(flask_client, user8):
     assert response.status_code == 403 and json_data["error"] == 20
 
 
+@pytest.mark.xfail
 def test_check_token_returns_error4(flask_client):
     """
     Check that manipulated/incomplete token returns error resulting from DecodeError exception.
