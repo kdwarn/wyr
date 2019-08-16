@@ -126,13 +126,13 @@ def token_required(f):
         try:
             auth_type, token = auth_header.split(" ", maxsplit=1)
         except ValueError:
-            return (jsonify({"message": error_codes["41"], "error": 41}), 401)
+            return jsonify({"message": error_codes["41"], "error": 41}), 401
 
         if auth_type != "Bearer":
-            return (jsonify({"message": error_codes["42"], "error": 42}), 401)
+            return jsonify({"message": error_codes["42"], "error": 42}), 401
 
         if not token:
-            return (jsonify({"message": error_codes["43"], "error": 43}), 401)
+            return jsonify({"message": error_codes["43"], "error": 43}), 401
 
         # get the username from the token, to then get user's salt, to verify signature below
         try:

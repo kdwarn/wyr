@@ -1,16 +1,16 @@
 """
-    TODO:
-        - add tests for editing client info
-        - test that cookies/sessions/csrf tokens are not sent in responses (shouldn't be)
-            - postman and ngrok should help determine this.
-            - could also test the response values
-        - check that wyr.py is properly including register_client() and authorize() in CSRF
-            protection (excluded these endpoints in the skipping of api blueprint)
-            - try postman for this.
-                -works for Authorize.
-            - after that, see if I can add the CSRF from in wyr.py to the test app and make tests
-                for this. It would basically just ensure that that the endpoint function doesn't
-                change.
+TODO:
+    - test remainder of missing expressions
+    - test that cookies/sessions/csrf tokens are not sent in responses (shouldn't be)
+        - postman and ngrok should help determine this.
+        - could also test the response values
+    - check that wyr.py is properly including register_client() and authorize() in CSRF
+        protection (excluded these endpoints in the skipping of api blueprint)
+        - try postman for this.
+            -works for Authorize.
+        - after that, see if I can add the CSRF from in wyr.py to the test app and make tests
+            for this. It would basically just ensure that that the endpoint function doesn't
+            change.
 """
 
 import datetime
@@ -139,6 +139,88 @@ def test_create_client_sucessful4(flask_client, developer1, dev_app):
     assert b"Tester App 1" in response.data and b"Tester App Ad Hoc" in response.data
 
 
+def test_edit_client_form_error1(flask_client, developer1, dev_app):
+    """Return error if `client does not exist."""
+    response = flask_client.get(
+        "/api/clients",
+        query_string={"client_id": "notacllient", "edit": "1"},
+        follow_redirects=True,
+    )
+
+    assert b"No client with that client_id found." in response.data
+
+
+def test_edit_client_form_sucessful(flask_client, developer1, dev_app):
+    """Edit form is displayed."""
+    response = flask_client.get(
+        "/api/clients",
+        query_string={"client_id": dev_app.client_id, "edit": "1"},
+        follow_redirects=True,
+    )
+
+    assert b"Edit your app's info below:" in response.data
+
+
+def test_edit_client_successful1(flask_client, developer1, dev_app):
+    """Editing client details works."""
+    response = flask_client.post(
+        "/api/clients",
+        data=dict(
+            submit="edit",
+            name="Edited WYR App",
+            description="edited description",
+            callback_url="https://www.whatyouvread.com/callback_url",
+            home_url="https://example.com",
+            client_id=dev_app.client_id,
+        ),
+        follow_redirects=True,
+    )
+
+    assert b"App edited" in response.data
+
+
+def test_edit_client_successful2(flask_client, developer1, dev_app):
+    """Editing client details works."""
+    flask_client.post(
+        "/api/clients",
+        data=dict(
+            submit="edit",
+            name="Edited WYR App",
+            description="edited description",
+            callback_url="https://www.whatyouvread.com/callback_url",
+            home_url="https://example.com",
+            client_id=dev_app.client_id,
+        ),
+        follow_redirects=True,
+    )
+    result = models.Client.query.filter_by(client_id=dev_app.client_id).one()
+
+    assert (
+        result.name == "Edited WYR App"
+        and result.description == "edited description"
+        and result.callback_url == "https://www.whatyouvread.com/callback_url"
+        and result.home_url == "https://example.com"
+    )
+
+
+def test_edit_client_error1(flask_client, developer1, dev_app):
+    """Return error message if client_id doesn't exist/not user's app."""
+    response = flask_client.post(
+        "/api/clients",
+        data=dict(
+            submit="edit",
+            name="Edited WYR App",
+            description="edited description",
+            callback_url="https://www.whatyouvread.com/callback_url",
+            home_url="https://example.com",
+            client_id="notuserapp",
+        ),
+        follow_redirects=True,
+    )
+
+    assert b"No client with that client_id found." in response.data
+
+
 ####################
 # CREATING TOKENS #
 ####################
@@ -171,7 +253,7 @@ def test_decode_token_raises_ex_with_bad_salt(user6, dev_app):
 
 
 def test_check_token1(flask_client, user8, dev_app):
-    """ If valid token supplied, client receives message that the token works."""
+    """Return success message to user if valid token supplied."""
     access_token = api.create_token(user8, dev_app.client_id)
     response = flask_client.get(
         "/api/check_token",
@@ -183,8 +265,8 @@ def test_check_token1(flask_client, user8, dev_app):
     assert response.status_code == 200 and json_data["message"] == "Success! The token works."
 
 
-def test_check_token_returns_error1(flask_client):
-    """ If token not provided in call to check_token(), error provided to client. """
+def test_token_required_returns_error1(flask_client):
+    """Return error if token not provided."""
     response = flask_client.get(
         "/api/check_token", headers={"authorization": "Bearer "}, follow_redirects=True
     )
@@ -193,7 +275,26 @@ def test_check_token_returns_error1(flask_client):
     assert response.status_code == 401 and json_data["error"] == 43
 
 
-def test_check_token_returns_error2(flask_client):
+def test_token_required_returns_error2(flask_client):
+    """Return error if authorization header not included."""
+    response = flask_client.get("api/check_token", follow_redirects=True)
+    json_data = response.get_json()
+
+    assert response.status_code == 401 and json_data["error"] == 40
+
+
+def test_token_required_returns_error3(flask_client, user8, dev_app):
+    """Return error if authorization header not set to Bearer."""
+    access_token = api.create_token(user8, dev_app.client_id)
+    response = flask_client.get(
+        "api/check_token", headers={"authorization": "Basic " + access_token}, follow_redirects=True
+    )
+    json_data = response.get_json()
+
+    assert response.status_code == 401 and json_data["error"] == 42
+
+
+def test_token_required_returns_error4(flask_client):
     """
     @token_required should return error if authorization header not properly formatted.
     """
@@ -207,12 +308,35 @@ def test_check_token_returns_error2(flask_client):
     assert response.status_code == 401 and json_data["error"] == 41
 
 
-def test_check_token_returns_error3(flask_client, user8):
-    """
-    @token_required returns error if the user has not authorized the app or has revoked
-    authorization.
-    """
-    access_token = api.create_token(user8, "123")
+def test_token_required_returns_error5(flask_client, user8):
+    """Return error if token is not JWT."""
+    response = flask_client.get(
+        "/api/check_token",
+        headers={"authorization": "Bearer " + "eyadkfajs.df"},
+        follow_redirects=True,
+    )
+    json_data = response.get_json()
+
+    assert response.status_code == 401 and json_data["error"] == 44
+
+
+def test_token_required_returns_error6(flask_client, dev_app):
+    """Return error if no user with username in token found."""
+    user = models.User("notauser", "password1", "salt1", "notauser@whatyouveread.com")
+    access_token = api.create_token(user, dev_app.client_id)
+    response = flask_client.get(
+        "/api/check_token",
+        headers={"authorization": "Bearer " + access_token},
+        follow_redirects=True,
+    )
+    json_data = response.get_json()
+
+    assert response.status_code == 404 and json_data["error"] == 1
+
+
+def test_token_required_returns_error7(flask_client, user7, dev_app):
+    """Return error if user has not authorized the app or revoked authorization."""
+    access_token = api.create_token(user7, dev_app.client_id)
     response = flask_client.get(
         "/api/check_token",
         headers={"authorization": "Bearer " + access_token},
@@ -223,12 +347,33 @@ def test_check_token_returns_error3(flask_client, user8):
     assert response.status_code == 403 and json_data["error"] == 20
 
 
-@pytest.mark.xfail
-def test_check_token_returns_error4(flask_client):
-    """
-    Check that manipulated/incomplete token returns error resulting from DecodeError exception.
-    """
-    assert False
+def test_token_required_returns_error8(flask_client, user8, dev_app):
+    """Return error if signature is invalid."""
+    access_token = jwt.encode(
+        {"client_id": dev_app.client_id, "username": user8.username}, "badsalt"
+    ).decode("utf-8")
+    response = flask_client.get(
+        "/api/check_token",
+        headers={"authorization": "Bearer " + access_token},
+        follow_redirects=True,
+    )
+    json_data = response.get_json()
+
+    assert response.status_code == 401 and json_data["error"] == 45
+
+
+def test_token_required_returns_error9(flask_client, user8, dev_app):
+    """Return error if token is expired."""
+    expiration = datetime.datetime.utcnow() + datetime.timedelta(seconds=-2)
+    access_token = api.create_token(user8, dev_app.client_id, expiration)
+    response = flask_client.get(
+        "/api/check_token",
+        headers={"authorization": "Bearer " + access_token},
+        follow_redirects=True,
+    )
+    json_data = response.get_json()
+
+    assert response.status_code == 401 and json_data["error"] == 46
 
 
 ##################################################
@@ -237,7 +382,7 @@ def test_check_token_returns_error4(flask_client):
 
 
 def test_app_authorization_get1(flask_client, user1):
-    """ User is redirected to login page if they are not logged in."""
+    """User is redirected to login page if they are not logged in."""
     response = flask_client.get(
         "/api/authorize",
         query_string={"client_id": "1", "response_type": "not_code"},
