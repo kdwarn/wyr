@@ -4,13 +4,6 @@ TODO:
     - test that cookies/sessions/csrf tokens are not sent in responses (shouldn't be)
         - postman and ngrok should help determine this.
         - could also test the response values
-    - check that wyr.py is properly including register_client() and authorize() in CSRF
-        protection (excluded these endpoints in the skipping of api blueprint)
-        - try postman for this.
-            -works for Authorize.
-        - after that, see if I can add the CSRF from in wyr.py to the test app and make tests
-            for this. It would basically just ensure that that the endpoint function doesn't
-            change.
 """
 
 import datetime
