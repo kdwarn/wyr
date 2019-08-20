@@ -28,15 +28,16 @@ def https_redirect():
 @wyr_app.before_request
 def csrf_protect():
 
-    # don't add csrf protection for API calls, except authorizing and registering a client
+    # don't check csrf protection for API calls, except authorizing and registering a client
+    # also clear session
     if request.blueprint == "api" and request.endpoint not in ["api.authorize", "api.clients"]:
+        session.clear()
         return
 
     if request.method == "POST":
         token = session.pop("_csrf_token", None)
         if not token or "{}".format(token) != request.form.get("_csrf_token"):
             return redirect(url_for("main.index"))
-
 
 wyr_app.jinja_env.globals["csrf_token"] = generate_csrf_token
 
