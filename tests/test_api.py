@@ -1,11 +1,3 @@
-"""
-TODO:
-    - test remainder of missing expressions
-    - test that cookies/sessions/csrf tokens are not sent in responses (shouldn't be)
-        - postman and ngrok should help determine this.
-        - could also test the response values
-"""
-
 import datetime
 from urllib.parse import urlparse, parse_qs
 
@@ -434,6 +426,26 @@ def test_app_authorization_post1(flask_client, user6, dev_app):
     )
 
 
+def test_app_authorization_post2(flask_client, user6, dev_app):
+    """Return user to main page if authorization cancelled."""
+    response = flask_client.post(
+        "/api/authorize",
+        data=dict(submit="No", client_id=dev_app.client_id, state="xyz"),
+        follow_redirects=True,
+    )
+
+    assert b"Authorization not granted to app." in response.data
+
+
+def test_app_authorization_post3(flask_client, user6):
+    """Return user to main page if authorization cancelled."""
+    response = flask_client.post(
+        "/api/authorize", data=dict(submit="Yes", client_id="notvalidid"), follow_redirects=True
+    )
+
+    assert b"No third-party app found matching request." in response.data
+
+
 #################
 # ACCESS TOKENS #
 #################
@@ -526,20 +538,38 @@ def test_get_access_token_error5(flask_client, user6, dev_app):
     assert response.status_code == 401 and json_data["error"] == 26
 
 
+def test_get_access_token_error6(flask_client, dev_app):
+    """Return error if no user with username in token found."""
+    user = models.User("notauser", "password1", "salt1", "notauser@whatyouveread.com")
+    code = api.create_token(user, dev_app.client_id)
+    response = flask_client.post(
+        "/api/token",
+        data=dict(client_id=dev_app.client_id, grant_type="authorization_code", code=code),
+        follow_redirects=True,
+    )
+    json_data = response.get_json()
+
+    assert response.status_code == 404 and json_data["error"] == 1
+
+
+def test_get_access_token_error7(flask_client, user8, dev_app):
+    """Return error if invalid signature."""
+    code = jwt.encode(
+        {"client_id": dev_app.client_id, "username": user8.username}, "badsalt"
+    ).decode("utf-8")
+    response = flask_client.post(
+        "/api/token",
+        data=dict(client_id=dev_app.client_id, grant_type="authorization_code", code=code),
+        follow_redirects=True,
+    )
+    json_data = response.get_json()
+
+    assert response.status_code == 401 and json_data["error"] == 21
+
+
 #######################
 # PROTECTED RESOURCES #
 #######################
-# @pytest.mark.now
-# def test_auth_header_in_get_document(flask_client, user8, dev_app):
-
-#     access_token = api.create_token(user8, dev_app.client_id)
-#     response = flask_client.get("/api/documents/1",
-#                                 headers={'authorization': 'Bearer ' + access_token})
-
-#     json_data = response.get_json()
-
-#     print(json_data)
-#     assert False
 
 
 def test_document_get1(flask_client, user8, dev_app):
@@ -556,15 +586,12 @@ def test_document_get1(flask_client, user8, dev_app):
         and json_data["link"] == "http://whatyouveread.com/1"
         and json_data["year"] == "2018"
         and json_data["created"] == str(datetime.datetime.utcnow().date())
-        and json_data["authors"][0]["first_name"] == "Joe"
-        and json_data["authors"][0]["last_name"] == "Smith"
-        and json_data["authors"][0]["id"] == 1
-        and json_data["authors"][1]["first_name"] == "Jane"
-        and json_data["authors"][1]["last_name"] == "Smith"
-        and json_data["authors"][1]["id"] == 2
+        and {"first_name": "Jane", "id": 2, "last_name": "Smith"} in json_data["authors"]
+        and {"first_name": "Joe", "id": 1, "last_name": "Smith"} in json_data["authors"]
         and "tag0" in json_data["tags"]
         and "tag1" in json_data["tags"]
         and json_data["notes"] == "This is a note."
+        and json_data["source_id"] == 3
     )
 
 
@@ -849,6 +876,18 @@ def test_documents_post1(flask_client, user8, dev_app):
         and len(docs) == 5
         and docs[4].title == "new doc title"
     )
+
+
+def test_documents_post2(flask_client, user8, dev_app):
+    """documents POST returns url of new doc in header."""
+    access_token = api.create_token(user8, dev_app.client_id)
+    response = flask_client.post(
+        "/api/documents",
+        headers={"authorization": "Bearer " + access_token},
+        json={"title": "new doc title"},
+    )
+
+    assert response.headers["Location"] == "https://www.whatyouveread.com/5"
 
 
 def test_documents_post_error1(flask_client, user8, dev_app):

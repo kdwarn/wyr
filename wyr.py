@@ -29,7 +29,7 @@ def https_redirect():
 def csrf_protect():
 
     # don't check csrf protection for API calls, except authorizing and registering a client
-    # also clear session
+    # also clear session so cookie is not returned to client
     if request.blueprint == "api" and request.endpoint not in ["api.authorize", "api.clients"]:
         session.clear()
         return
@@ -38,6 +38,7 @@ def csrf_protect():
         token = session.pop("_csrf_token", None)
         if not token or "{}".format(token) != request.form.get("_csrf_token"):
             return redirect(url_for("main.index"))
+
 
 wyr_app.jinja_env.globals["csrf_token"] = generate_csrf_token
 

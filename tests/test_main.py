@@ -84,7 +84,6 @@ def test_index2(flask_client, user1):
 # permalink
 
 
-@pytest.mark.now
 def test_permalink_works(flask_client, user4):
     """permalink() returns the proper document"""
     response = flask_client.get("/1/", follow_redirects=True)
@@ -92,7 +91,6 @@ def test_permalink_works(flask_client, user4):
     assert b"First user doc" in response.data
 
 
-@pytest.mark.now
 def test_permalink_returns_error1(flask_client, user4):
     """permalink() will give error message if no user doc with that id"""
     response = flask_client.get("/5/", follow_redirects=True)
@@ -100,7 +98,6 @@ def test_permalink_returns_error1(flask_client, user4):
     assert b"That document was not found in your collection." in response.data
 
 
-@pytest.mark.now
 def test_permalink_returns_error2(flask_client, user5, user4):
     """permalink() will give error message if no user doc with that id"""
     response = flask_client.get("/1/", follow_redirects=True)

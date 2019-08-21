@@ -1,9 +1,3 @@
-"""
-TODO:
-    - create client and user_clients table in db
-    - consider creating a salt for each client/user combo
-"""
-
 from flask_login import UserMixin
 
 from app import db, login
@@ -123,7 +117,7 @@ class Sources(db.Model):
     Source of documents. Can be:
         1 - Mendeley
         2 - Goodreads
-        3 - Native
+        3 - Native/API
     """
 
     id = db.Column(db.Integer, primary_key=True)
@@ -193,6 +187,7 @@ class Documents(db.Model):
     def serialize(self):
         return {
             "id": self.id,
+            "source_id": self.source_id,
             "title": self.title,
             "link": self.link,
             "created": str(self.created.date()),

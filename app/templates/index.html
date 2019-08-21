@@ -3,17 +3,15 @@
 {% block content %}
 <div id="main">
     <div>
-        <p>Welcome!</p>
-        <p>I built What You've Read to help <span class="struck">me</span>
-        you keep track of the books, articles, blog posts, and other things <span
-        class="struck">I</span> you've read and saved in various
-        places across the internet.</p>
-        <p>In addition to gathering scholarly articles
-        from Mendeley and books from Goodreads,
-        it can also import your browser bookmarks and be used as a reference manager/bookmarking site itself.
-        It will display all of the things you've read from the places you choose
-        in one simplified, chronological collection - a reading journal - which you can search
-        or sort by tags and authors.</p>
+        <h1>What You've Read</h1>
+        <p>Welcome! What You've Read is a service that allows you to store links to and basic 
+           metadata on articles, blog posts, books, reference items, webpages, podcasts, movies, 
+           and any other sort of content that can be read, listened to, or watched. A bookmarklet 
+           dragged to a browser toolbar makes it easy to save webpages to WYR, and WYR can import 
+           bookmarks as well as the data for documents in Mendeley and books on Goodreads, creating
+           a space where all of these items can be viewed at once and filtered by tags, authors, 
+           and read status.</p>
+        
         <p>It's free and there are no ads. See screenshots <a href="{{ url_for('main.screenshots') }}">here</a>.
         Contact me <a href="{{ url_for('main.contact') }}">here</a>. See Github,
         including development plans,

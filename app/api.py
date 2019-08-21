@@ -1,18 +1,3 @@
-"""
-TODO:
-    - doc.serialize should return source_id so users editing/deleting can be disabled, will need to
-        be added to specification
-    - after adding item, also return ref link in response
-        https://www.vinaysahni.com/best-practices-for-a-pragmatic-restful-api#useful-post-responses
-        https://stackoverflow.com/questions/11159449/rest-response-should-i-put-the-url-of-the-new-resource-in-the-header-body-or
-        https://stackoverflow.com/questions/49054408/restful-post-response
-
-        I'm going to have to add the doc.id to common.add_item return
-    - paginate results for documents()
-    - add endpoints for viewing user's tags, authors, and bunches
-    - add endpoint for settings and preferences
-"""
-
 from collections import namedtuple
 import datetime
 from functools import wraps
@@ -74,12 +59,11 @@ error_codes = {
 }
 
 
-def get_doc_content(id, content):
+def get_doc_content(content):
     """
     Return the doc fields from request (not auth-related fields).
     """
     return {
-        "id": id,
         "title": content.get("title"),
         "link": content.get("link"),
         "tags": content.get("tags"),
@@ -406,7 +390,7 @@ def document(user, id):
     returns *user* to this function.
     """
     if not id:
-        return (jsonify({"message": error_codes["61"], "error": 61}), 400)
+        return jsonify({"message": error_codes["61"], "error": 61}), 400
 
     try:
         doc = user.documents.filter(Documents.id == id).one()
@@ -419,7 +403,8 @@ def document(user, id):
 
     # edit a document
     if request.method == "PUT":
-        doc_content = get_doc_content(id, request.get_json())
+        doc_content = get_doc_content(request.get_json())
+        doc_content["id"] = id
 
         try:
             common.edit_item(doc_content, user, source="api")
@@ -457,23 +442,22 @@ def documents(user, tag="", author_id="", bunch="", read_status=""):
     # add a document
     if request.method == "POST":
         if not request.is_json:
-            return (jsonify({"message": error_codes["60"], "error": 60}), 400)
+            return jsonify({"message": error_codes["60"], "error": 60}), 400
 
-        doc_content = get_doc_content(id, request.get_json())
+        doc_content = get_doc_content(request.get_json())
 
         try:
-            # doc_id = common.add_item(doc_content, user, source="api")
-            common.add_item(doc_content, user, source="api")
+            doc_id = common.add_item(doc_content, user, source="api")
         except ex.NoTitleException as e:
             return jsonify({"message": str(e.message), "error": e.error}), e.http_status
         except ex.DuplicateLinkException as e:
             return jsonify({"message": str(e.message), "error": e.error}), e.http_status
         else:
-            # response = jsonify({"message": "Item added."})
-            # response.headers["Location"] = "https://www.whatyouvread.com/" + doc_id
-            # return response, 201
+            response = jsonify({"message": "Item added."})
+            response.headers["Location"] = "https://www.whatyouveread.com/" + str(doc_id)
+            return response, 201
 
-            return jsonify({"message": "Item added."}), 201
+            # return jsonify({"message": "Item added."}), 201
 
     # get all documents
     if request.method == "GET":

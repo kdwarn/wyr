@@ -281,7 +281,7 @@ def add_item(content, user, source=""):
 
     db.session.commit()
 
-    return
+    return doc.id
 
 
 def edit_item(content, user, source=""):
