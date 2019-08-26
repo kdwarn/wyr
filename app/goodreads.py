@@ -189,7 +189,7 @@ def get_books_from_shelf(auth_object, shelf, update_type):
                         review.find("date_updated").text, "%a %b %d %H:%M:%S %z %Y"
                     )
 
-                    # convert from localtime to UTC, remove timezone
+                    # convert from localtime to UTC
                     date_updated = date_updated.astimezone(pytz.utc).replace(tzinfo=None)
 
                     if date_updated < current_user.goodreads_update:
@@ -241,7 +241,8 @@ def get_books_from_shelf(auth_object, shelf, update_type):
 
         flash(f"Books on your Goodreads {shelf} shelf have been updated.")
 
-    current_user.goodreads_update = datetime.datetime.now(pytz.utc)
+    # current_user.goodreads_update = datetime.datetime.now(pytz.utc)
+    current_user.goodreads_update = datetime.datetime.utcnow()
     db.session.commit()
 
     return
@@ -270,9 +271,8 @@ def get_book_details(review, shelf):
         created = datetime.datetime.strptime(
             review.find("date_added").text, "%a %b %d %H:%M:%S %z %Y"
         )
-
-    # convert from localtime to to UTC, remove timezone
-    content["created"] = created.astimezone(pytz.utc).replace(tzinfo=None)
+    # convert from localtime to to UTC
+    content["created"] = created.astimezone(pytz.utc)
 
     if review.find("body").text is not None:
         content["notes"] = review.find("body").text
@@ -290,7 +290,7 @@ def get_book_details(review, shelf):
     if review.find("book/authors/author/name") is not None:
         authors = []
         for name in review.findall("book/authors/author/name"):
-            author = format_author(name)
+            author = format_author(name.text)
             authors.append(author)
         content["authors"] = authors
 

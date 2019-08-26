@@ -4,19 +4,15 @@
 <div id="main">
     <div>
         <h1>What You've Read</h1>
-        <p>Welcome! What You've Read is a service that allows you to store links to and basic 
-           metadata on articles, blog posts, books, reference items, webpages, podcasts, movies, 
-           and any other sort of content that can be read, listened to, or watched. A bookmarklet 
-           dragged to a browser toolbar makes it easy to save webpages to WYR, and WYR can import 
+        <p>Welcome! What You've Read is a service that allows you to store links to and basic
+           metadata on articles, blog posts, books, reference items, webpages, podcasts, movies,
+           and any other sort of content that can be read, listened to, or watched. A bookmarklet
+           dragged to a browser toolbar makes it easy to save webpages to WYR, and WYR can import
            bookmarks as well as the data for documents in Mendeley and books on Goodreads, creating
-           a space where all of these items can be viewed at once and filtered by tags, authors, 
+           a space where all of these items can be viewed at once and filtered by tags, authors,
            and read status.</p>
-        
-        <p>It's free and there are no ads. See screenshots <a href="{{ url_for('main.screenshots') }}">here</a>.
-        Contact me <a href="{{ url_for('main.contact') }}">here</a>. See Github,
-        including development plans,
-        <a href="https://github.com/kdwarn/wyr" target="_blank">here</a>.
 
+        <p>It's free and there are no ads. See screenshots <a href="{{ url_for('main.screenshots') }}">here</a>.</p>
 
     </div>
     <div class="block-center box">
@@ -48,8 +44,10 @@
         <button type="submit">Sign Up</button>
         </form>
     </div>
-    <p></p>
-
+    <br>
+    <p class="center small"><a href="{{ url_for('main.contact') }}">Contact</a> |
+        <a href="https://github.com/kdwarn/wyr">Github</a> |
+        <a href="https://www.whatyouveread.com/api/documentation">API Documentation</a></p>
 
     <script type="text/javascript">
     document.forms['login'].elements['wyr_username'].focus();

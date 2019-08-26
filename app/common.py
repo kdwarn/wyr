@@ -243,6 +243,7 @@ def add_item(content, user, source=""):
     authors = content.get("authors")
     year = content.get("year")
     notes = content.get("notes")
+    created = content.get("created")
 
     if content.get("read") in [0, "0", 1, "1"]:
         read = int(content.get("read"))
@@ -262,7 +263,8 @@ def add_item(content, user, source=""):
         if doc:
             raise ex.DuplicateLinkException(doc.id)
 
-    created = datetime.datetime.utcnow()
+    if not created:
+        created = datetime.datetime.utcnow()
 
     doc = Documents(
         user.id, source_id, title, link=link, year=year, notes=notes, read=read, created=created
@@ -304,6 +306,7 @@ def edit_item(content, user, source=""):
     year = content.get("year")
     notes = content.get("notes")
     native_doc_id = content.get("native_doc_id")  # id from external sources
+    created = content.get("created")
 
     if content.get("read") in [0, "0", 1, "1"]:
         read = int(content.get("read"))
@@ -343,12 +346,17 @@ def edit_item(content, user, source=""):
         doc_to_edit.notes = notes
         doc_to_edit.native_doc_id = native_doc_id
 
-        # if changed from to-read to read, updated created, delete last_modified
-        if doc_to_edit.read == 0 and read == 1:
-            doc_to_edit.created = datetime.datetime.utcnow()
-            doc_to_edit.last_modified = ""
+        # for Goodreads and Mendely
+        if source_id != 3:
+            if created:
+                doc_to_edit.created = created
         else:
-            doc_to_edit.last_modified = datetime.datetime.utcnow()
+            # if changed from to-read to read, updated created, delete last_modified
+            if doc_to_edit.read == 0 and read == 1:
+                doc_to_edit.created = datetime.datetime.utcnow()
+                doc_to_edit.last_modified = ""
+            else:
+                doc_to_edit.last_modified = datetime.datetime.utcnow()
 
         doc_to_edit.read = read
 

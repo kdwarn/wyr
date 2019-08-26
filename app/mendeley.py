@@ -321,7 +321,7 @@ def save_doc(m_doc, auth_object, existing_doc=""):
 
         # update tags
         if tags:
-            doc = common.add_or_update_tags(current_user, tags, doc)
+            common.add_or_update_tags(current_user, tags, doc)
 
         # authors
         try:
