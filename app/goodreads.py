@@ -5,6 +5,7 @@ from xml.etree import ElementTree
 
 from flask import Blueprint, request, redirect, url_for, flash, session, current_app
 from flask_login import login_required, current_user
+from nameparser import HumanName
 from requests_oauthlib import OAuth1Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -25,15 +26,12 @@ def format_author(author):
         Output: dictionary
     """
 
-    author = author.split(" ", maxsplit=1)
+    name = HumanName(author)
 
-    if author[0].strip():
-        try:
-            author_dict = {"last_name": author[1].strip(), "first_name": author[0].strip()}
-        except IndexError:  # only one name
-            author_dict = {"last_name": author[0].strip(), "first_name": ""}
-
-    return author_dict
+    return {
+        "last_name": name.last,
+        "first_name": name.first + " " + name.middle + " " + name.suffix
+    }
 
 
 @goodreads_bp.route("/goodreads")
