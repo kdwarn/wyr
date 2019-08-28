@@ -214,7 +214,7 @@ def clients():
 
             if not current_app.testing:
                 common.send_simple_message(
-                    "whatyouveread@protonmail.com",
+                    "info@whatyouveread.com",
                     "New client created",
                     f"User {current_user.username} created a client named {name}.",
                 )

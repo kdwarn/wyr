@@ -1110,7 +1110,7 @@ def contact():
             flash("You didn't add any comments.")
             return render_template("contact.html")
 
-        to = "whatyouveread@gmail.com"
+        to = "info@whatyouveread.com"
         subject = "Submitted comments on WYR"
         text = f"{name} ({email}) submitted these comments:<br>{comments}"
 
