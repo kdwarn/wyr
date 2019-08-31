@@ -20,6 +20,9 @@
                     <a href="{{ url_for('main.docs_by_tag', tag=tag.name, read_status="all") }}">{{ tag.name }}</a><br>
                 {% endfor %}
             {% endfor %}
+        {% else %}
+            <div class="center">You don't have any tags yet. Your list of tags
+            will appear here once you have added tags to items.</div>
         {% endif %}
     </div>
 </div>

@@ -59,9 +59,9 @@
                 {% for tag in doc.tags|sort(attribute='name') %}
                     <span class="tags">
                     {% if tag != doc.tags|sort(attribute='name')|last %}
-                        <a href="{{ url_for('main.docs_by_tag', tag=tag.name, read_status=read_status) }}">{{ tag.name }}</a>,
+                        <a href="{{ url_for('main.docs_by_tag', tag=tag.name, read_status="all") }}">{{ tag.name }}</a>,
                     {% else %}
-                        <a href="{{ url_for('main.docs_by_tag', tag=tag.name, read_status=read_status)  }}">{{ tag.name }}</a>
+                        <a href="{{ url_for('main.docs_by_tag', tag=tag.name, read_status="all")  }}">{{ tag.name }}</a>
                     {% endif %}
                     </span>
                 {% endfor %}

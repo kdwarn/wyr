@@ -11,14 +11,6 @@ from .models import Tags, Authors, Documents, Bunches, SourceToken, document_tag
 from . import exceptions as ex
 
 
-def return_to_previous():
-    """ redirect user back to last page prior to edit or delete (or cancel) """
-
-    if "return_to" in session:
-        return redirect(session["return_to"])
-    return redirect(url_for("main.index"))
-
-
 def get_docs(user, read_status="", tag="", author_id="", bunch=""):
     """ Get user documents filtered in various ways."""
 

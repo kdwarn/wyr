@@ -151,9 +151,9 @@ def test_tags2(flask_client, user1):
 
 
 def test_tags3(flask_client, user7):
-    """tags() returns user to main page if they have no tags."""
+    """tags() informs user if they have no tags."""
     response = flask_client.get("/tags", follow_redirects=True)
-    assert b"You do not have any tags yet." in response.data
+    assert b"You don't have any tags yet." in response.data
 
 
 def test_tags4(flask_client, user6):
@@ -213,13 +213,13 @@ def test_docs_by_tag6(flask_client, user0):
 def test_docs_by_tag7(flask_client, user7):
     """docs_by_tag() displays appropriate error message to user."""
     response = flask_client.get("/all/tag/tag0", follow_redirects=True)
-    assert b"Sorry, you have no documents with that tag." in response.data
+    assert b"You don't have any items." in response.data
 
 
 def test_docs_by_tag8(flask_client, user7):
     """docs_by_tag() displays appropriate error message to user."""
     response = flask_client.get("/read/tag/tag0", follow_redirects=True)
-    assert b"Sorry, you have no read documents with that tag." in response.data
+    assert b"You don't have any read items." in response.data
 
 
 # authors
@@ -228,7 +228,7 @@ def test_docs_by_tag8(flask_client, user7):
 def test_docs_by_tag9(flask_client, user7):
     """docs_by_tag() displays appropriate error message to user."""
     response = flask_client.get("/to-read/tag/tag0", follow_redirects=True)
-    assert b"Sorry, you have no to-read documents with that tag." in response.data
+    assert b"You don't have any to-read items." in response.data
 
 
 def test_authors1(flask_client, user4):
@@ -244,9 +244,9 @@ def test_authors2(flask_client, user1):
 
 
 def test_authors3(flask_client, user7):
-    """authors() returns user to main page if they have no authors."""
+    """authors() informs user if they have no authors."""
     response = flask_client.get("/authors", follow_redirects=True)
-    assert b"You do not have any authors yet." in response.data
+    assert b"You don't have any authors yet." in response.data
 
 
 def test_docs_by_author1(flask_client, user4):
@@ -303,19 +303,19 @@ def test_docs_by_author6(flask_client, user0):
 def test_docs_by_author7(flask_client, user7):
     """docs_by_author() displays appropriate error message to user."""
     response = flask_client.get("/all/author/2", follow_redirects=True)
-    assert b"Sorry, you have no documents by that author." in response.data
+    assert b"Author not found." in response.data
 
 
 def test_docs_by_author8(flask_client, user7):
     """docs_by_author() displays appropriate error message to user."""
     response = flask_client.get("/read/author/2", follow_redirects=True)
-    assert b"Sorry, you have no read documents by that author." in response.data
+    assert b"Author not found." in response.data
 
 
 def test_docs_by_author9(flask_client, user7):
     """docs_by_author() displays appropriate error message to user."""
     response = flask_client.get("/to-read/author/2", follow_redirects=True)
-    assert b"Sorry, you have no to-read documents by that author." in response.data
+    assert b"Author not found." in response.data
 
 
 # bunches - docs by read status and bunch name
@@ -336,13 +336,13 @@ def test_bunch1(flask_client, user4):
 def test_bunch2(flask_client, user6):
     """bunch() shows message if no read docs in bunch."""
     response = flask_client.get("read/bunch/bunch 3", follow_redirects=True)
-    assert b"There are no read documents in the bunch bunch 3" in response.data
+    assert b"You don't have any read items." in response.data
 
 
 def test_bunch3(flask_client, user6):
     """bunch() shows message if no to-read docs in bunch."""
     response = flask_client.get("to-read/bunch/bunch 4", follow_redirects=True)
-    assert b"There are no to-read documents in the bunch bunch 4" in response.data
+    assert b"You don't have any to-read items." in response.data
 
 
 def test_bunch4(flask_client, user6):
@@ -392,7 +392,7 @@ def test_bunches2(flask_client, user7):
     response = flask_client.get("/bunches", follow_redirects=True)
     assert (
         b"Bunches are groups of tags" in response.data
-        and b"You do not yet have any tags to sort into bunches." in response.data
+        and b"You don't have any tags to sort into bunches." in response.data
     )
 
 

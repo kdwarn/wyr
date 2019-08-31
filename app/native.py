@@ -139,7 +139,6 @@ def add():
 @login_required
 def edit():
     if request.method == "GET":
-        # check that doc is one of current_user's
         id = request.args.get("id", "")
 
         try:
@@ -219,8 +218,7 @@ def edit():
             return redirect(url_for("native.edit", id=e.doc_id))
         else:
             flash("Item edited.")
-
-            return common.return_to_previous()
+            return redirect(request.form.get("referrer"))
 
 
 @native_bp.route("/delete", methods=["GET", "POST"])
@@ -248,7 +246,7 @@ def delete():
 
         if delete == "Cancel":
             flash("Item not deleted.")
-            return common.return_to_previous()
+            return redirect(request.form.get("referrer"))
 
         if delete == "Delete":
             try:
@@ -258,7 +256,7 @@ def delete():
                 return redirect(url_for("main.index"))
 
             flash("Item deleted.")
-            return common.return_to_previous()
+            return redirect(request.form.get("referrer"))
 
 
 @native_bp.route("/import", methods=["GET", "POST"])

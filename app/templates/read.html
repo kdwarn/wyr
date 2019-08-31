@@ -29,10 +29,7 @@
 
 {% block content %}
 <div id="main">
-
-    {# filter items by read status #}
     <h1>
-
     {% if read_status == 'all' %}
         all |
     {% else %}
@@ -79,7 +76,6 @@
     {# inform user if filtered by tag, author, bunch, or last month; enable clearing #}
 
     <h2>
-    {# items by one tag #}
     {% if tagpage %}
         &nbsp; tagged {{tagpage}}
         {% if read_status == 'read' %}
@@ -91,8 +87,6 @@
         {% endif %}
     {% endif %}
 
-
-    {# items by bunch #}
     {% if bunch_tag_names %}
         tagged
         {% for tag in bunch_tag_names|sort %}
@@ -120,7 +114,6 @@
         {% endif %}
     {% endif %}
 
-    {# items read last month #}
     {% if last_month %}
         &nbsp; last month <a href="{{url_for('main.read')}}" class="clear_filter">&#10005</a>
     {% endif %}
@@ -153,7 +146,6 @@
         </div>
     {% endif %}
 
-    {# display the docs #}
     <div style="margin-top:1rem">
     {% if current_user.is_authenticated %}
         {% if docs %}
@@ -261,13 +253,13 @@
             {% endfor %}
         {% else %}
             <div class="doc center">
+
             {% if read_status == 'all' %}
-                You don't yet have any items saved. Go to settings to import bookmarks
-                or items from other sources. You can also add items individually.
+                You don't have any items.
             {% elif read_status == 'read' %}
-                You don't yet have any read items.
+                You don't have any read items.
             {% elif read_status == 'to-read' %}
-                You don't yet have any to-read items.
+                You don't have any to-read items.
             {% endif %}
             </div>
         {% endif %}

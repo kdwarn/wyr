@@ -72,6 +72,7 @@
             <form method="POST" action="/delete">
                 <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
                 <input type="hidden" name="id" value=" {{doc.id}}">
+                <input type="hidden" name="referrer" value="{{request.referrer}}">
                 <button type="submit" name="delete" value="Delete">Delete</button>&nbsp;
                 <button type="submit" name="delete" value="Cancel">Cancel</button>
             </form>

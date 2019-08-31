@@ -115,7 +115,7 @@
                 <input type="hidden" name="from_bookmarklet" value="1">
             {% endif %}
             <input type="hidden" name="id" value="{{doc.id}}">
-            <input type="hidden" name="old_authors" value="{{authors}}">
+            <input type="hidden" name="referrer" value="{{request.referrer}}">
 
             <label class="sr-only" for="title">Title (Required)</label>
             <input class="login_form" type="text" size="40" id="title" name="title"

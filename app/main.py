@@ -48,8 +48,6 @@ def index():
     """
 
     if current_user.is_authenticated:
-        # set var for returning to proper page
-        session["return_to"] = url_for("main.index")
 
         one_week_ago = datetime.datetime.now() - datetime.timedelta(days=7)
 
@@ -77,10 +75,6 @@ def index():
 @login_required
 def permalink(id):
     """Return one document."""
-
-    # set var for returning to proper page
-    session["return_to"] = url_for("main.permalink", id=id)
-
     try:
         doc = current_user.documents.filter(Documents.id == id).one()
     except NoResultFound:
@@ -94,10 +88,6 @@ def permalink(id):
 @login_required
 def read():
     """Return all read items."""
-
-    # set var for returning to proper page
-    session["return_to"] = url_for("main.read")
-
     docs = common.get_docs(current_user, read_status="read")
 
     return render_template("read.html", docs=docs, read_status="read")
@@ -107,10 +97,6 @@ def read():
 @login_required
 def to_read():
     """ Return all unread items."""
-
-    # set var for returning to proper page
-    session["return_to"] = url_for("main.to_read")
-
     docs = common.get_docs(current_user, read_status="to-read")
 
     return render_template("read.html", docs=docs, read_status="to-read")
@@ -124,9 +110,6 @@ def tags():
 
     if not tags:
         grouped_tags = ""
-        flash(
-            "You do not have any tags yet. Your list of tags will appear here once you have added tags to documents."
-        )
     else:
         # group tags by their first letter, to enable jumping down page
         grouped_tags = OrderedDict()
@@ -152,20 +135,7 @@ def tags():
 @login_required
 def docs_by_tag(read_status, tag):
     """Return all user's documents tagged <tag>."""
-
     docs = common.get_docs(current_user, read_status=read_status, tag=tag)
-
-    if not docs:
-        if read_status == "read":
-            flash("Sorry, you have no read documents with that tag.")
-        elif read_status == "to-read":
-            flash("Sorry, you have no to-read documents with that tag.")
-        else:
-            flash("Sorry, you have no documents with that tag.")
-        return common.return_to_previous()
-
-    # set var for returning to proper page
-    session["return_to"] = url_for("main.docs_by_tag", tag=tag, read_status=read_status)
 
     # tagpage is used for header
     return render_template("read.html", docs=docs, tagpage=tag, read_status=read_status)
@@ -183,30 +153,20 @@ def bunch(read_status, name):
         docs = common.get_docs(current_user, read_status=read_status, bunch=name)
     except ex.NoBunchException:
         flash(f"No bunch named {name} found.")
-        return common.return_to_previous()
-    else:
-        if not docs:
-            if read_status == "all":
-                flash(f"There are no documents in the bunch {name}.")
-            else:
-                flash(f"There are no {read_status} documents in the bunch {name}.")
-            return common.return_to_previous()
+        return redirect(url_for("main.index"))
 
-        # set var for returning to proper page
-        session["return_to"] = url_for("main.bunch", read_status=read_status, name=name)
+    user_bunch = Bunches.query.filter(
+        Bunches.user_id == current_user.id, Bunches.name == name
+    ).one()
 
-        user_bunch = Bunches.query.filter(
-            Bunches.user_id == current_user.id, Bunches.name == name
-        ).one()
-
-        return render_template(
-            "read.html",
-            docs=docs,
-            bunch_tag_names=[tag.name for tag in user_bunch.tags],
-            bunch_name=name,
-            read_status=read_status,
-            selector=user_bunch.selector,
-        )
+    return render_template(
+        "read.html",
+        docs=docs,
+        bunch_tag_names=[tag.name for tag in user_bunch.tags],
+        bunch_name=name,
+        read_status=read_status,
+        selector=user_bunch.selector,
+    )
 
 
 @bp.route("/bunches", methods=["GET", "POST"])
@@ -223,12 +183,8 @@ def bunches():
         if not tags:
             tags = ""
             bunches = ""
-            flash("You do not yet have any tags to sort into bunches.")
         else:
             bunches = Bunches.query.filter(Bunches.user_id == current_user.id).all()
-
-            # set var for returning to proper page
-            session["return_to"] = url_for("main.bunches")
 
         return render_template("bunches.html", tags=tags, bunches=bunches)
 
@@ -405,9 +361,6 @@ def authors():
 
     if not authors:
         grouped_authors = ""
-        flash(
-            "You do not have any authors yet. Your list of authors will appear here once you have added authors to documents."
-        )
     else:
         # group authors by first letter of last name, to enable jumping down page
         grouped_authors = OrderedDict()
@@ -436,42 +389,28 @@ def docs_by_author(read_status, author_id):
 
     docs = common.get_docs(current_user, read_status=read_status, author_id=author_id)
 
-    if not docs:
-        if read_status == "read":
-            flash("Sorry, you have no read documents by that author.")
-        elif read_status == "to-read":
-            flash("Sorry, you have no to-read documents by that author.")
-        else:
-            flash("Sorry, you have no documents by that author.")
-        return common.return_to_previous()
-
-    else:
-        # set var for returning to proper page
-        session["return_to"] = url_for(
-            "main.docs_by_author", author_id=author_id, read_status=read_status
-        )
-
+    try:
         author = Authors.query.filter_by(id=author_id).one()
+    except NoResultFound:
+        flash("Author not found.")
+        return redirect(url_for("main.index"))
 
-        # authorpage, first_name, last_name used for header
-        return render_template(
-            "read.html",
-            docs=docs,
-            authorpage=1,
-            author=author,
-            first_name=author.first_name,
-            last_name=author.last_name,
-            read_status=read_status,
-        )
+    # authorpage, first_name, last_name used for header
+    return render_template(
+        "read.html",
+        docs=docs,
+        authorpage=1,
+        author=author,
+        first_name=author.first_name,
+        last_name=author.last_name,
+        read_status=read_status,
+    )
 
 
 @bp.route("/lastmonth")
 @login_required
 def last_month():
     """Return all read items from last month, in chronological order."""
-
-    # set var for returning to proper page after edit or delete native doc
-    session["return_to"] = url_for("main.last_month")
 
     one_month_ago = datetime.datetime.today() - datetime.timedelta(days=31)
 
@@ -484,10 +423,6 @@ def last_month():
         .order_by(Documents.created)
         .all()
     )
-
-    if not docs:
-        flash("You have no read items in the last month.")
-        return common.return_to_previous()
 
     return render_template("read.html", docs=docs, read_status="read", last_month=1)
 
