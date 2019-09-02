@@ -13,7 +13,7 @@
                 box next to them. If you have bookmarks in nested folders, only the
                 most immediate folder that the bookmark is in will be used as a tag.</p>
                 <form method="POST" name="import" action="{{ url_for('native.import_bookmarks') }}">
-                    <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+                    <input type="hidden" name=_csrf_token value="{{ csrf_token() }}">
                     {% for each in folders %}
                         <input type="checkbox" name="folder" value="{{each}}" checked>{{each}}<br>
                     {% endfor %}

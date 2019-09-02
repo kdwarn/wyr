@@ -30,7 +30,7 @@ def format_author(author):
 
     return {
         "last_name": name.last,
-        "first_name": name.first + " " + name.middle + " " + name.suffix
+        "first_name": name.first + " " + name.middle + " " + name.suffix,
     }
 
 

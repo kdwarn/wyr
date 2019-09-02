@@ -2,7 +2,7 @@ from collections import namedtuple
 import datetime
 
 from bs4 import BeautifulSoup
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, session, url_for, flash
 from flask_login import login_required, current_user
 from sqlalchemy.orm.exc import NoResultFound
 from app import db
@@ -263,78 +263,78 @@ def delete():
 @login_required
 def import_bookmarks():
     """Import bookmarks from HTML file."""
+    if request.method == "GET":
+        return render_template("import.html")
 
-    if request.method == "POST":
-        # get folders so user can select which ones to import
-        if "step1" in request.form:
+    if "step1" in request.form:
 
-            if request.form["step1"] == "Cancel":
-                flash("Bookmarks import cancelled.")
-                return redirect(url_for("main.settings"))
+        if request.form["step1"] == "Cancel":
+            flash("Bookmarks import cancelled.")
+            return redirect(url_for("main.settings"))
 
-            # get file and return user to form if none selected
-            file = request.files["bookmarks"]
+        file = request.files["bookmarks"]
 
-            if not file:
-                flash("No file was selected. Please choose a file.")
-                return render_template("import.html")
+        if not file:
+            flash("No file was selected. Please choose a file.")
+            return render_template("import.html")
 
-            # get file extension and return user to form if not .html
-            file_extension = file.filename.rsplit(".", 1)[1]
-            if file_extension != "html":
-                flash("Sorry, that doesn't look like a .html file.")
-                return render_template("import.html")
+        file_extension = file.filename.rsplit(".", 1)[1]
+        if file_extension != "html":
+            flash("Sorry, that doesn't look like a .html file.")
+            return render_template("import.html")
 
-            # put soupped file into a global variable accessed by username,
-            # so we can work with it after step 2 (and so it's uniquely named)
-            global soup
-            soup = dict()
-            soup[current_user.username] = BeautifulSoup(file, "html.parser")
-            folders = []
-            for each in soup[current_user.username].find_all("h3"):
-                folders.append(each.string)
+        soup = BeautifulSoup(file, "html.parser")
 
-            # return user to import to choose which folders to pull links from
-            return render_template("import.html", step2="yes", folders=folders)
+        folders = []
+        for each in soup.find_all("h3"):
+            folders.append(each.string)
 
-        # import bookmarks and their most immediate folder into db
-        if "step2" in request.form:
+        bookmarks = []
+        for each in soup.find_all("a"):
+            if each.string:
+                # get the dl (list within the folder) above the link
+                parent_dl = each.find_parent("dl")
+                # get the dt (folder) above that
+                grandparent_dt = parent_dl.find_parent("dt")
+                if grandparent_dt:
+                    # get the h3 (folder name) below the grandparent dt
+                    h3 = grandparent_dt.find_next("h3")
+                    if h3:
+                        bookmark = {
+                            "folder": h3.string,
+                            "title": each.string,
+                            "link": each["href"],
+                            "tags": [h3.string.replace(",", " ")],
+                            "created": each["add_date"],
+                        }
+                        bookmarks.append(bookmark)
 
-            if request.form["step2"] == "Cancel":
-                flash("Bookmarks import cancelled.")
-                return redirect(url_for("main.settings"))
+        session["bookmarks"] = bookmarks
+        return render_template("import.html", step2="yes", folders=folders)
 
-            # put checked folders into list
-            folders = request.form.getlist("folder")
+    if "step2" in request.form:
 
-            for each in soup[current_user.username].find_all("a"):
-                if each.string != None:
-                    # get the dl above the link
-                    parent_dl = each.find_parent("dl")
-                    # get the dt above that
-                    grandparent_dt = parent_dl.find_parent("dt")
-                    if grandparent_dt != None:
-                        # get the h3 below the grandparent dt
-                        h3 = grandparent_dt.find_next("h3")
-                        # check that there is a folder and that it's in user-reviewed list
-                        if h3 != None:
-                            if h3.string in folders:
-                                # replace commas with spaces in folders before inserting into db
-                                h3.string = h3.string.replace(",", "")
-                                new_doc = Documents(3, each.string)
-                                current_user.documents.append(new_doc)
-                                new_doc.link = each["href"]
-                                new_doc.read = 1
-                                # convert add_date (seconds from epoch format) to datetime
-                                new_doc.created = datetime.datetime.fromtimestamp(
-                                    int(each["add_date"])
-                                )
-                                db.session.add(new_doc)
-                                db.session.commit()
-                                common.add_tags_to_doc(current_user, [h3.string], new_doc)
-                                db.session.commit()
+        if request.form["step2"] == "Cancel":
+            flash("Bookmarks import cancelled.")
+            return redirect(url_for("main.settings"))
 
-            flash("Bookmarks successfully imported.")
-            return redirect(url_for("main.index"))
+        folders = request.form.getlist("folder")
 
-    return render_template("import.html")
+        for bookmark in session["bookmarks"]:
+            if bookmark["folder"] in folders:
+                new_doc = Documents(
+                    current_user.id,
+                    3,
+                    bookmark["title"],
+                    link=bookmark["link"],
+                    created=datetime.datetime.fromtimestamp(int(bookmark["created"])),
+                    read=1,
+                )
+                current_user.documents.append(new_doc)
+                db.session.commit()
+                common.add_or_update_tags(current_user, bookmark["tags"], new_doc)
+                db.session.commit()
+
+        session.pop("bookmarks")
+        flash("Bookmarks successfully imported.")
+        return redirect(url_for("main.index"))
