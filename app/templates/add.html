@@ -41,7 +41,6 @@
         <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
 
         {# script for autocomplete of tags #}
-        {# script for autocomplete of tags #}
         <script>
         $(function() {
             var availableTags = {{ all_tags|tojson }};
@@ -75,7 +74,7 @@
         <script>
         $(function() {
             var availableAuthors = {{ all_authors|tojson }};
-            function split( val ) { return val.split( /,\s*/ );}
+            function split( val ) { return val.split( /;\s*/ );}
             function extractLast( term ) { return split( term ).pop();}
             $( "#authors" )
             .bind( "keydown", function( event ) {
@@ -119,7 +118,7 @@
 
             <label class="sr-only" for="title">Title (Required)</label>
             <input class="login_form" type="text" size="40" id="title" name="title"
-                value="{{doc.title}}" placeholder="Title (REQUIRED)"><br>
+                value="{{doc.title}}" placeholder="Title (REQUIRED)" required><br>
 
             <label class="sr-only" for="link">Link</label>
             <input class="login_form" type="text" size="40" id="link" name="link"
