@@ -1,0 +1,19 @@
+
+{% extends 'header.html' %}
+{% block title %} - Remove {{ name }} {% endblock %}
+{% block content %}
+<div id="main">
+    <div class="block-center">
+        <h2>Remove</h2>
+        <p class="left">Are you sure you want to remove {{ name }}? This will remove all items
+        from What You've Read related to this source.</p>
+        <form method="POST" action="{{url_for('main.remove')}}">
+            <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+            <input type="hidden" name="name" value="{{ name }}">
+            <button type="submit" name="remove" value="Yes">Yes</button>&nbsp;
+            <button type="submit" name="remove" value="No">No</button>
+        </form>
+    </div>
+    <p></p>
+</div>
+{% endblock %}

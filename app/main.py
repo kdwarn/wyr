@@ -438,25 +438,25 @@ def verify_authorization(source):
     return render_template("verify_and_store.html", source=source)
 
 
-@bp.route("/deauthorize", methods=["GET", "POST"])
+@bp.route("/remove", methods=["GET", "POST"])
 @login_required
-def deauthorize():
-    """ Deauthorize a source and remove all docs from user's WYR account. """
+def remove():
+    """ Remove a source and all its docs from user's WYR account. """
     if request.method == "POST":
 
         source = request.form["name"]
-        confirm = request.form["deauthorize"]
+        confirm = request.form["remove"]
 
         if confirm == "Yes":
-            common.force_deauthorize(source)
-            message = "{} has been deauthorized.".format(source)
+            common.force_remove(source)
+            message = "{} has been removed.".format(source)
         else:
             message = "Deauthorization cancelled."
 
         flash(message)
         return redirect(url_for("main.settings"))
 
-    return render_template("deauthorize.html", name=request.args.get("name"))
+    return render_template("remove.html", name=request.args.get("name"))
 
 
 @bp.route("/refresh")

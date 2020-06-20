@@ -71,8 +71,8 @@
         <h2>External Sources</h2>
         <p>Mendeley |
         {% if current_user.mendeley == 1 %}
-            Authorized &#10003; &nbsp;
-            <a href="{{ url_for('main.deauthorize', name='Mendeley') }}">Deauthorize</a> |
+            Connected &#10003; &nbsp;
+            <a href="{{ url_for('main.remove', name='Mendeley') }}">Remove</a> |
             <a href="{{ url_for('main.refresh', name='Mendeley') }}">Refresh</a>
         {% else %}
             <a href="{{ url_for('mendeley.mendeley_login') }}">Authorize</a>
@@ -80,8 +80,8 @@
         </p>
         <p>Goodreads |
         {% if current_user.goodreads == 1 %}
-            Authorized &#10003; &nbsp;
-            <a href="{{ url_for('main.deauthorize', name='Goodreads') }}">Deauthorize</a> |
+            Connected &#10003; &nbsp;
+            <a href="{{ url_for('main.remove', name='Goodreads') }}">Remove</a> |
             <a href="{{ url_for('main.refresh', name='Goodreads') }}">Refresh</a>
         {% else %}
             <a href="{{ url_for('goodreads.goodreads_login') }}">Authorize</a>

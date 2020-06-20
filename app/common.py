@@ -409,14 +409,14 @@ def remove_to_read(source):
         flash("Any unread books from Goodreads have been removed.")
 
 
-def force_deauthorize(source):
+def force_remove(source):
     """
-    Manually deauthorize - or force deauthorization if source tokens are corrupted - and
+    Manually remove a source - or force removal if source tokens are corrupted - and
     delete all documents associated with that source.
     """
 
     if source not in ["Mendeley", "Goodreads"]:
-        flash("Cannot deauthorize unknown source.")
+        flash("Cannot remove unknown source.")
         return
 
     if source == "Mendeley":

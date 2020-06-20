@@ -223,7 +223,7 @@ def get_docs(auth_object, type=""):
     except InvalidGrantError:
         # Something has gone wrong with authorization. Use RequestRedirect
         # to directly return from this function.
-        common.force_deauthorize("Mendeley")
+        common.force_remove("Mendeley")
         flash("There was an error with your Mendeley account. Please re-authorize it.")
         raise RequestRedirect(url_for("main.settings"))
 
