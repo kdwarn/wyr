@@ -1,6 +1,6 @@
 import datetime
 
-from flask import flash, current_app, session, redirect, url_for
+from flask import flash, current_app
 from flask_login import current_user
 import requests
 from sqlalchemy import desc
@@ -104,8 +104,6 @@ def add_or_update_tags(user, tags, doc):
             else:
                 doc.tags.append(existing_tag)
 
-    return
-
 
 def delete_orphaned_tags():
     """Delete all orphaned tags for all users."""
@@ -198,8 +196,6 @@ def add_or_update_authors(user, submitted_authors, doc):
                 doc.authors.append(new_author)
             else:
                 doc.authors.append(existing_author)
-
-    return
 
 
 def delete_orphaned_authors():
@@ -372,8 +368,6 @@ def edit_item(content, user, source=""):
         delete_orphaned_authors()
         db.session.commit()
 
-    return
-
 
 def delete_item(id, user, source=""):
     """Delete document."""
@@ -392,8 +386,6 @@ def delete_item(id, user, source=""):
         delete_orphaned_tags()
         delete_orphaned_authors()
         db.session.commit()
-
-    return
 
 
 ################
@@ -415,8 +407,6 @@ def remove_to_read(source):
         flash("Any unread items from Mendeley have been removed.")
     if source == 2:
         flash("Any unread books from Goodreads have been removed.")
-
-    return
 
 
 def force_deauthorize(source):

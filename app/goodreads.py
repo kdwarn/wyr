@@ -1,11 +1,11 @@
 import datetime
 import math
-import pytz
 from xml.etree import ElementTree
 
 from flask import Blueprint, request, redirect, url_for, flash, session, current_app
 from flask_login import login_required, current_user
 from nameparser import HumanName
+import pytz
 from requests_oauthlib import OAuth1Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -98,9 +98,8 @@ def goodreads_authorize():
         flash("Authorization successful.")
         return redirect(url_for("main.verify_authorization", source="Goodreads"))
 
-    else:
-        flash("Authorization failed.")
-        return redirect(url_for("main.settings"))
+    flash("Authorization failed.")
+    return redirect(url_for("main.settings"))
 
 
 def import_goodreads(update_type):
@@ -124,8 +123,6 @@ def import_goodreads(update_type):
     # get books in the 'to-read' shelf if user wants them
     if current_user.include_g_unread == 1:
         get_books_from_shelf(auth_object, "to-read", update_type)
-
-    return
 
 
 def get_books_from_shelf(auth_object, shelf, update_type):
@@ -243,8 +240,6 @@ def get_books_from_shelf(auth_object, shelf, update_type):
     current_user.goodreads_update = datetime.datetime.utcnow()
     db.session.commit()
 
-    return
-
 
 def get_book_details(review, shelf):
     """
@@ -308,5 +303,3 @@ def delete_books(book_ids, shelf):
                 common.delete_item(book.id, current_user)
             except ex.NotUserDocException:
                 pass
-
-    return
