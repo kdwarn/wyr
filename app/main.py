@@ -5,17 +5,7 @@ import datetime
 import secrets
 import string
 
-from flask import (
-    Blueprint,
-    render_template,
-    request,
-    session,
-    redirect,
-    url_for,
-    abort,
-    flash,
-    current_app,
-)
+from flask import Blueprint, render_template, request, redirect, url_for, abort, flash, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, URLSafeSerializer
 from passlib.context import CryptContext
@@ -177,18 +167,7 @@ def bunches():
     Include link to save the bunch, which takes place through bunch_save().
     """
 
-    if request.method == "GET":
-        tags = common.get_user_tags(current_user)
-
-        if not tags:
-            tags = ""
-            bunches = ""
-        else:
-            bunches = Bunches.query.filter(Bunches.user_id == current_user.id).all()
-
-        return render_template("bunches.html", tags=tags, bunches=bunches)
-
-    elif request.method == "POST":
+    if request.method == "POST":
         selector = request.form["selector"]  # "and" or "or"
         bunch_tags = request.form.getlist("bunch_tags")  # these are ids of chosen tags
 
@@ -229,6 +208,16 @@ def bunches():
             selector=selector,
         )
 
+    tags = common.get_user_tags(current_user)
+
+    if not tags:
+        tags = ""
+        bunches = ""
+    else:
+        bunches = Bunches.query.filter(Bunches.user_id == current_user.id).all()
+
+    return render_template("bunches.html", tags=tags, bunches=bunches)
+
 
 @bp.route("/bunch/save", methods=["GET", "POST"])
 @login_required
@@ -259,17 +248,7 @@ def bunch_save():
 def bunch_edit():
     """Edit a bunch."""
 
-    # show page to edit bunch name, selector, and tags
-    if request.method == "GET":
-        bunch_name = request.args.get("name", "")
-        bunch = Bunches.query.filter(
-            Bunches.user_id == current_user.id, Bunches.name == bunch_name
-        ).one()
-        tags = common.get_user_tags(current_user)
-        return render_template("bunch_edit.html", bunch=bunch, tags=tags)
-
-    # process
-    else:
+    if request.method == "POST":
         if request.form["submit"] == "cancel":
             flash("Edit canceled.")
             return redirect(url_for("main.bunches"))
@@ -297,7 +276,7 @@ def bunch_edit():
                 Bunches.query.filter(
                     Bunches.user_id == current_user.id, Bunches.name == new_bunch_name
                 ).first()
-                != None
+                is not None
             ):
                 flash(f"You already have a bunch named {new_bunch_name}.")
                 return redirect(url_for("main.bunch_edit", name=bunch.name))
@@ -325,17 +304,20 @@ def bunch_edit():
         flash("Bunch edited.")
         return redirect(url_for("main.bunches"))  # TODO: or maybe this should go to bunch/<name>?
 
+    bunch_name = request.args.get("name", "")
+    bunch = Bunches.query.filter(
+        Bunches.user_id == current_user.id, Bunches.name == bunch_name
+    ).one()
+    tags = common.get_user_tags(current_user)
+    return render_template("bunch_edit.html", bunch=bunch, tags=tags)
+
 
 @bp.route("/bunch/delete", methods=["GET", "POST"])
 @login_required
 def bunch_delete():
     """Delete a bunch."""
 
-    if request.method == "GET":
-        name = request.args.get("name", "")
-        bunch_name = request.args.get("bunch_name")
-        return render_template("bunch_delete.html", bunch_name=name)
-    else:
+    if request.method == "POST":
         if request.form["submit"] == "cancel":
             flash("Deletion canceled.")
             return redirect(url_for("main.bunches"))
@@ -351,6 +333,10 @@ def bunch_delete():
 
         flash("Bunch deleted.")
         return redirect(url_for("main.bunches"))
+
+    name = request.args.get("name", "")
+    bunch_name = request.args.get("bunch_name")
+    return render_template("bunch_delete.html", bunch_name=name)
 
 
 @bp.route("/authors")
@@ -431,13 +417,12 @@ def last_month():
 # COMMON SOURCE ROUTES #
 ########################
 
-# verification from authorizing a source, storing of initial data
+
 @bp.route("/authorized/<source>", methods=["GET", "POST"])
 @login_required
 def verify_authorization(source):
-    if request.method == "GET":
-        return render_template("verify_and_store.html", source=source)
-    elif request.method == "POST":
+    """Verification from authorizing a source, storing of initial data."""
+    if request.method == "POST":
         if source == "Mendeley":
             current_user.include_m_unread = request.form["include_m_unread"]
             db.session.commit()
@@ -450,17 +435,14 @@ def verify_authorization(source):
 
         return redirect(url_for("main.index"))
 
-    else:
-        return redirect(url_for("main.index"))
+    return render_template("verify_and_store.html", source=source)
 
 
 @bp.route("/deauthorize", methods=["GET", "POST"])
 @login_required
 def deauthorize():
     """ Deauthorize a source and remove all docs from user's WYR account. """
-    if request.method == "GET":
-        return render_template("deauthorize.html", name=request.args.get("name"))
-    elif request.method == "POST":
+    if request.method == "POST":
 
         source = request.form["name"]
         confirm = request.form["deauthorize"]
@@ -473,8 +455,8 @@ def deauthorize():
 
         flash(message)
         return redirect(url_for("main.settings"))
-    else:
-        return redirect(url_for("main.index"))
+
+    return render_template("deauthorize.html", name=request.args.get("name"))
 
 
 @bp.route("/refresh")
@@ -497,7 +479,7 @@ def refresh():
             if current_user.goodreads_update:
                 goodreads.import_goodreads("normal")
             else:
-                goodreads.import_mendeley("initial")
+                goodreads.import_goodreads("initial")
             return render_template("settings.html")
 
 
@@ -514,19 +496,14 @@ def show_user_profile(username):
     if username != current_user.username:
         flash("Sorry, you cannot view that page.")
         return redirect(url_for("main.index"))
-    else:
-        return "Hello {}".format(username)
+    return "Hello {}".format(username)
 
 
 @bp.route("/sign_up", methods=["GET", "POST"])
 def sign_up():
-    """ Sign up page.
-    Display form for new user to fill out, validate it, and create new user account.
-    """
+    """Display form for new user to fill out; validate it and create new user account."""
 
-    if request.method == "GET":
-        return render_template("index.html")
-    elif request.method == "POST":
+    if request.method == "POST":
         username = request.form["wyr_username"]
         email = request.form["email"]
 
@@ -557,8 +534,8 @@ def sign_up():
 
         flash("Please check your email to activate your account.")
         return redirect(url_for("main.index"))
-    else:
-        abort(405)
+
+    return render_template("index.html")
 
 
 @bp.route("/activate", methods=["GET", "POST"])
@@ -619,13 +596,11 @@ def activate():
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     """ Let users log in. """
-    if request.method == "GET":
-        return render_template("index.html", next=request.args.get("next"))
-    else:
+    if request.method == "POST":
         username = request.form["wyr_username"]
         password = request.form["wyr_password"]
         remember = request.form.getlist("remember")
-        next = request.form["next"]
+        next_page = request.form["next"]
 
         try:
             user = User.query.filter_by(username=username).one()
@@ -645,10 +620,12 @@ def login():
                 # raise ex.IncorrectPasswordException
                 flash("Sorry, the password is incorrect.")
 
-            if next:
-                return redirect("https://www.whatyouveread.com" + next)
+            if next_page:
+                return redirect("https://www.whatyouveread.com" + next_page)
 
         return redirect(url_for("main.index"))
+
+    return render_template("index.html", next_page=request.args.get("next"))
 
 
 @bp.route("/logout")
@@ -663,12 +640,7 @@ def logout():
 @login_required
 def settings():
     """ Settings page. """
-    if request.method == "GET":
-        apps = current_user.apps.all()
-        clients = Client.query.filter_by(user_id=current_user.id).all()
-
-        return render_template("settings.html", apps=apps, clients=clients)
-    elif request.method == "POST":
+    if request.method == "POST":
         current_user.auto_close = request.form["auto_close"]
         current_user.markdown = request.form["markdown"]
         current_user.include_m_unread = request.form.get("include_m_unread", "")
@@ -699,8 +671,10 @@ def settings():
 
         flash("Your preferences have been updated.")
         return redirect(url_for("main.settings"))
-    else:
-        return redirect(url_for("main.index"))
+    apps = current_user.apps.all()
+    clients = Client.query.filter_by(user_id=current_user.id).all()
+
+    return render_template("settings.html", apps=apps, clients=clients)
 
 
 @bp.route("/change_password", methods=["GET", "POST"])
@@ -708,9 +682,7 @@ def settings():
 def change_password():
     """ Let users change password """
 
-    if request.method == "GET":
-        return render_template("change_password.html")
-    elif request.method == "POST":
+    if request.method == "POST":
         if request.form["submit"] == "Cancel":
             flash("Password change cancelled.")
             return redirect(url_for("main.settings"))
@@ -724,58 +696,45 @@ def change_password():
             if len(new_password) < 5:
                 flash("Password is too short. Please try again.")
                 return redirect(url_for("main.change_password"))
-            elif new_password != confirm_password:
+            if new_password != confirm_password:
                 flash("The confirmation password did not match the new password you entered.")
                 return redirect(url_for("main.change_password"))
-            else:
-                myctx = CryptContext(schemes=["pbkdf2_sha256"])
-                hash = myctx.hash(new_password)
-                current_user.password = hash
-                db.session.commit()
 
-                # send user email to confirm, allow reset of password
-                # hash for confirm change
-                serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
-                email_hash = serializer.dumps([current_user.email], salt="reset_password")
+            myctx = CryptContext(schemes=["pbkdf2_sha256"])
+            hash = myctx.hash(new_password)
+            current_user.password = hash
+            db.session.commit()
 
-                to = current_user.email
-                subject = "Password Change"
-                text = """The password for your What You've Read account has been
-                changed. If this was not you, someone has access to your account. You should
-                <a href="http://www.whatyouveread.com/reset_password?code={}">reset your
-                password</a> immediately.<br>
-                <br>
-                -Kris @ What You've Read""".format(
-                    email_hash
-                )
+            # send user email to confirm, allow reset of password hash for confirm change
+            serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
+            email_hash = serializer.dumps([current_user.email], salt="reset_password")
 
-                common.send_simple_message(to, subject, text)
+            to = current_user.email
+            subject = "Password Change"
+            text = """The password for your What You've Read account has been
+            changed. If this was not you, someone has access to your account. You should
+            <a href="http://www.whatyouveread.com/reset_password?code={}">reset your
+            password</a> immediately.<br>
+            <br>
+            -Kris @ What You've Read""".format(
+                email_hash
+            )
 
-                flash("Your password has been updated.")
-                return redirect(url_for("main.settings"))
-        else:
-            flash("Password is incorrect.")
-            return redirect(url_for("main.change_password"))
-    else:
-        return abort(405)
+            common.send_simple_message(to, subject, text)
+
+            flash("Your password has been updated.")
+            return redirect(url_for("main.settings"))
+        flash("Password is incorrect.")
+        return redirect(url_for("main.change_password"))
+    return render_template("change_password.html")
 
 
 @bp.route("/forgot_password", methods=["GET", "POST"])
 def forgot_password():
-    """ Display form to send email link to reset password; display form to
-    reset password if user clicked on confirmation link. """
-    if request.method == "GET":
+    """Display form to send email link to reset password; display form to reset password if user
+    clicked on confirmation link."""
 
-        # display form to enter email to initiate reset process
-        if not request.args.get("reset"):
-            return render_template("forgot_password.html")
-
-        # otherwise, user has already clicked on confirmation link
-        hash = request.args.get("reset")
-
-        return render_template("reset_password.html", hash=hash)
-
-    elif request.method == "POST":
+    if request.method == "POST":
         if request.form["send_email"] == "Cancel":
             return redirect(url_for("main.index"))
 
@@ -805,8 +764,15 @@ def forgot_password():
         else:
             flash("No account with that email exists.")
             return redirect(url_for("main.index"))
-    else:
-        return abort(405)
+
+    # display form to enter email to initiate reset process
+    if not request.args.get("reset"):
+        return render_template("forgot_password.html")
+
+    # otherwise, user has already clicked on confirmation link
+    hash = request.args.get("reset")
+
+    return render_template("reset_password.html", hash=hash)
 
 
 @bp.route("/reset_password", methods=["GET", "POST"])
@@ -815,17 +781,8 @@ def reset_password():
     hash: variable emailed in link to user to confirm resetting
     """
 
-    # user has clicked on reset password link in an email sent to them about
-    # changing their email address
-    if request.method == "GET":
-        if request.args.get("code"):
-            return render_template(
-                "reset_password.html", hash=request.args.get("code"), untimed="true"
-            )
-        return redirect(url_for("main.index"))
-
     # process the password reset request
-    elif request.method == "POST":
+    if request.method == "POST":
         if request.form["submit"] == "cancel":
             flash("Password reset canceled.")
             return redirect(url_for("main.index"))
@@ -869,95 +826,28 @@ def reset_password():
             if len(password) < 5:
                 flash("Password is too short. Please try again.")
                 return render_template("reset_password.html", hash=hash, untimed=untimed)
-            elif password != confirm_password:
+            if password != confirm_password:
                 flash("The confirmation password did not match the new password you entered.")
                 return render_template("reset_password.html", hash=hash, untimed=untimed)
-            else:
-                myctx = CryptContext(schemes=["pbkdf2_sha256"])
-                hashed_password = myctx.hash(password)
-                user.password = hashed_password
-                db.session.commit()
-                flash("Your password has been updated. Please use it to login.")
-                return redirect(url_for("main.login"))
 
-    else:
-        return abort(405)
+            myctx = CryptContext(schemes=["pbkdf2_sha256"])
+            hashed_password = myctx.hash(password)
+            user.password = hashed_password
+            db.session.commit()
+            flash("Your password has been updated. Please use it to login.")
+            return redirect(url_for("main.login"))
+
+    if request.args.get("code"):
+        return render_template("reset_password.html", hash=request.args.get("code"), untimed="true")
+    return redirect(url_for("main.index"))
 
 
 @bp.route("/change_email", methods=["GET", "POST"])
 @login_required
 def change_email():
     """ Change user email """
-    # change email or display form to enter new email or send confirmation
-    if request.method == "GET":
 
-        # if this is coming from link sent to current email address, send another
-        # to new email address
-        if request.args.get("code"):
-            hash = request.args.get("code")
-            serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
-            try:
-                decoded = serializer.loads(hash, salt="change_email", max_age=3600)
-            except:
-                flash(
-                    """Error confirming your credentials. Please try again later or contact
-                us if this problem continues to exist."""
-                )
-                return redirect(url_for("main.settings"))
-
-            # if for some reason some other logged in user clicks the link
-            if decoded[0] != current_user.username:
-                flash("Username does not match. Email not changed.")
-                redirect(url_for("main.index"))
-
-            serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
-            email_hash = serializer.dumps([current_user.username, decoded[1]], salt="change_email")
-
-            to = decoded[1]
-            subject = "Email address change"
-            text = """What You've Read has received a request to change your email
-            address to this one. If this was you, please follow
-            <a href="http://www.whatyouveread.com/change_email?confirm={}">
-            this link</a> to confirm.""".format(
-                email_hash
-            )
-
-            common.send_simple_message(to, subject, text)
-
-            flash(
-                """Please check your email at your new email address and
-            follow the link provided to confirm it."""
-            )
-            return redirect(url_for("main.settings"))
-
-        # if this is coming from the link sent to confirm the change, change it
-        if request.args.get("confirm"):
-            hash = request.args.get("confirm")
-            serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
-            try:
-                decoded = serializer.loads(hash, salt="change_email", max_age=3600)
-            except:
-                flash(
-                    """Error confirming your credentials. Please try again later or contact
-                us if this problem continues to exist."""
-                )
-                return redirect(url_for("main.settings"))
-
-            # if for some reason some other logged in user clicks the link
-            if decoded[0] != current_user.username:
-                flash("Username does not match. Email not changed.")
-                redirect(url_for("main.index"))
-
-            current_user.email = decoded[1]
-            db.session.commit()
-            flash("Your email has been changed.")
-            return redirect(url_for("main.settings"))
-
-        # else, display the original form to request the email change
-        return render_template("change_email.html")
-
-    # send email to current email address to confirm the change
-    elif request.method == "POST":
+    if request.method == "POST":
         if request.form["submit"] == "Cancel":
             flash("Email change cancelled.")
             return redirect(url_for("main.settings"))
@@ -988,8 +878,6 @@ def change_email():
             serializer2 = URLSafeSerializer(current_app.config["SECRET_KEY"])
             email_hash2 = serializer2.dumps([current_user.email], salt="reset_password")
 
-            to = current_user.email
-            subject = "Email address change"
             text = """What You've Read has received a request to change your email
             address to {}. If this was you, please follow
             <a href="http://www.whatyouveread.com/change_email?code={}">
@@ -1001,7 +889,7 @@ def change_email():
                 new_email, email_hash, email_hash2
             )
 
-            common.send_simple_message(to, subject, text)
+            common.send_simple_message(current_user.email, "Email address change", text)
 
             flash(
                 """Please check your email at your current email address
@@ -1009,11 +897,70 @@ def change_email():
             )
             return redirect(url_for("main.settings"))
 
-        else:
-            flash("Password is incorrect.")
-            return redirect(url_for("main.change_email"))
-    else:
-        return abort(405)
+        flash("Password is incorrect.")
+        return redirect(url_for("main.change_email"))
+
+    # if this is coming from link sent to current email address, send another to new email address
+    if request.args.get("code"):
+        hash = request.args.get("code")
+        serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+        try:
+            decoded = serializer.loads(hash, salt="change_email", max_age=3600)
+        except:
+            flash(
+                """Error confirming your credentials. Please try again later or contact
+            us if this problem continues to exist."""
+            )
+            return redirect(url_for("main.settings"))
+
+        # if for some reason some other logged in user clicks the link
+        if decoded[0] != current_user.username:
+            flash("Username does not match. Email not changed.")
+            redirect(url_for("main.index"))
+
+        serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+        email_hash = serializer.dumps([current_user.username, decoded[1]], salt="change_email")
+
+        text = """What You've Read has received a request to change your email
+        address to this one. If this was you, please follow
+        <a href="http://www.whatyouveread.com/change_email?confirm={}">
+        this link</a> to confirm.""".format(
+            email_hash
+        )
+
+        common.send_simple_message(decoded[1], "Email address change", text)
+
+        flash(
+            """Please check your email at your new email address and
+        follow the link provided to confirm it."""
+        )
+        return redirect(url_for("main.settings"))
+
+    # if this is coming from the link sent to confirm the change, change it
+    if request.args.get("confirm"):
+        hash = request.args.get("confirm")
+        serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+        try:
+            decoded = serializer.loads(hash, salt="change_email", max_age=3600)
+        except:
+            flash(
+                """Error confirming your credentials. Please try again later or contact
+            us if this problem continues to exist."""
+            )
+            return redirect(url_for("main.settings"))
+
+        # if for some reason some other logged in user clicks the link
+        if decoded[0] != current_user.username:
+            flash("Username does not match. Email not changed.")
+            redirect(url_for("main.index"))
+
+        current_user.email = decoded[1]
+        db.session.commit()
+        flash("Your email has been changed.")
+        return redirect(url_for("main.settings"))
+
+    # else, display the original form to request the email change
+    return render_template("change_email.html")
 
 
 @bp.route("/screenshots")
@@ -1025,9 +972,7 @@ def screenshots():
 @bp.route("/contact", methods=["GET", "POST"])
 def contact():
     """ contact me """
-    if request.method == "GET":
-        return render_template("contact.html")
-    elif request.method == "POST":
+    if request.method == "POST":
         if current_user.is_authenticated:
             name = current_user.username
             email = current_user.email
@@ -1045,24 +990,24 @@ def contact():
             flash("You didn't add any comments.")
             return render_template("contact.html")
 
-        to = "info@whatyouveread.com"
-        subject = "Submitted comments on WYR"
-        text = f"{name} ({email}) submitted these comments:<br>{comments}"
-
-        common.send_simple_message(to, subject, text)
+        common.send_simple_message(
+            "info@whatyouveread.com",
+            "Submitted comments on WYR",
+            f"{name} ({email}) submitted these comments:<br>{comments}",
+        )
 
         flash("Your comments have been sent. Thank you.")
 
-    return redirect(url_for("main.index"))
+        return redirect(url_for("main.index"))
+
+    return render_template("contact.html")
 
 
 @bp.route("/delete_account", methods=["GET", "POST"])
 @login_required
 def delete_account():
     """delete account, after password validation"""
-    if request.method == "GET":
-        return render_template("delete_account.html")
-    elif request.method == "POST":
+    if request.method == "POST":
         confirm = request.form["delete_account"]
         if confirm == "Yes":
             current_password = request.form["wyr_current_password"]
@@ -1078,14 +1023,12 @@ def delete_account():
 
                 flash("Account deleted. Sorry to see you go!")
                 return redirect(url_for("main.index"))
-            else:
-                flash("Password incorrect.")
-                return redirect(url_for("main.settings"))
+            flash("Password incorrect.")
+            return redirect(url_for("main.settings"))
         else:
             flash("Account deletion cancelled.")
             return redirect(url_for("main.settings"))
-    else:
-        return redirect(url_for("main.index"))
+    return render_template("delete_account.html")
 
 
 def get_stripe_info():
@@ -1112,8 +1055,8 @@ def get_stripe_info():
 @bp.route("/donate")
 @login_required
 def donate():
-    stripe_keys = current_app.config["STRIPE_KEYS"]
     """ get user stripe info and send to donate page"""
+    stripe_keys = current_app.config["STRIPE_KEYS"]
     donor, subscription = get_stripe_info()
 
     return render_template(
@@ -1124,12 +1067,8 @@ def donate():
 @bp.route("/cancel_donation", methods=["GET", "POST"])
 @login_required
 def cancel_donation():
-
-    stripe_keys = current_app.config["STRIPE_KEYS"]
-
     """ let user cancel a donation """
-    if request.method == "GET":
-        return render_template("cancel_donation.html")
+    stripe_keys = current_app.config["STRIPE_KEYS"]
 
     if request.method == "POST":
         donor, subscription = get_stripe_info()
@@ -1149,13 +1088,14 @@ def cancel_donation():
             subscription=subscription,
         )
 
+    return render_template("cancel_donation.html")
+
 
 @bp.route("/charge", methods=["GET", "POST"])
 @login_required
 def charge():
-
+    """Charge user's donation to their payment method."""
     stripe_keys = current_app.config["STRIPE_KEYS"]
-    """ charge user's donation to their payment method """
     if request.method == "POST":
 
         # Get the credit card details submitted by the form

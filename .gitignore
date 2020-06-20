@@ -3,5 +3,6 @@ config.py
 __pycache__/
 ve/
 .coverage
+.pylintrc
 htmlcov/
 
